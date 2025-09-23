@@ -1,2 +1,0 @@
-c++DBUG     = -gstabs3 -pg
-c++OPT      = -O2

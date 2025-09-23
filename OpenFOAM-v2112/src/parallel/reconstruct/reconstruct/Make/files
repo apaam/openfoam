@@ -1,6 +1,0 @@
-processorMeshes.C
-fvFieldReconstructor.C
-pointFieldReconstructor.C
-lagrangianReconstructor.C
-
-LIB = $(FOAM_LIBBIN)/libreconstruct

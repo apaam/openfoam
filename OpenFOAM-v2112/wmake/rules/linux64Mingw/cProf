@@ -1,2 +1,0 @@
-cDBUG       = -gstabs3 -pg
-cOPT        = -O2

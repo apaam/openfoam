@@ -1,0 +1,3 @@
+[submodule "v2412_source"]
+	path = v2412_source
+	url = https://develop.openfoam.com/Development/openfoam.git

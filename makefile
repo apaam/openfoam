@@ -3,7 +3,19 @@ JOB_FLAG := $(filter -j%, $(subst -j ,-j,$(shell ps T | grep "^\s*$(MAKE_PID).*$
 JOBS     := $(subst -j,,$(JOB_FLAG))
 
 default: get_jobs
-	bash install.sh
+	bash install_v2412.sh
+
+v2112: get_jobs
+	bash install_v2112.sh
+
+v2412: get_jobs
+	bash install_v2412.sh
+
+deps_v2112:
+	brew bundle --file=Brewfile_v2112
+
+deps_v2412:
+	brew bundle --file=Brewfile_v2412
 
 test: get_jobs
 	bash test.sh
@@ -21,12 +33,12 @@ get_jobs:
   export NUM_JOBS=$(JOBS)
 
 clean:
-	rm -rf OpenFOAM-build/build
+	rm -rf v2112_build/build v2412_build/build
 
 realclean:
-	rm -rf OpenFOAM-build
+	rm -rf v2112_build v2412_build
 
-.PHONY: default test clean
+.PHONY: default v2112 v2412 deps_v2112 deps_v2412 test clean realclean
 
 
 

@@ -1,5 +1,0 @@
-adiosReadData.C
-adiosWrite.C
-adiosWriteData.C
-
-LIB = $(FOAM_MODULE_LIBBIN)/libadiosFunctionObjects

@@ -1,7 +1,0 @@
-#!/bin/sh
-# Dummy for "wclean -all"
-# Returns true so it does look like an error
-
-echo "skip wclean for modules doxygen directory"
-
-#------------------------------------------------------------------------------

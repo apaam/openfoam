@@ -1,8 +1,0 @@
-decompositionInformation.C
-decompositionModel.C
-
-dimFieldDecomposer.C
-fvFieldDecomposer.C
-pointFieldDecomposer.C
-
-LIB = $(FOAM_LIBBIN)/libdecompose

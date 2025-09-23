@@ -1,7 +1,0 @@
-#!/bin/sh
-# Dummy for "wmake -all"
-# Returns true so it does not look like an error
-
-echo "skip wmake target for modules doxygen directory"
-
-#------------------------------------------------------------------------------
