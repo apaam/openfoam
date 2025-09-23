@@ -1,23 +1,30 @@
 #!/bin/bash
 
-NUM_JOBS=${NUM_JOBS:-2}
-echo "NUM_JOBS: $NUM_JOBS"
+# OpenFOAM Installation Script
+# Usage: ./install.sh [version]
+# Example: ./install.sh v2412
 
-mkdir -p v2412_build
+VERSION=${1:-v2412}
+NUM_JOBS=${NUM_JOBS:-2}
+
+echo "Installing OpenFOAM $VERSION with $NUM_JOBS parallel jobs"
+
+# Create build directory
+mkdir -p build
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-	rsync -ura v2412_source/* v2412_build
-	cd v2412_build
+	rsync -ura openfoam_source/* build/
+	cd build
 
 	source etc/bashrc
 	foamSystemCheck
 	./Allwmake -j $NUM_JOBS -s -q -k
 	./Allwmake -j $NUM_JOBS -s
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-	rsync -ura v2412_source/* v2412_build
-	rsync -u Brewfile_v2412 v2412_build/Brewfile
-	rsync -u configure_v2412.sh v2412_build/configure.sh
-	cd v2412_build
+	rsync -ura openfoam_source/* build/
+	rsync -u Brewfile build/Brewfile
+	rsync -u configure.sh build/configure.sh
+	cd build
 
 	brew bundle -f
 	brew bundle check --verbose --no-upgrade
@@ -29,5 +36,5 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 	./Allwmake -j $NUM_JOBS -s -q -k
 	./Allwmake -j $NUM_JOBS -s
 else
-	echo "$OSTYPE not support"
+	echo "$OSTYPE not supported"
 fi

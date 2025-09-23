@@ -1,5 +1,5 @@
-# OpenFOAM v2412 dependencies
-# Requires C++14 compiler, gcc 7.5.0+
+# OpenFOAM dependencies
+# Supports both v2112 (C++11) and v2412 (C++14)
 brew "bash"
 brew "open-mpi"
 brew "libomp"
@@ -11,7 +11,4 @@ brew "kahip"
 brew "metis"
 brew "cgal"
 brew "scotch-no-pthread"
-
-# v2412 specific dependencies
-# flex (not 2.6.2, 2.6.3 - fails for building scotch)
 brew "flex"
