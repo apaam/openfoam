@@ -9,11 +9,11 @@ install: get_jobs
 	bash install.sh
 
 v2112: get_jobs
-	cd openfoam_source && git checkout OpenFOAM-v2112
+	git checkout v2112
 	bash install.sh v2112
 
 v2412: get_jobs
-	cd openfoam_source && git checkout OpenFOAM-v2412
+	git checkout v2412
 	bash install.sh v2412
 
 deps:
@@ -37,7 +37,10 @@ get_jobs:
 clean:
 	rm -rf build/build
 
+sub_submodule: get_jobs
+	cd openfoam_source && git submodule update --init --recursive --depth 1
+
 realclean:
 	rm -rf build
 
-.PHONY: default install v2112 v2412 deps test clean realclean
+.PHONY: default install v2112 v2412 deps test sub_submodule clean realclean
