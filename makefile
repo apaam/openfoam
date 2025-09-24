@@ -2,25 +2,22 @@ MAKE_PID := $(shell echo $$PPID)
 JOB_FLAG := $(filter -j%, $(subst -j ,-j,$(shell ps T | grep "^\s*$(MAKE_PID).*$(MAKE)")))
 JOBS     := $(subst -j,,$(JOB_FLAG))
 
-default: get_jobs
+default: get_jobs sync_submodule
 	bash install.sh
 
-install: get_jobs
+install: get_jobs sync_submodule
 	bash install.sh
 
-v2112: get_jobs
+v2112: get_jobs sync_submodule
 	git checkout v2112
 	bash install.sh v2112
 
-v2412: get_jobs
+v2412: get_jobs sync_submodule
 	git checkout v2412
 	bash install.sh v2412
 
 deps:
 	brew bundle -f
-
-test: get_jobs
-	bash test.sh
 
 get_jobs:
 	@if [ -n "$(JOBS)" ]; then \
@@ -37,10 +34,13 @@ get_jobs:
 clean:
 	rm -rf build/build
 
-sub_submodule: get_jobs
-	cd openfoam_source && git submodule update --init --recursive --depth 1
+sync_submodule:
+	git submodule sync
+	git submodule update --depth 1 --init
 
 realclean:
 	rm -rf build
+	rm -rf openfoam_source
+	make sync_submodule
 
-.PHONY: default install v2112 v2412 deps test sub_submodule clean realclean
+.PHONY: default install v2112 v2412 deps test sync_submodule clean realclean
