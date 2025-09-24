@@ -9,11 +9,11 @@ install: get_jobs
 	bash install.sh
 
 v2112: get_jobs
-	git checkout OpenFOAM-v2112
+	cd openfoam_source && git checkout OpenFOAM-v2112
 	bash install.sh v2112
 
 v2412: get_jobs
-	git checkout OpenFOAM-v2412
+	cd openfoam_source && git checkout OpenFOAM-v2412
 	bash install.sh v2412
 
 deps:
