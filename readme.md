@@ -125,6 +125,9 @@ make docker-dist
 make docker-push
 ```
 
+`docker-setup-build` is skipped when `phynexis-build:24.04-{arch}` already exists;
+use `FORCE=1 make docker-build` to rebuild the toolchain image.
+
 Build parallelism and arch: edit `make-config-user.mk` (`BUILD_JOBS`, `DOCKER_JOBS`,
 `DOCKER_ARCH`). Defaults are in `docs/make-config-default.mk`.
 
