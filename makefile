@@ -79,14 +79,21 @@ docker-setup-base:
 	DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
 	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup_base_image.sh
 
-docker-setup-build: docker-setup-base
-	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
-	  -f docker/Dockerfile.build \
-	  --build-arg DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
-	  --build-arg UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
-	  --build-arg APT_MIRROR=$(DOCKER_APT_MIRROR) \
-	  -t $(DOCKER_BUILD_IMAGE) \
-	  --load .
+docker-setup-build:
+	@if docker image inspect "$(DOCKER_BUILD_IMAGE)" >/dev/null 2>&1 \
+	    && [ "$(FORCE)" != "1" ]; then \
+	  printf '==> %s already exists, skipping docker-setup-build\n' \
+	    "$(DOCKER_BUILD_IMAGE)"; \
+	else \
+	  $(MAKE) docker-setup-base && \
+	  DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
+	    -f docker/Dockerfile.build \
+	    --build-arg DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
+	    --build-arg UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	    --build-arg APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	    -t $(DOCKER_BUILD_IMAGE) \
+	    --load .; \
+	fi
 
 docker-build: docker-setup-build
 	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
@@ -123,29 +130,11 @@ docker-dist: docker-build
 	  "$(DOCKER_OPENFOAM_IMAGE)" "$(DOCKER_DIST_IMAGE)"
 	@docker save "$(DOCKER_OPENFOAM_IMAGE)" | gzip > "$(DOCKER_DIST_IMAGE)"
 	@printf '[docker-dist] Done: %s\n' "$(DOCKER_DIST_IMAGE)"
-	@printf '[docker-dist] Load: make docker-install\n'
-
-docker-install:
-	@if [ ! -f "$(DOCKER_DIST_IMAGE)" ]; then \
-	  printf '[docker-install] Archive not found: %s\n' \
-	    "$(DOCKER_DIST_IMAGE)" >&2; \
-	  printf 'Run make docker-dist or set DOCKER_DIST_IMAGE=...\n' >&2; \
-	  exit 1; \
-	fi
-	@printf '[docker-install] Loading %s\n' "$(DOCKER_DIST_IMAGE)"
-	@gunzip -c "$(DOCKER_DIST_IMAGE)" | docker load
-	@if ! docker image inspect "$(DOCKER_OPENFOAM_IMAGE)" >/dev/null 2>&1; then \
-	  printf '[docker-install] Loaded, but %s not found.\n' \
-	    "$(DOCKER_OPENFOAM_IMAGE)" >&2; \
-	  printf 'Check the tag reported by docker load above.\n' >&2; \
-	  exit 1; \
-	fi
-	@printf '[docker-install] Done: %s\n' "$(DOCKER_OPENFOAM_IMAGE)"
 
 docker-prune-cache:
 	docker builder prune --filter type=exec.cachemount -f
 
 .PHONY: default install v2112 v2412 deps get-jobs sync-submodule clean \
 	real-clean docker-setup-base docker-setup-build docker-build \
-	docker-push docker-dist docker-install docker-prune-cache \
+	docker-push docker-dist docker-prune-cache \
 	docker-cache-status

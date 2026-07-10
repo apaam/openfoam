@@ -94,7 +94,6 @@ openfoam/
 | `make docker-setup-build` | Build `phynexis-build:24.04-{arch}` toolchain image |
 | `make docker-build` | Build runtime image `openfoam:24.04-{arch}` |
 | `make docker-dist` | Save `openfoam` image as `build/docker-dist/*.tar.gz` |
-| `make docker-install` | Load tar.gz from `docker-dist` into local Docker |
 | `make docker-push` | Push `openfoam` image (set `DOCKER_REGISTRY` in config) |
 
 ## Docker
@@ -108,13 +107,21 @@ openfoam:24.04-{arch}         →  docker-build
 ```
 
 Runtime install tree: `/opt/openfoam` (`source /opt/openfoam/etc/bashrc`).
-Compile stage uses `/build/openfoam/build/`; BuildKit cache id is
-`openfoam-build-{arch}` at `/cache/openfoam/build/`.
+
+Docker path layout (shared convention with phynexis-v0):
+
+| Role | openfoam | phynexis-v0 |
+|------|----------|-------------|
+| Source | `/build/openfoam` | `/build/phynexis-v0` |
+| Compile | `/build/openfoam/build` | `/build/phynexis-v0/build` |
+| Cache mount | `/cache/openfoam` → `build/` | `/cache/phynexis-v0` → `build/` |
+| Cache id | `openfoam-build-{arch}` | `phynexis-build-{arch}` |
+| Stage | — | `/build/stage/phynexis-v0`, `/build/stage/openfoam` |
+| Runtime | `/opt/openfoam` | `/opt/phynexis`, `/opt/openfoam` |
 
 ```bash
 make docker-build
 make docker-dist
-make docker-install
 make docker-push
 ```
 
