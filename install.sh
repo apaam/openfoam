@@ -13,7 +13,7 @@ echo "Installing OpenFOAM $VERSION with $NUM_JOBS parallel jobs"
 mkdir -p build
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-	rsync -ura openfoam_source/* build/
+	rsync -ura openfoam-source/* build/
 	cd build
 
 	source etc/bashrc
@@ -21,7 +21,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 	./Allwmake -j $NUM_JOBS -s -q -k
 	./Allwmake -j $NUM_JOBS -s
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-	rsync -ura openfoam_source/* build/
+	rsync -ura openfoam-source/* build/
 	rsync -u Brewfile build/Brewfile
 	rsync -u configure.sh build/configure.sh
 	cd build

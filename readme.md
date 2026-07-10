@@ -61,15 +61,16 @@ NUM_JOBS=8 make
 
 ### Directory Structure
 ```
-openfoam_customized/
-├── openfoam_source/     # OpenFOAM source code
+openfoam/
+├── openfoam-source/    # OpenFOAM source (git submodule)
 ├── build/              # Compiled OpenFOAM installation
+├── docker/             # Docker image (openfoam:24.04-{arch})
 ├── local/              # Local customizations
 ├── configure.sh        # macOS-specific configuration
 ├── install.sh          # Cross-platform installation script
-├── makefile           # Build system makefile
-├── Brewfile           # macOS dependencies
-└── readme.md          # This file
+├── makefile            # Build system makefile
+├── Brewfile            # macOS dependencies
+└── readme.md           # This file
 ```
 
 ### Key Components
@@ -90,6 +91,32 @@ openfoam_customized/
 | `make test` | Run OpenFOAM tests |
 | `make clean` | Clean build directory |
 | `make realclean` | Remove entire build directory |
+| `make docker-build` | Build Docker image `openfoam:24.04-{arch}` |
+| `make docker-push` | Push `openfoam` image (requires `DOCKER_REGISTRY=...`) |
+
+## Docker
+
+Image `openfoam:24.04-{arch}` is layer 3 in the phynexis stack. Install tree inside
+the container: `/build/openfoam-src/build` (matches phynexis cfddem build).
+
+Prerequisite: `phynexis-build:24.04-{arch}` from phynexis-v0 (`make docker-setup-build`).
+
+```bash
+# After phynexis-build exists
+make docker-build DOCKER_JOBS=4
+
+# From phynexis-v0 (delegates here via DOCKER_OPENFOAM_DIR)
+# make docker-build-openfoam
+```
+
+`OPENFOAM_VERSION` passed to `install.sh` is informational; the compiled version follows
+the checked-out submodule commit. Use `make v2112` / `make v2412` for native branch switches.
+
+Push (optional):
+
+```bash
+make docker-push DOCKER_REGISTRY=ghcr.io/myorg
+```
 
 ## Usage
 
