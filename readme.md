@@ -88,35 +88,38 @@ openfoam/
 | `make v2112` | Build OpenFOAM v2112 |
 | `make v2412` | Build OpenFOAM v2412 |
 | `make deps` | Install dependencies (macOS only) |
-| `make test` | Run OpenFOAM tests |
-| `make clean` | Clean build directory |
-| `make realclean` | Remove entire build directory |
-| `make docker-build` | Build Docker image `openfoam:24.04-{arch}` |
-| `make docker-push` | Push `openfoam` image (requires `DOCKER_REGISTRY=...`) |
+| `make clean` | Remove `build/docker-dist` exports |
+| `make real-clean` | Remove native `build/` and re-sync submodules |
+| `make docker-setup-base` | Pull digest-pinned `phynexis-ubuntu:24.04-{arch}` |
+| `make docker-setup-build` | Build `phynexis-build:24.04-{arch}` toolchain image |
+| `make docker-build` | Build runtime image `openfoam:24.04-{arch}` |
+| `make docker-dist` | Save `openfoam` image as `build/docker-dist/*.tar.gz` |
+| `make docker-install` | Load tar.gz from `docker-dist` into local Docker |
+| `make docker-push` | Push `openfoam` image (set `DOCKER_REGISTRY` in config) |
 
 ## Docker
 
-Image `openfoam:24.04-{arch}` is layer 3 in the phynexis stack. Install tree inside
-the container: `/build/openfoam-src/build` (matches phynexis cfddem build).
+Self-contained image stack in this repo:
 
-Prerequisite: `phynexis-build:24.04-{arch}` from phynexis-v0 (`make docker-setup-build`).
-
-```bash
-# After phynexis-build exists
-make docker-build DOCKER_JOBS=4
-
-# From phynexis-v0 (delegates here via DOCKER_OPENFOAM_DIR)
-# make docker-build-openfoam
+```
+phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
+phynexis-build:24.04-{arch}   →  docker-setup-build
+openfoam:24.04-{arch}         →  docker-build
 ```
 
-`OPENFOAM_VERSION` passed to `install.sh` is informational; the compiled version follows
-the checked-out submodule commit. Use `make v2112` / `make v2412` for native branch switches.
-
-Push (optional):
+Runtime install tree: `/opt/openfoam` (`source /opt/openfoam/etc/bashrc`).
+Compile stage uses `/build/openfoam/build/`; BuildKit cache id is
+`openfoam-build-{arch}` at `/cache/openfoam/build/`.
 
 ```bash
-make docker-push DOCKER_REGISTRY=ghcr.io/myorg
+make docker-build
+make docker-dist
+make docker-install
+make docker-push
 ```
+
+Build parallelism and arch: edit `make-config-user.mk` (`BUILD_JOBS`, `DOCKER_JOBS`,
+`DOCKER_ARCH`). Defaults are in `docs/make-config-default.mk`.
 
 ## Usage
 

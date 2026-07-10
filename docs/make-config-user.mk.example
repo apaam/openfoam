@@ -1,0 +1,26 @@
+# Copy to make-config-user.mk at the project root (git-ignored) and edit.
+
+# --- Native build ---
+# BUILD_JOBS = 8
+# OPENFOAM_VERSION = v2412
+
+# --- Docker image naming ---
+# DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
+# DOCKER_BUILD_IMAGE_NAME = phynexis-build
+# DOCKER_OPENFOAM_IMAGE_NAME = openfoam
+# DOCKER_UBUNTU_VERSION = 24.04
+
+# Registry for docker-push
+# DOCKER_REGISTRY = ghcr.io/myorg
+
+# Target arch: amd64 | arm64 | leave empty for host auto-detect
+# DOCKER_ARCH = arm64
+
+# --- Docker build ---
+# DOCKER_JOBS = 8
+
+# --- Docker paths ---
+# DOCKER_DIST_DIR = build/docker-dist
+
+# Optional apt mirror
+# DOCKER_APT_MIRROR = http://mirrors.aliyun.com/ubuntu/

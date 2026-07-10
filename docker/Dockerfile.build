@@ -1,0 +1,19 @@
+ARG DOCKER_UBUNTU_IMAGE_NAME=phynexis-ubuntu
+ARG UBUNTU_VERSION=24.04
+ARG TARGETARCH
+FROM ${DOCKER_UBUNTU_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG APT_MIRROR=
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+COPY docker/apt_setup.sh /usr/local/bin/apt_setup.sh
+COPY docker/install_build_deps.sh /usr/local/bin/install_build_deps.sh
+RUN chmod +x /usr/local/bin/apt_setup.sh /usr/local/bin/install_build_deps.sh \
+  && APT_MIRROR=${APT_MIRROR} apt_setup.sh \
+  && install_build_deps.sh

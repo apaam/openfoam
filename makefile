@@ -1,11 +1,19 @@
-MAKE_PID := $(shell echo $$PPID)
-JOB_FLAG := $(filter -j%, \
-  $(subst -j ,-j, \
-    $(shell ps T | grep "^\s*$(MAKE_PID).*$(MAKE)")))
-JOBS     := $(subst -j,,$(JOB_FLAG))
-ifneq ($(JOBS),)
-export NUM_JOBS := $(JOBS)
+-include docs/make-config-default.mk
+-include make-config-user.mk
+
+JOBS := $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS)))
+ifeq ($(JOBS),)
+  MAKE_PID := $(shell echo $$PPID)
+  JOB_FLAG := $(filter -j%, \
+    $(subst -j ,-j, \
+      $(shell ps -p $(MAKE_PID) -o args= 2>/dev/null \
+        | grep -o '\-j[0-9]*')))
+  JOBS := $(subst -j,,$(JOB_FLAG))
 endif
+ifeq ($(JOBS),)
+  JOBS := $(BUILD_JOBS)
+endif
+export NUM_JOBS := $(JOBS)
 
 DOCKER_HOST_ARCH := $(shell uname -m)
 ifeq ($(DOCKER_HOST_ARCH),x86_64)
@@ -16,24 +24,23 @@ else
   DOCKER_DEFAULT_PLATFORM := linux/amd64
 endif
 
-ifneq ($(DOCKER_ARCH),)
-  DOCKER_PLATFORM := linux/$(DOCKER_ARCH)
+ifeq ($(DOCKER_PLATFORM),)
+  ifneq ($(DOCKER_ARCH),)
+    DOCKER_PLATFORM := linux/$(DOCKER_ARCH)
+  else
+    DOCKER_PLATFORM := $(DOCKER_DEFAULT_PLATFORM)
+  endif
 endif
-DOCKER_PLATFORM ?= $(DOCKER_DEFAULT_PLATFORM)
 DOCKER_IMAGE_SUFFIX := $(subst linux/,,$(DOCKER_PLATFORM))
 
-DOCKER_UBUNTU_VERSION ?= 24.04
-DOCKER_BUILD_IMAGE_NAME ?= phynexis-build
-DOCKER_OPENFOAM_IMAGE_NAME ?= openfoam
-ifneq ($(DOCKER_IMAGE_NAME),)
-  DOCKER_OPENFOAM_IMAGE_NAME := $(DOCKER_IMAGE_NAME)
-endif
-DOCKER_JOBS ?= 4
-OPENFOAM_VERSION ?= v2412
+DOCKER_UBUNTU_IMAGE = \
+  $(DOCKER_UBUNTU_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_BUILD_IMAGE = \
   $(DOCKER_BUILD_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_OPENFOAM_IMAGE = \
   $(DOCKER_OPENFOAM_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
+DOCKER_DIST_BASENAME := $(subst :,-,$(subst /,-,$(DOCKER_OPENFOAM_IMAGE)))
+DOCKER_DIST_IMAGE = $(DOCKER_DIST_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 
 default: get-jobs sync-submodule
 	bash install.sh
@@ -53,20 +60,10 @@ deps:
 	brew bundle -f
 
 get-jobs:
-	@if [ -n "$(JOBS)" ]; then \
-		if [ "$(JOBS)" = "" ]; then \
-			echo "Parallel jobs are enabled \
-(using default jobserver mode)"; \
-		else \
-			echo "Parallel jobs: $(JOBS)"; \
-		fi; \
-	else \
-		echo "No parallel jobs specified \
-(using default jobserver mode)."; \
-	fi
+	@echo "Parallel jobs: $(JOBS)"
 
 clean:
-	rm -rf build/build
+	rm -rf build/docker-dist
 
 sync-submodule:
 	git submodule sync
@@ -77,10 +74,21 @@ real-clean:
 	rm -rf openfoam-source
 	$(MAKE) sync-submodule
 
-docker-build-openfoam:
-	@docker image inspect "$(DOCKER_BUILD_IMAGE)" >/dev/null 2>&1 \
-	  || { printf 'Missing phynexis-build image; \
-run docker-setup-build in phynexis-v0 first\n' >&2; exit 1; }
+docker-setup-base:
+	UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
+	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup_base_image.sh
+
+docker-setup-build: docker-setup-base
+	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
+	  -f docker/Dockerfile.build \
+	  --build-arg DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
+	  --build-arg UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  --build-arg APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  -t $(DOCKER_BUILD_IMAGE) \
+	  --load .
+
+docker-build: docker-setup-build
 	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
 	  -f docker/Dockerfile \
 	  --build-arg DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
@@ -90,16 +98,54 @@ run docker-setup-build in phynexis-v0 first\n' >&2; exit 1; }
 	  -t $(DOCKER_OPENFOAM_IMAGE) \
 	  --load .
 
-docker-push-openfoam:
+docker-cache-status:
+	@printf 'OpenFOAM cache id=openfoam-build-%s mount=/cache/openfoam/build/\n' \
+	  "$(DOCKER_IMAGE_SUFFIX)"
+	@docker buildx du --verbose 2>/dev/null \
+	  | rg 'exec.cachemount' -B 5 \
+	  | rg 'openfoam-build|Size:|Description:' \
+	  || printf '  (none found)\n'
+
+docker-push:
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
-	  printf 'DOCKER_REGISTRY is empty; set it when invoking make\n' \
+	  printf 'DOCKER_REGISTRY is empty; set it in make-config-user.mk\n' \
 	    >&2; exit 1; \
 	fi
 	@remote="$(DOCKER_REGISTRY)/$(DOCKER_OPENFOAM_IMAGE)"; \
-	  printf '[docker-push-openfoam] Tagging %s -> %s\n' \
+	  printf '[docker-push] Tagging %s -> %s\n' \
 	    "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker tag "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker push "$$remote"
 
+docker-dist: docker-build
+	@mkdir -p "$(DOCKER_DIST_DIR)"
+	@printf '[docker-dist] Saving %s -> %s\n' \
+	  "$(DOCKER_OPENFOAM_IMAGE)" "$(DOCKER_DIST_IMAGE)"
+	@docker save "$(DOCKER_OPENFOAM_IMAGE)" | gzip > "$(DOCKER_DIST_IMAGE)"
+	@printf '[docker-dist] Done: %s\n' "$(DOCKER_DIST_IMAGE)"
+	@printf '[docker-dist] Load: make docker-install\n'
+
+docker-install:
+	@if [ ! -f "$(DOCKER_DIST_IMAGE)" ]; then \
+	  printf '[docker-install] Archive not found: %s\n' \
+	    "$(DOCKER_DIST_IMAGE)" >&2; \
+	  printf 'Run make docker-dist or set DOCKER_DIST_IMAGE=...\n' >&2; \
+	  exit 1; \
+	fi
+	@printf '[docker-install] Loading %s\n' "$(DOCKER_DIST_IMAGE)"
+	@gunzip -c "$(DOCKER_DIST_IMAGE)" | docker load
+	@if ! docker image inspect "$(DOCKER_OPENFOAM_IMAGE)" >/dev/null 2>&1; then \
+	  printf '[docker-install] Loaded, but %s not found.\n' \
+	    "$(DOCKER_OPENFOAM_IMAGE)" >&2; \
+	  printf 'Check the tag reported by docker load above.\n' >&2; \
+	  exit 1; \
+	fi
+	@printf '[docker-install] Done: %s\n' "$(DOCKER_OPENFOAM_IMAGE)"
+
+docker-prune-cache:
+	docker builder prune --filter type=exec.cachemount -f
+
 .PHONY: default install v2112 v2412 deps get-jobs sync-submodule clean \
-	real-clean docker-build-openfoam docker-push-openfoam
+	real-clean docker-setup-base docker-setup-build docker-build \
+	docker-push docker-dist docker-install docker-prune-cache \
+	docker-cache-status
