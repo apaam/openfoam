@@ -7,6 +7,10 @@ CACHE_BUILD="/cache/openfoam/build"
 NUM_JOBS="${NUM_JOBS:-$(nproc)}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=openfoam_install_excludes.sh
+source "${SCRIPT_DIR}/openfoam_install_excludes.sh"
+
 cd "${OPENFOAM_ROOT}"
 
 if [[ ! -d "${OPENFOAM_BUILD}/etc" && -d "${CACHE_BUILD}/etc" ]]; then
@@ -23,7 +27,8 @@ fi
 if [[ -d "${OPENFOAM_BUILD}/etc" ]]; then
   echo "[bake_openfoam] Refreshing cache (${CACHE_BUILD}/)"
   mkdir -p "${CACHE_BUILD}"
-  rsync -a "${OPENFOAM_BUILD}/" "${CACHE_BUILD}/"
+  rsync -a "${OPENFOAM_INSTALL_EXCLUDES[@]}" \
+    "${OPENFOAM_BUILD}/" "${CACHE_BUILD}/"
 fi
 
 if [[ ! -d "${OPENFOAM_BUILD}/etc" ]]; then

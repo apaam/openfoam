@@ -95,7 +95,7 @@ docker-setup-build:
 	    --load .; \
 	fi
 
-docker-build: docker-setup-build
+docker-build: sync-submodule docker-setup-build
 	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
 	  -f docker/Dockerfile \
 	  --build-arg DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
