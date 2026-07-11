@@ -151,7 +151,8 @@ clean:
 	  build/cpack build/cpack-dist build/stage build/openfoam-wheel
 
 sync-submodule:
-	bash scripts/sync_openfoam_submodule.sh
+	git submodule sync
+	git submodule update --depth 1 --init
 
 real-clean:
 	rm -rf build
