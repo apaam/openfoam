@@ -38,8 +38,8 @@ refresh_cache() {
   [[ -n "${CACHE_BUILD}" ]] || return 0
   [[ -d "${OPENFOAM_BUILD}/etc" ]] || return 0
 
-  # shellcheck source=docker/openfoam_install_excludes.sh
-  source "${OPENFOAM_ROOT}/docker/openfoam_install_excludes.sh"
+  # shellcheck source=scripts/openfoam_install_excludes.sh
+  source "${OPENFOAM_ROOT}/scripts/openfoam_install_excludes.sh"
 
   echo "[build_openfoam] Refreshing cache (${CACHE_BUILD}/)"
   mkdir -p "${CACHE_BUILD}"
@@ -63,7 +63,13 @@ setup_platform_deps() {
       if [[ -f Brewfile.lock.json ]]; then
         cat Brewfile.lock.json
       fi
-      bash -ex configure.sh
+      if [[ ! -f etc/prefs.sh ]] \
+        || [[ "${OPENFOAM_ROOT}/Brewfile" -nt etc/prefs.sh ]] \
+        || [[ "${OPENFOAM_ROOT}/configure.sh" -nt etc/prefs.sh ]]; then
+        bash -ex configure.sh
+      else
+        echo "[build_openfoam] Skipping configure.sh (prefs up to date)"
+      fi
       ;;
     linux)
       cd "${OPENFOAM_BUILD}"
@@ -84,6 +90,7 @@ compile_openfoam() {
 
   # OpenFOAM bashrc uses optional unset vars and functions that return 1.
   set +eu
+  export SHELL=/bin/bash
   source etc/bashrc
   foamSystemCheck
   ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s -q -k

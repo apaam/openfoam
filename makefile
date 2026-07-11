@@ -92,14 +92,16 @@ docker-setup-build: docker-setup-base
 	  bash docker/setup_build_image.sh
 
 docker-build: sync-submodule docker-setup-build
-	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
-	  -f docker/Dockerfile \
-	  --build-arg DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
-	  --build-arg UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
-	  --build-arg NUM_JOBS=$(DOCKER_JOBS) \
-	  --build-arg OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  -t $(DOCKER_OPENFOAM_IMAGE) \
-	  --load .
+	@DOCKER_OPENFOAM_IMAGE=$(DOCKER_OPENFOAM_IMAGE) \
+	  DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_DOCKERFILE=docker/Dockerfile \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_JOBS=$(DOCKER_JOBS) \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  OPENFOAM_BUILD_MODULES=$(OPENFOAM_BUILD_MODULES) \
+	  FORCE=$(FORCE) \
+	  bash docker/setup_openfoam_image.sh
 
 docker-cache-status:
 	@printf 'OpenFOAM cache id=openfoam-build-%s mount=/cache/openfoam/build/\n' \

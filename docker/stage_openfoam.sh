@@ -7,9 +7,9 @@ OPENFOAM_STAGE="${2:-/build/stage/openfoam}"
 # Optional extra excludes: space-separated paths, e.g. STAGE_EXTRA_EXCLUDES="tutorials doc"
 STAGE_EXTRA_EXCLUDES="${STAGE_EXTRA_EXCLUDES:-}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=openfoam_install_excludes.sh
-source "${SCRIPT_DIR}/openfoam_install_excludes.sh"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=../scripts/openfoam_install_excludes.sh
+source "${ROOT}/scripts/openfoam_install_excludes.sh"
 
 RSYNC_EXCLUDES=("${OPENFOAM_INSTALL_EXCLUDES[@]}")
 for path in ${STAGE_EXTRA_EXCLUDES}; do
