@@ -5,3 +5,5 @@ local/
 .DS_Store
 **/__pycache__/
 **/*.pyc
+openfoam-source/modules/
+openfoam-source/plugins/

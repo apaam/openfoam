@@ -3,6 +3,12 @@
 # build_openfoam.sh copies openfoam-source/ into build/, then Allwmake adds platforms/ and build/.
 # shellcheck shell=bash
 
+# Optional OpenFOAM components (not built by default); omit from source sync and packaging.
+OPENFOAM_SOURCE_SYNC_EXCLUDES=(
+  --exclude=modules/
+  --exclude=plugins/
+)
+
 OPENFOAM_INSTALL_EXCLUDES=(
   --exclude=build/
   --exclude=modules/

@@ -31,6 +31,9 @@ OPENFOAM_BUILD="$(abs_under_root "${OPENFOAM_BUILD}")"
 OPENFOAM_SOURCE="$(abs_under_root "${OPENFOAM_SOURCE:-openfoam-source}")"
 BUILD_STAMP="${OPENFOAM_BUILD}/.openfoam-build-stamp"
 
+# shellcheck source=scripts/openfoam_install_excludes.sh
+source "${OPENFOAM_ROOT}/scripts/openfoam_install_excludes.sh"
+
 is_incremental_build() {
   [[ -d "${OPENFOAM_BUILD}/platforms" && -f "${OPENFOAM_BUILD}/etc/bashrc" ]]
 }
@@ -69,7 +72,9 @@ build_config_id() {
 }
 
 rsync_would_change() {
-  rsync -ura --dry-run --itemize-changes "${OPENFOAM_SOURCE}/" "${OPENFOAM_BUILD}/" \
+  rsync -ura --dry-run --itemize-changes \
+    "${OPENFOAM_SOURCE_SYNC_EXCLUDES[@]}" \
+    "${OPENFOAM_SOURCE}/" "${OPENFOAM_BUILD}/" \
     | grep -qE '^[><ch][fdLDS\.]'
 }
 
@@ -154,9 +159,6 @@ refresh_cache() {
   [[ -n "${CACHE_BUILD}" ]] || return 0
   [[ -d "${OPENFOAM_BUILD}/etc" ]] || return 0
 
-  # shellcheck source=scripts/openfoam_install_excludes.sh
-  source "${OPENFOAM_ROOT}/scripts/openfoam_install_excludes.sh"
-
   echo "[build_openfoam] Refreshing cache (${CACHE_BUILD}/)"
   mkdir -p "${CACHE_BUILD}"
   rsync -a "${OPENFOAM_INSTALL_EXCLUDES[@]}" \
@@ -165,7 +167,9 @@ refresh_cache() {
 
 sync_source() {
   mkdir -p "${OPENFOAM_BUILD}"
-  rsync -ura "${OPENFOAM_SOURCE}/" "${OPENFOAM_BUILD}/"
+  rsync -ura --delete-excluded \
+    "${OPENFOAM_SOURCE_SYNC_EXCLUDES[@]}" \
+    "${OPENFOAM_SOURCE}/" "${OPENFOAM_BUILD}/"
 }
 
 setup_platform_deps() {
