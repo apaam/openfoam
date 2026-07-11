@@ -132,7 +132,10 @@ docker-dist: docker-build
 docker-prune-cache:
 	docker builder prune --filter type=exec.cachemount -f
 
+docker-prune-images:
+	@docker image prune -f
+
 .PHONY: default install v2112 v2412 deps get-jobs sync-submodule clean \
 	real-clean docker-setup-base docker-setup-build docker-build \
-	docker-push docker-dist docker-prune-cache \
+	docker-push docker-dist docker-prune-cache docker-prune-images \
 	docker-cache-status

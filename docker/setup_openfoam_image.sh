@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Build or update the openfoam runtime image.
+# Build the openfoam runtime image (fresh final stage, incremental compile via cache).
 #
-# - fresh:  FROM phynexis-build (no existing image, or FORCE=1)
-# - extend: FROM existing openfoam image, rsync updated /opt/openfoam tree
+# Rebuilds the tagged image from phynexis-build + staged /opt/openfoam each time so
+# layer size stays flat. Compile artifacts persist in the BuildKit cache mount.
 #
 # Usage (env vars from make):
 #   DOCKER_OPENFOAM_IMAGE=openfoam:24.04-arm64 \
@@ -28,15 +28,19 @@ verify() {
   bash "${ROOT}/docker/verify_openfoam_image.sh" "${IMAGE}"
 }
 
-run_build() {
-  local target="$1"
-  local -a ctx=()
-  if [[ "${target}" = "extend" ]]; then
-    ctx=(--build-context "extend-base=docker-image://${IMAGE}")
+prune_dangling() {
+  local dangling=()
+  mapfile -t dangling < <(docker images --filter "dangling=true" -q)
+  if [[ "${#dangling[@]}" -eq 0 ]]; then
+    return 0
   fi
+  printf '==> Removing %s dangling image(s)\n' "${#dangling[@]}"
+  docker rmi "${dangling[@]}" >/dev/null 2>&1 || true
+}
+
+run_build() {
   DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
-    "${ctx[@]}" \
-    --target "${target}" \
+    --target fresh \
     -f "${DOCKERFILE}" \
     --build-arg "DOCKER_BUILD_IMAGE_NAME=${BUILD_IMAGE_NAME}" \
     --build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}" \
@@ -44,6 +48,7 @@ run_build() {
     --build-arg "NUM_JOBS=${NUM_JOBS}" \
     --build-arg "OPENFOAM_VERSION=${OPENFOAM_VERSION}" \
     --build-arg "OPENFOAM_BUILD_MODULES=${OPENFOAM_BUILD_MODULES}" \
+    --build-arg "BUILD_STAMP=$(date +%s)" \
     -t "${IMAGE}" \
     --load \
     "${ROOT}"
@@ -51,18 +56,10 @@ run_build() {
 
 if [[ "${FORCE}" = "1" ]]; then
   printf '==> FORCE=1: creating %s from scratch (fresh)\n' "${IMAGE}"
-  run_build fresh
-  verify
-  exit 0
+else
+  printf '==> Building %s\n' "${IMAGE}"
 fi
 
-if docker image inspect "${IMAGE}" >/dev/null 2>&1; then
-  printf '==> %s exists; updating /opt/openfoam (extend)\n' "${IMAGE}"
-  run_build extend
-  verify
-  exit 0
-fi
-
-printf '==> Creating %s (fresh)\n' "${IMAGE}"
-run_build fresh
+run_build
 verify
+prune_dangling
