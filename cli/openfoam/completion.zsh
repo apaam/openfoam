@@ -55,7 +55,7 @@ _openfoam_load_apps() {
 
 _openfoam_is_native_subcmd() {
   case "$1" in
-  env | run | shell | docker | completion | help | -h | --help) return 0 ;;
+  env | env-path | run | shell | docker | completion | help | -h | --help) return 0 ;;
   esac
   return 1
 }
@@ -98,7 +98,7 @@ _openfoam() {
   local -a static apps docker_static
 
   if (( CURRENT == 2 )); then
-    static=(env run shell docker completion help -h --help)
+    static=(env env-path run shell docker completion help -h --help)
     if _openfoam_load_apps; then
       apps=(${_openfoam_apps_cache[@]})
       _describe 'openfoam command' static
@@ -110,7 +110,7 @@ _openfoam() {
   fi
 
   case ${words[2]} in
-  env | help | -h | --help)
+  env | env-path | help | -h | --help)
     ;;
   completion)
     if (( CURRENT == 3 )); then

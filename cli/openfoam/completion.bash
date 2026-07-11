@@ -67,7 +67,7 @@ _openfoam_apps() {
 
 _openfoam_is_native_subcmd() {
   case "$1" in
-  env | run | shell | docker | completion | help | -h | --help) return 0 ;;
+  env | env-path | run | shell | docker | completion | help | -h | --help) return 0 ;;
   esac
   return 1
 }
@@ -108,14 +108,14 @@ _openfoam() {
   1)
     mapfile -t COMPREPLY < <(
       {
-        compgen -W "env run shell docker completion help -h --help" -- "${cur}"
+        compgen -W "env env-path run shell docker completion help -h --help" -- "${cur}"
         _openfoam_apps "${cur}"
       } | sort -u
     )
     ;;
   *)
     case "${COMP_WORDS[1]}" in
-    env | help | -h | --help)
+    env | env-path | help | -h | --help)
       ;;
     completion)
       if [[ "${COMP_CWORD}" -eq 2 ]]; then

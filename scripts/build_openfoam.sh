@@ -40,6 +40,11 @@ is_incremental_build() {
   [[ -d "${OPENFOAM_BUILD}/platforms" && -f "${OPENFOAM_BUILD}/etc/bashrc" ]]
 }
 
+openfoam_build_complete() {
+  find "${OPENFOAM_BUILD}/platforms" -type f -path '*/bin/blockMesh' -print -quit 2>/dev/null \
+    | grep -q .
+}
+
 source_tree_id() {
   if git -C "${OPENFOAM_SOURCE}" rev-parse --is-inside-work-tree &>/dev/null; then
     local head diff_hash
@@ -109,6 +114,7 @@ should_skip_allwmake() {
   [[ "${saved_config}" == "$(build_config_id)" ]] || return 1
   rsync_would_change && return 1
   platform_config_changed && return 1
+  openfoam_build_complete || return 1
   return 0
 }
 
@@ -266,8 +272,18 @@ setup_platform_deps
 if should_skip_allwmake; then
   echo "[build_openfoam] Skipping Allwmake (source and config unchanged)"
 else
+  if [[ -f "${BUILD_STAMP}" ]] && ! openfoam_build_complete; then
+    echo "[build_openfoam] Stale build stamp with incomplete install; resuming Allwmake"
+    rm -f "${BUILD_STAMP}"
+  fi
   compile_openfoam
-  write_build_stamp
+  if openfoam_build_complete; then
+    write_build_stamp
+  else
+    rm -f "${BUILD_STAMP}"
+    echo "[build_openfoam] Build incomplete (blockMesh missing); re-run make to continue" >&2
+    exit 1
+  fi
 fi
 refresh_cache
 

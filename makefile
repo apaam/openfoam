@@ -15,6 +15,7 @@ ifeq ($(JOBS),)
 endif
 export NUM_JOBS := $(JOBS)
 export OPENFOAM_BUILD := $(OPENFOAM_BUILD)
+export OPENFOAM_CLI_BUILD := $(OPENFOAM_CLI_BUILD)
 export OPENFOAM_BUILD_MODULES := $(OPENFOAM_BUILD_MODULES)
 export OPENFOAM_SYSTEM_CHECK := $(OPENFOAM_SYSTEM_CHECK)
 export OPENFOAM_SKIP_ALLWMAKE := $(OPENFOAM_SKIP_ALLWMAKE)
@@ -65,6 +66,9 @@ endif
 check-build:
 	@test -f $(OPENFOAM_BUILD)/etc/bashrc || \
 	  { echo "Missing $(OPENFOAM_BUILD)/etc/bashrc; run make install first" >&2; exit 1; }
+
+install-cli: check-build
+	@bash scripts/install_openfoam_cli.sh "$(CURDIR)/$(OPENFOAM_CLI_BUILD)" "$(CURDIR)/$(OPENFOAM_BUILD)"
 
 # --- Distribution (requires check-build; uses $(OPENFOAM_BUILD)/, no recompile) ---
 
@@ -123,10 +127,12 @@ help:
 	@echo ""
 	@echo "Layout:"
 	@echo "  $(OPENFOAM_BUILD)/          WM_PROJECT_DIR (compile + install)"
+	@echo "  $(OPENFOAM_CLI_BUILD)/           openfoam CLI (local install)"
 	@echo "  build/stage/ build/wheel/ ...  packaging workspace (see make-config-default.mk)"
 	@echo ""
 	@echo "Native compile:"
-	@echo "  make, install              Build into $(OPENFOAM_BUILD)/ (default: $(OPENFOAM_VERSION))"
+	@echo "  make, install              Build $(OPENFOAM_BUILD)/ + CLI -> $(OPENFOAM_CLI_BUILD)/"
+	@echo "  make install-cli           Refresh CLI only (-> $(OPENFOAM_CLI_BUILD)/)"
 	@echo "  make v2112, make v2412     Checkout version branch, then install"
 	@echo "  make deps                  Homebrew dependencies (macOS)"
 	@echo "  FORCE=1 make install       Re-run Allwmake even if source unchanged"
@@ -155,9 +161,11 @@ help:
 	@echo "  make clean                 Remove build/ (compile cache + packaging)"
 	@echo "  make real-clean            clean + reset openfoam-source + sync-submodule"
 	@echo ""
-	@echo "After install or pip install openfoam-*.whl:"
-	@echo "  source $(OPENFOAM_BUILD)/etc/bashrc"
-	@echo "  openfoam env               Print source command for wmake/cmake"
+	@echo "After make install:"
+	@echo "  source \$(OPENFOAM_BUILD)/etc/bashrc"
+	@echo "  export PATH=\"\$(OPENFOAM_CLI_BUILD)/bin:\$\$PATH\""
+	@echo "After pip install openfoam-*.whl:"
+	@echo "  eval \"\$$(openfoam env)\""
 	@echo "  openfoam run ~/case/Allrun  Run a case script"
 	@echo ""
 	@echo "Config: docs/make-config-default.mk, make-config-user.mk"
@@ -265,6 +273,6 @@ docker-prune-images:
 	@docker image prune -f
 
 .PHONY: default install help get-jobs deps sync-submodule clean real-clean \
-	check-build v2112 v2412 wheel wheel-dist wheel-install cpack cpack-dist \
+	check-build v2112 v2412 install-cli wheel wheel-dist wheel-install cpack cpack-dist \
 	docker-setup-base docker-setup-build docker-build docker-push docker-dist \
 	cli cli-install docker-cache-status docker-prune-cache docker-prune-images

@@ -72,6 +72,7 @@ def native_prefix() -> Path:
     if env:
         root = Path(env).resolve()
         if (root / "etc" / "bashrc").is_file():
+            _rewrite_installed_prefix(root)
             _PREFIX = root
             return _PREFIX
 

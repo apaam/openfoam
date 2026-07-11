@@ -55,11 +55,6 @@ sed_inplace() {
   fi
 }
 
-wheel_has_bin_shims() {
-  local whl="$1"
-  unzip -l "${whl}" 2>/dev/null | grep -q '\.data/scripts/interFoam'
-}
-
 wheel_has_native_prefix() {
   local whl="$1"
   unzip -l "${whl}" 2>/dev/null | grep -q 'openfoam/prefix/etc/bashrc'
@@ -72,35 +67,9 @@ recursive-include openfoam *.sh *.bash *.zsh *.py
 EOF
 }
 
-generate_bin_shims() {
-  local stage="$1"
-  local shim_dir="$2"
-  local f name count=0
-
-  mkdir -p "${shim_dir}"
-  for f in "${stage}/bin/"* "${stage}"/platforms/*/bin/*; do
-    [[ -f "${f}" && -x "${f}" ]] || continue
-    name="$(basename "${f}")"
-    [[ "${name}" == "openfoam" ]] && continue
-    [[ -f "${shim_dir}/${name}" ]] && continue
-    cat >"${shim_dir}/${name}" <<EOF
-#!/usr/bin/env bash
-exec "\$(dirname "\$0")/openfoam" ${name} "\$@"
-EOF
-    chmod +x "${shim_dir}/${name}"
-    count=$((count + 1))
-  done
-  echo "[openfoam-wheel] ${count} runtime command(s) for pip install PATH"
-}
-
 write_native_setup_py() {
   cat >"${STAGING_DIR}/setup.py" <<'PY'
-from pathlib import Path
 import setuptools
-
-scripts = sorted(
-  str(p) for p in Path("bin_shims").iterdir() if p.is_file() and not p.name.startswith(".")
-)
 
 setuptools.setup(
   name="openfoam",
@@ -121,7 +90,6 @@ setuptools.setup(
       "openfoam=openfoam.cli:main",
     ],
   },
-  scripts=scripts,
 )
 PY
   sed_inplace "s/PKG_VERSION_PLACEHOLDER/${PKG_VERSION}/" "${STAGING_DIR}/setup.py"
@@ -132,7 +100,6 @@ existing_whl="$(ls -t "${WHEELHOUSE_DIR}"/openfoam-*.whl 2>/dev/null | head -1 |
 if [[ "${INCLUDE_NATIVE}" == "1" && -n "${existing_whl}" && -f "${STAGE_STAMP}" \
   && "${existing_whl}" -nt "${STAGE_STAMP}" ]] \
   && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}" \
-  && wheel_has_bin_shims "${existing_whl}" \
   && wheel_has_native_prefix "${existing_whl}"; then
   printf '[openfoam-wheel] Up to date: %s\n' "${existing_whl}"
   exit 0
@@ -161,7 +128,6 @@ if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
   mkdir -p "${NATIVE_PREFIX}"
   openfoam_rsync_install_tree "${OPENFOAM_STAGE}" "${NATIVE_PREFIX}"
 
-  generate_bin_shims "${OPENFOAM_STAGE}" "${STAGING_DIR}/bin_shims"
   write_native_manifest
   write_native_setup_py
 else

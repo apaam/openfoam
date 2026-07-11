@@ -7,6 +7,8 @@ BUILD_PY = python3
 OPENFOAM_VERSION = v2412
 # WM_PROJECT_DIR (compile + install tree); packaging lives alongside under build/.
 OPENFOAM_BUILD = build/openfoam
+# Local CLI install root (separate from OPENFOAM_BUILD); override in make-config-user.mk
+OPENFOAM_CLI_BUILD = build/cli
 OPENFOAM_STAGE = build/stage/openfoam
 BUILD_WHEEL_DIR = build/wheel
 BUILD_WHEEL_DIST_DIR = build/wheel-dist

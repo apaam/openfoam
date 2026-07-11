@@ -108,25 +108,77 @@ openfoam/
 
 ## Distribution (wheel / cpack / docker)
 
-Three release channels:
+Three release channels share the same `openfoam` CLI; Docker adds an `openfoam docker` prefix.
 
-| Channel | Make target | Output |
-|---------|-------------|--------|
-| wheel | `make wheel-dist` | `build/wheel-dist/openfoam-2412-*.whl` (no recompile; tar from `build/openfoam/`) |
-| cpack | `make cpack-dist` | `build/cpack-dist/openfoam-native-*.tar.gz` (install tree + `bin/openfoam`) |
-| docker | `make docker-dist` | `build/docker-dist/openfoam-*.tar.gz` + `openfoam-*.whl` (CLI only) |
+| Channel | Install | Prefix location |
+|---------|---------|-----------------|
+| local build | `make install` | `build/openfoam/` (CLI: `build/cli/`) |
+| wheel | `pip install openfoam-*.whl` | `site-packages/openfoam/prefix/` |
+| cpack | `tar xzf ... -C <dir>` | extract root (`<dir>/`) |
+| docker | `pip install` CLI + `openfoam docker pull` | `/opt/openfoam` (in container) |
 
-After `pip install openfoam-*.whl` or extracting cpack, use the `openfoam` command:
+| Make target | Output |
+|-------------|--------|
+| wheel / wheel-dist | `build/wheel/` or `build/wheel-dist/openfoam-*.whl` |
+| cpack / cpack-dist | `build/cpack/` or `build/cpack-dist/openfoam-native-*.tar.gz` |
+| docker | `build/docker-dist/openfoam-*.tar.gz` + CLI wheel |
+
+### Shell setup (~/.bashrc)
+
+Load the environment the native OpenFOAM way: `source <prefix>/etc/bashrc`.
+Add `openfoam` to PATH only where pip does not (local build / cpack).
 
 ```bash
-openfoam run ~/my_case/Allrun          # run a case script (native)
-openfoam blockMesh -help               # run any OpenFOAM command
-eval "$(openfoam env)" && wmake        # link/build extensions against OpenFOAM
-openfoam docker pull                   # Docker channel
+# local build
+source /path/to/repo/build/openfoam/etc/bashrc
+export PATH="/path/to/repo/build/cli/bin:$PATH"
+
+# cpack
+source /path/to/extract/etc/bashrc
+export PATH="/path/to/extract/bin:$PATH"
+
+# wheel (prefix path inside site-packages; use openfoam env)
+eval "$(openfoam env)"
+```
+
+### Install
+
+```bash
+# local build
+make install
+
+# wheel
+pip install build/wheel-dist/openfoam-*.whl
+
+# cpack
+tar xzf build/cpack-dist/openfoam-native-*.tar.gz -C ~/opt/openfoam
+
+# docker
+pip install build/docker-dist/openfoam-*.whl
+openfoam docker pull
+```
+
+### Verify (same commands for wheel and cpack)
+
+```bash
+openfoam blockMesh -help           # always via openfoam CLI
+openfoam docker blockMesh -help    # docker channel
+```
+
+After `source .../etc/bashrc`, `blockMesh` is on PATH. Use `openfoam` for run/shell/docker.
+
+### Daily use
+
+```bash
+source build/openfoam/etc/bashrc   # or eval "$(openfoam env)" for wheel
+openfoam run ~/my_case/Allrun
+openfoam shell ~/my_case
+wmake                            # after source etc/bashrc
 openfoam docker run ~/my_case/Allrun
 ```
 
-cpack: extract archive, add `<prefix>/bin` to `PATH`, then run `openfoam`.
+`OPENFOAM_PREFIX` overrides prefix discovery. Local build links CLI to prefix via
+`build/cli/.openfoam-prefix`; cpack sets it in `bin/openfoam`; wheel uses `openfoam/prefix/`.
 
 ## Docker
 
@@ -168,25 +220,27 @@ Build parallelism and arch: edit `make-config-user.mk` (`BUILD_JOBS`, `DOCKER_JO
 
 ### Development (from source tree)
 
-After `make install`, either source the environment or use the CLI from the repo:
+After `make install`:
 
 ```bash
 source build/openfoam/etc/bashrc
-# or
-eval "$(bash cli/openfoam/openfoam.sh env)"
+export PATH="build/cli/bin:$PATH"
+wmake
 ```
 
 ### End users (wheel / cpack / docker)
 
-Use `openfoam` instead of manual `source` for running solvers (see Distribution above).
-For building projects that link against OpenFOAM, use `openfoam env` once per shell session.
+Add `source <prefix>/etc/bashrc` to your shell (see Distribution). Use `openfoam` for
+run/shell/docker; use `eval "$(openfoam env)"` when the prefix path is not obvious (wheel).
 
 ```bash
-# Check installation
+# Native channels (wheel / cpack)
 openfoam blockMesh -help
-
-# Run a tutorial
 openfoam run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
+
+# Docker channel
+openfoam docker blockMesh -help
+openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 ```
 
 ## Dependencies

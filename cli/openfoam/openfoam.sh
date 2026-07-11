@@ -10,10 +10,11 @@ usage() {
 OpenFOAM CLI
 
 Native (wheel / cpack / local build):
-  env                               Print shell snippet to source etc/bashrc
-  completion bash|zsh               Print tab-completion script
+  env                               Print 'source .../etc/bashrc' (eval in shell)
+  env-path                          Print PATH export for openfoam CLI
+  completion bash|zsh               Tab completion
   run <script|command> [args...]    Run a script in its directory, or a command in cwd
-  shell [dir]                       Interactive shell
+  shell [dir]                       Interactive shell (sources etc/bashrc)
   blockMesh -help                   Run any OpenFOAM command (shorthand)
 
 Docker:
@@ -24,11 +25,10 @@ Docker:
   docker uninstall-image            Remove runtime image
 
 Examples:
-  eval "\$(openfoam env)" && wmake
-  eval "\$(openfoam completion bash)"   # or: completion zsh
+  source build/openfoam/etc/bashrc  # native environment (local build)
+  eval "\$(openfoam env)" && wmake  # wheel, or unknown prefix path
   openfoam run ~/my_case/Allrun
   openfoam blockMesh -help
-  openfoam docker pull
   openfoam docker run ~/my_case/Allrun
 
 See also: openfoam docker help

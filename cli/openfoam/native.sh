@@ -30,17 +30,18 @@ usage() {
 ${CLI_PREFIX} — native OpenFOAM commands
 
 Developer:
-  env                               Print 'source .../etc/bashrc' for wmake/cmake
-  completion bash|zsh               Print tab-completion script
+  env                               Print 'source .../etc/bashrc' (native; use: eval "\$(openfoam env)")
+  env-path                          Print PATH export for openfoam CLI
+  completion bash|zsh               Tab completion
 
 Run:
   run <script|command> [args...]    Run a script in its directory, or a command in cwd
-  shell [dir]                       Interactive shell (default: .)
+  shell [dir]                       Interactive shell (sources etc/bashrc)
   blockMesh -help                   Run any OpenFOAM command (shorthand)
 
 Examples:
-  eval "\$(openfoam env)" && wmake
-  eval "\$(openfoam completion bash)"   # or: completion zsh
+  source build/openfoam/etc/bashrc  # native (local build; path known)
+  eval "\$(openfoam env)" && wmake  # wheel, or when prefix path is unknown
   openfoam run ~/case/Allrun
   openfoam blockMesh -help
   openfoam shell .
@@ -50,6 +51,29 @@ EOF
 cmd_env() {
   require_native_prefix
   printf 'source %s' "${OPENFOAM_BASHRC}"
+}
+
+cmd_env_path() {
+  require_native_prefix
+  local cli_bin="" cli_root=""
+
+  if cli_bin="$(command -v openfoam 2>/dev/null)"; then
+    printf 'export PATH=%q:${PATH}\n' "$(dirname "${cli_bin}")"
+    return 0
+  fi
+  if [[ "${SCRIPT_DIR}" == */share/openfoam/cli ]]; then
+    cli_root="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+    if [[ -x "${cli_root}/bin/openfoam" ]]; then
+      printf 'export PATH=%q:${PATH}\n' "${cli_root}/bin"
+      return 0
+    fi
+  fi
+  if [[ -x "${OPENFOAM_PREFIX}/bin/openfoam" ]]; then
+    printf 'export PATH=%q:${PATH}\n' "${OPENFOAM_PREFIX}/bin"
+    return 0
+  fi
+  echo "openfoam not in PATH; add <cli>/bin or <prefix>/bin" >&2
+  exit 1
 }
 
 cmd_completion() {
@@ -160,6 +184,7 @@ native_main() {
   shift || true
   case "${cmd}" in
   env) cmd_env "$@" ;;
+  env-path) cmd_env_path "$@" ;;
   completion) cmd_completion "$@" ;;
   run) cmd_run "$@" ;;
   shell) cmd_shell "$@" ;;
