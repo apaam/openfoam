@@ -4,6 +4,8 @@
 # --- Native build (make / install / v2412) ---
 BUILD_JOBS = 4
 OPENFOAM_VERSION = v2412
+# 0 = core OpenFOAM only (src + applications); 1 = also build modules
+OPENFOAM_BUILD_MODULES = 0
 
 # --- Docker image naming ---
 DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
@@ -20,6 +22,8 @@ DOCKER_ARCH =
 
 # --- Docker build ---
 DOCKER_JOBS = 4
+# Bump when docker/phynexis_build_packages.txt changes (triggers extend on next build).
+PHYNEXIS_BUILD_DEPS_REV = 1
 
 # --- Docker paths ---
 DOCKER_DIST_DIR = build/docker-dist

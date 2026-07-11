@@ -16,10 +16,9 @@ WORKDIR /build/openfoam
 COPY . .
 
 RUN --mount=type=cache,target=/cache/openfoam,id=openfoam-build-${TARGETARCH} \
-  chmod +x docker/bake_openfoam.sh docker/stage_openfoam.sh \
+  chmod +x docker/bake_openfoam.sh docker/stage_openfoam.sh scripts/build_openfoam.sh \
   && OPENFOAM_VERSION="${OPENFOAM_VERSION}" NUM_JOBS=${NUM_JOBS} \
-     ./docker/bake_openfoam.sh \
-  && ./docker/stage_openfoam.sh
+     ./docker/bake_openfoam.sh
 
 FROM ${DOCKER_BUILD_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}
 

@@ -1,5 +1,5 @@
 # Shared rsync exclude list for OpenFOAM install tree packaging.
-# install.sh copies openfoam-source/* into build/, then Allwmake adds platforms/ and build/.
+# build_openfoam.sh copies openfoam-source/ into build/, then Allwmake adds platforms/ and build/.
 # shellcheck shell=bash
 
 OPENFOAM_INSTALL_EXCLUDES=(

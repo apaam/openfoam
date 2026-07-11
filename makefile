@@ -14,6 +14,7 @@ ifeq ($(JOBS),)
   JOBS := $(BUILD_JOBS)
 endif
 export NUM_JOBS := $(JOBS)
+export OPENFOAM_BUILD_MODULES := $(OPENFOAM_BUILD_MODULES)
 
 DOCKER_HOST_ARCH := $(shell uname -m)
 ifeq ($(DOCKER_HOST_ARCH),x86_64)
@@ -79,21 +80,16 @@ docker-setup-base:
 	DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
 	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup_base_image.sh
 
-docker-setup-build:
-	@if docker image inspect "$(DOCKER_BUILD_IMAGE)" >/dev/null 2>&1 \
-	    && [ "$(FORCE)" != "1" ]; then \
-	  printf '==> %s already exists, skipping docker-setup-build\n' \
-	    "$(DOCKER_BUILD_IMAGE)"; \
-	else \
-	  $(MAKE) docker-setup-base && \
-	  DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
-	    -f docker/Dockerfile.build \
-	    --build-arg DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
-	    --build-arg UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
-	    --build-arg APT_MIRROR=$(DOCKER_APT_MIRROR) \
-	    -t $(DOCKER_BUILD_IMAGE) \
-	    --load .; \
-	fi
+docker-setup-build: docker-setup-base
+	@DOCKER_BUILD_IMAGE=$(DOCKER_BUILD_IMAGE) \
+	  DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_DOCKERFILE_BUILD=docker/Dockerfile.build \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
+	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  PHYNEXIS_BUILD_DEPS_REV=$(PHYNEXIS_BUILD_DEPS_REV) \
+	  FORCE=$(FORCE) \
+	  bash docker/setup_build_image.sh
 
 docker-build: sync-submodule docker-setup-build
 	DOCKER_BUILDKIT=1 docker buildx build --platform $(DOCKER_PLATFORM) \
