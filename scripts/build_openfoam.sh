@@ -33,6 +33,8 @@ BUILD_STAMP="${OPENFOAM_BUILD}/.openfoam-build-stamp"
 
 # shellcheck source=scripts/openfoam_install_excludes.sh
 source "${OPENFOAM_ROOT}/scripts/openfoam_install_excludes.sh"
+# shellcheck source=scripts/platform_paths.sh
+source "${OPENFOAM_ROOT}/scripts/platform_paths.sh"
 
 is_incremental_build() {
   [[ -d "${OPENFOAM_BUILD}/platforms" && -f "${OPENFOAM_BUILD}/etc/bashrc" ]]
@@ -226,8 +228,8 @@ compile_openfoam() {
 
   # OpenFOAM bashrc uses optional unset vars and functions that return 1.
   set +eu
-  export SHELL=/bin/bash
   source etc/bashrc
+  export SHELL="$(platform_paths_resolve_bash)"
 
   if should_run_system_check; then
     foamSystemCheck

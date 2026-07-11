@@ -1,6 +1,17 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 SYSTEM_COMPILER="Clang"
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+for _scripts in "${ROOT}/../scripts/platform_paths.sh" "${ROOT}/scripts/platform_paths.sh"; do
+  if [[ -f "${_scripts}" ]]; then
+    # shellcheck source=/dev/null
+    source "${_scripts}"
+    break
+  fi
+done
+unset _scripts
 
 # Resolve brew paths first
 ADIOS_PATH=$(brew --prefix adios2)
@@ -44,7 +55,20 @@ echo "setenv CPATH \"$CPATH\"" >> etc/prefs.csh
 echo "export LIBRARY_PATH=\"$LIBRARY_PATH\"" >> etc/prefs.sh
 echo "setenv LIBRARY_PATH \"$LIBRARY_PATH\"" >> etc/prefs.csh
 
+BREW_BIN="$(platform_paths_brew_bin || true)"
+if [[ -n "${BREW_BIN}" ]]; then
+  echo "export PATH=\"${BREW_BIN}:\$PATH\"" >> etc/prefs.sh
+  echo "setenv PATH \"${BREW_BIN}:\$PATH\"" >> etc/prefs.csh
+fi
+
 if ! grep -q 'FOAM_DYLD_LIBRARY_PATH' etc/bashrc; then
   echo 'export FOAM_DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH"' >> etc/bashrc
   echo 'setenv FOAM_DYLD_LIBRARY_PATH "$DYLD_LIBRARY_PATH"' >> etc/cshrc
 fi
+
+# wmake uses #!/bin/bash -> macOS /bin/bash 3.2 (no wait -n). Use env so PATH applies.
+echo "Patching wmake shebangs -> /usr/bin/env bash"
+grep -rl '^#!.*bash' wmake 2>/dev/null \
+  | while read -r f; do
+      sed -i '' '1s|^#!.*bash$|#!/usr/bin/env bash|' "$f"
+    done

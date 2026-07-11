@@ -4,6 +4,8 @@ set -euo pipefail
 
 STAGE="${1:?stage prefix required}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/platform_paths.sh
+source "${ROOT}/scripts/platform_paths.sh"
 FIX_RPATH="${ROOT}/scripts/bundle_fix_rpath.sh"
 RUNTIME_DIR="${STAGE}/lib/bundled"
 
@@ -41,14 +43,9 @@ collect_search_paths() {
     paths+=("${STAGE}/lib")
   fi
 
-  if [[ "${platform}" == "Darwin" && -d /opt/homebrew/lib ]]; then
-    paths+=("/opt/homebrew/lib")
-    for dir in /opt/homebrew/opt/*/lib; do
-      [[ -d "${dir}" ]] && paths+=("${dir}")
-    done
-  elif [[ -d /usr/local/lib ]]; then
-    paths+=("/usr/local/lib")
-  fi
+  while IFS= read -r dir; do
+    [[ -n "${dir}" ]] && paths+=("${dir}")
+  done < <(platform_paths_brew_lib_dirs)
 
   if [[ -n "${DYLD_LIBRARY_PATH:-}" ]]; then
     IFS=':' read -ra extra <<< "${DYLD_LIBRARY_PATH}"
@@ -104,9 +101,9 @@ path_marker_for() {
 }
 
 set +eu
-export SHELL=/bin/bash
 # shellcheck disable=SC1091
 source "${STAGE}/etc/bashrc"
+export SHELL="$(platform_paths_resolve_bash)"
 set -eu
 
 SEARCH_PATHS="$(collect_search_paths)"

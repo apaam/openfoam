@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/platform_paths.sh
+source "${SCRIPT_DIR}/platform_paths.sh"
+
 # Usage: fix_rpath.sh <binary> [runtime_dir] [install_path] [search_paths]
 # search_paths: colon-separated directories (used on macOS for dylibbundler -s)
 
@@ -50,11 +54,9 @@ collect_rpath_search_dirs() {
       [[ -d "${dir}" ]] && dirs+=("${dir}")
     done
   fi
-  if [[ "${platform}" == "Darwin" && -d /opt/homebrew/opt ]]; then
-    for dir in /opt/homebrew/opt/*/lib; do
-      [[ -d "${dir}" ]] && dirs+=("${dir}")
-    done
-  fi
+  while IFS= read -r dir; do
+    [[ -n "${dir}" ]] && dirs+=("${dir}")
+  done < <(platform_paths_brew_lib_dirs)
 
   while IFS= read -r rpath; do
     [[ -n "${rpath}" ]] && dirs+=("${rpath}")
