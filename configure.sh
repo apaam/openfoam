@@ -61,10 +61,18 @@ if [[ -n "${BREW_BIN}" ]]; then
   echo "setenv PATH \"${BREW_BIN}:\$PATH\"" >> etc/prefs.csh
 fi
 
-if ! grep -q 'FOAM_DYLD_LIBRARY_PATH' etc/bashrc; then
-  echo 'export FOAM_DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH"' >> etc/bashrc
-  echo 'setenv FOAM_DYLD_LIBRARY_PATH "$DYLD_LIBRARY_PATH"' >> etc/cshrc
-fi
+sed_inplace() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
+
+sed_inplace '/^export FOAM_DYLD_LIBRARY_PATH=/d' etc/bashrc
+echo 'export FOAM_DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH"' >> etc/bashrc
+sed_inplace '/^setenv FOAM_DYLD_LIBRARY_PATH /d' etc/cshrc
+echo 'setenv FOAM_DYLD_LIBRARY_PATH "$DYLD_LIBRARY_PATH"' >> etc/cshrc
 
 # wmake uses #!/bin/bash -> macOS /bin/bash 3.2 (no wait -n). Use env so PATH applies.
 echo "Patching wmake shebangs -> /usr/bin/env bash"

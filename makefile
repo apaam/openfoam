@@ -67,21 +67,15 @@ wheel: check-build
 	@INCLUDE_NATIVE=1 OPENFOAM_WHEEL_DIR=$(BUILD_WHEEL_DIR) \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  BUILD_PY=$(BUILD_PY) \
+	  OPENFOAM_BUNDLE_RUNTIME=0 \
 	  bash scripts/openfoam_wheel.sh
 
-wheel-dist: check-build wheel
-	@mkdir -p "$(BUILD_WHEEL_DIST_DIR)"
-	@src=$$(ls -t "$(BUILD_WHEEL_DIR)"/$(BUILD_WHEEL_MATCH) 2>/dev/null | head -1); \
-	if [ -z "$$src" ]; then \
-	  printf 'Wheel not found under %s; run make wheel first\n' \
-	    "$(BUILD_WHEEL_DIR)" >&2; exit 1; fi; \
-	dst=$$(ls -t "$(BUILD_WHEEL_DIST_DIR)"/$(BUILD_WHEEL_MATCH) 2>/dev/null | head -1 || true); \
-	if [ -z "$$dst" ] || [ "$$src" -nt "$$dst" ]; then \
-	  cp -f "$$src" "$(BUILD_WHEEL_DIST_DIR)/"; \
-	  printf '[wheel-dist] %s -> %s/\n' "$$(basename "$$src")" "$(BUILD_WHEEL_DIST_DIR)"; \
-	else \
-	  printf '[wheel-dist] Up to date: %s\n' "$$dst"; \
-	fi
+wheel-dist: check-build
+	@INCLUDE_NATIVE=1 OPENFOAM_WHEEL_DIR=$(BUILD_WHEEL_DIST_DIR) \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  BUILD_PY=$(BUILD_PY) \
+	  OPENFOAM_BUNDLE_RUNTIME=1 \
+	  bash scripts/openfoam_wheel.sh
 
 wheel-install: wheel
 	@wheel=$$(ls "$(BUILD_WHEEL_DIR)"/$(BUILD_WHEEL_MATCH) 2>/dev/null | tail -1); \
@@ -94,11 +88,13 @@ wheel-install: wheel
 cpack: check-build
 	@CPACK_DIR="$(CURDIR)/$(BUILD_CPACK_DIR)" \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  OPENFOAM_BUNDLE_RUNTIME=0 \
 	  bash scripts/openfoam_cpack.sh
 
 cpack-dist: check-build
 	@CPACK_DIR="$(CURDIR)/$(BUILD_CPACK_DIST_DIR)" \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  OPENFOAM_BUNDLE_RUNTIME=1 \
 	  bash scripts/openfoam_cpack.sh
 
 v2112: get-jobs sync-submodule
@@ -124,10 +120,11 @@ help:
 	@echo ""
 	@echo "Distribution:"
 	@echo "  make wheel                       Pack native wheel + CLI (-> $(BUILD_WHEEL_DIR)/)"
-	@echo "  make wheel-install               wheel + pip install"
+	@echo "  make wheel-install               wheel + pip install (local, no dylib bundle)"
 	@echo "  make wheel install               same as wheel-install"
-	@echo "  make wheel-dist                  wheel + copy to $(BUILD_WHEEL_DIST_DIR)/"
-	@echo "  make cpack-dist                  Native tar.gz + bin/openfoam"
+	@echo "  make wheel-dist                  Distributable wheel + bundled dylibs (-> $(BUILD_WHEEL_DIST_DIR)/)"
+	@echo "  make cpack                       Native tar.gz + bin/openfoam (-> $(BUILD_CPACK_DIR)/)"
+	@echo "  make cpack-dist                  Distributable tar.gz + bundled dylibs (-> $(BUILD_CPACK_DIST_DIR)/)"
 	@echo "  make docker-dist                 Docker image + CLI wheel (-> $(DOCKER_DIST_DIR)/)"
 	@echo "  make cli-install                 CLI-only wheel from docker-dist"
 	@echo ""

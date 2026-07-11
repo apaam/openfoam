@@ -11,6 +11,7 @@ OpenFOAM CLI
 
 Native (wheel / cpack / local build):
   env                               Print shell snippet to source etc/bashrc
+  completion bash|zsh               Print tab-completion script
   run <script|command> [args...]    Run a script in its directory, or a command in cwd
   shell [dir]                       Interactive shell
   blockMesh -help                   Run any OpenFOAM command (shorthand)
@@ -24,6 +25,7 @@ Docker:
 
 Examples:
   eval "\$(openfoam env)" && wmake
+  eval "\$(openfoam completion bash)"   # or: completion zsh
   openfoam run ~/my_case/Allrun
   openfoam blockMesh -help
   openfoam docker pull

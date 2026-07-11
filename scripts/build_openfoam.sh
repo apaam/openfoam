@@ -31,8 +31,8 @@ OPENFOAM_BUILD="$(abs_under_root "${OPENFOAM_BUILD}")"
 OPENFOAM_SOURCE="$(abs_under_root "${OPENFOAM_SOURCE:-openfoam-source}")"
 BUILD_STAMP="${OPENFOAM_BUILD}/.openfoam-build-stamp"
 
-# shellcheck source=scripts/openfoam_install_excludes.sh
-source "${OPENFOAM_ROOT}/scripts/openfoam_install_excludes.sh"
+# shellcheck source=scripts/openfoam_install_paths.sh
+source "${OPENFOAM_ROOT}/scripts/openfoam_install_paths.sh"
 # shellcheck source=scripts/platform_paths.sh
 source "${OPENFOAM_ROOT}/scripts/platform_paths.sh"
 
@@ -153,8 +153,7 @@ seed_cache() {
   [[ -d "${CACHE_BUILD}/etc" ]] || return 0
 
   echo "[build_openfoam] Seeding build/ from cache -> ${OPENFOAM_BUILD}"
-  mkdir -p "${OPENFOAM_BUILD}"
-  rsync -a "${CACHE_BUILD}/" "${OPENFOAM_BUILD}/"
+  openfoam_rsync_install_tree "${CACHE_BUILD}" "${OPENFOAM_BUILD}"
 }
 
 refresh_cache() {
@@ -162,9 +161,7 @@ refresh_cache() {
   [[ -d "${OPENFOAM_BUILD}/etc" ]] || return 0
 
   echo "[build_openfoam] Refreshing cache (${CACHE_BUILD}/)"
-  mkdir -p "${CACHE_BUILD}"
-  rsync -a "${OPENFOAM_INSTALL_EXCLUDES[@]}" \
-    "${OPENFOAM_BUILD}/" "${CACHE_BUILD}/"
+  openfoam_rsync_install_tree "${OPENFOAM_BUILD}" "${CACHE_BUILD}"
 }
 
 sync_source() {

@@ -18,6 +18,8 @@ OPENFOAM_BUILD_MODULES = 0
 OPENFOAM_SYSTEM_CHECK = auto
 # Allwmake: auto = skip when source/config unchanged and build/ is current; 0 = always run
 OPENFOAM_SKIP_ALLWMAKE = auto
+# Bundle dylibs for distributable wheel/cpack (-dist targets); 0 for local wheel/cpack
+OPENFOAM_BUNDLE_RUNTIME = 0
 
 # --- Docker image naming ---
 DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu

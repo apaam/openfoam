@@ -14,6 +14,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=shell_prompt.sh
+source "${SCRIPT_DIR}/shell_prompt.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 if [[ -f "${REPO_ROOT}/scripts/load_make_config.sh" ]]; then
   # shellcheck disable=SC1091
@@ -223,22 +225,29 @@ docker_run_openfoam() {
 cmd_shell() {
   local work_dir="${1:-.}"
   require_docker
-  local platform inner common
+  local platform inner common wrapper_host wrapper_container
   platform="$(platform_args)"
   common="$(docker_common_args)"
   work_dir="$(abs_path "${work_dir}")"
+  wrapper_host="$(openfoam_shell_bashrc_path)/shell_bashrc.sh"
+  wrapper_container="/etc/openfoam_shell_bashrc.sh"
   if [[ ! -d "${work_dir}" ]]; then
     echo "Directory not found: ${work_dir}" >&2
     exit 1
   fi
-  inner="$(openfoam_shell_cmd 'exec bash')"
+  inner="$(openfoam_interactive_shell_cmd "openfoam:docker" "${OPENFOAM_BASHRC}" \
+    "${wrapper_container}")"
   if [[ -n "${platform}" ]]; then
     # shellcheck disable=SC2086
-    exec docker run ${platform} --rm -it ${common} -v "${work_dir}:/work" -w /work \
+    exec docker run ${platform} --rm -it ${common} \
+      -v "${work_dir}:/work" -w /work \
+      -v "${wrapper_host}:${wrapper_container}:ro" \
       "${OPENFOAM_IMAGE}" bash -lc "${inner}"
   else
     # shellcheck disable=SC2086
-    exec docker run --rm -it ${common} -v "${work_dir}:/work" -w /work \
+    exec docker run --rm -it ${common} \
+      -v "${work_dir}:/work" -w /work \
+      -v "${wrapper_host}:${wrapper_container}:ro" \
       "${OPENFOAM_IMAGE}" bash -lc "${inner}"
   fi
 }

@@ -4,7 +4,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT}/scripts/load_make_config.sh"
+# shellcheck source=openfoam_install_paths.sh
+source "${ROOT}/scripts/openfoam_install_paths.sh"
+
+_bundle_override="${OPENFOAM_BUNDLE_RUNTIME+x}"
+_saved_bundle="${OPENFOAM_BUNDLE_RUNTIME-}"
 load_make_config "${ROOT}"
+if [[ -n "${_bundle_override}" ]]; then
+  export OPENFOAM_BUNDLE_RUNTIME="${_saved_bundle}"
+else
+  export OPENFOAM_BUNDLE_RUNTIME="${OPENFOAM_BUNDLE_RUNTIME:-0}"
+fi
 
 # 1 = native install tree + CLI (make wheel); 0 = CLI only (make cli)
 INCLUDE_NATIVE="${INCLUDE_NATIVE:-1}"
@@ -28,7 +38,7 @@ CLI_SRC="${ROOT}/cli"
 STAGING_DIR="${ROOT}/build/openfoam-wheel"
 BUILD_PY="${BUILD_PY:-python3}"
 TARBALL="${STAGING_DIR}/openfoam_cli/openfoam-native.tar.gz"
-STAGE_STAMP="${OPENFOAM_STAGE}/.stage-stamp"
+STAGE_STAMP="${OPENFOAM_STAGE}/.pack-stamp"
 
 if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
   PKG_VERSION="${OPENFOAM_VERSION:-v2412}"
@@ -90,6 +100,8 @@ setuptools.setup(
   package_data={
     "openfoam_cli": [
       "*.sh",
+      "completion.bash",
+      "completion.zsh",
       "openfoam-native.tar.gz",
     ],
   },
@@ -107,8 +119,9 @@ PY
 mkdir -p "${WHEELHOUSE_DIR}"
 existing_whl="$(ls -t "${WHEELHOUSE_DIR}"/openfoam-*.whl 2>/dev/null | head -1 || true)"
 if [[ "${INCLUDE_NATIVE}" == "1" && -n "${existing_whl}" && -f "${STAGE_STAMP}" \
-  && "${existing_whl}" -nt "${STAGE_STAMP}" ]] \
-  && wheel_has_bin_shims "${existing_whl}"; then
+  && "${existing_whl}" -nt "${STAGE_STAMP}" \
+  && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}" \
+  && wheel_has_bin_shims "${existing_whl}" ]]; then
   printf '[openfoam-wheel] Up to date: %s\n' "${existing_whl}"
   exit 0
 fi
@@ -120,7 +133,8 @@ cp "${CLI_SRC}/openfoam_cli/"*.py "${STAGING_DIR}/openfoam_cli/"
 sed_inplace -E "s/^__version__ = \".*\"/__version__ = \"${PKG_VERSION}\"/" \
   "${STAGING_DIR}/openfoam_cli/__init__.py"
 
-for script in openfoam.sh prefix.sh native.sh docker_run.sh rewrite_openfoam_paths.sh; do
+for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
+  shell_bashrc.sh completion.bash completion.zsh rewrite_openfoam_paths.sh; do
   src="${CLI_SRC}/openfoam_cli/${script}"
   [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/docker/rewrite_openfoam_paths.sh"
   cp "${src}" "${STAGING_DIR}/openfoam_cli/${script}"

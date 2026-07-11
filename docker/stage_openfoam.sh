@@ -4,18 +4,13 @@ set -euo pipefail
 OPENFOAM_BUILD="${1:?build dir required}"
 OPENFOAM_STAGE="${2:?stage dir required}"
 
-# Optional extra excludes: space-separated paths, e.g. STAGE_EXTRA_EXCLUDES="tutorials doc"
-STAGE_EXTRA_EXCLUDES="${STAGE_EXTRA_EXCLUDES:-}"
+# Optional extra includes: space-separated paths, e.g. STAGE_EXTRA_INCLUDES="doc"
+STAGE_EXTRA_INCLUDES="${STAGE_EXTRA_INCLUDES:-}"
 FORCE_STAGE="${FORCE_STAGE:-0}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../scripts/openfoam_install_excludes.sh
-source "${ROOT}/scripts/openfoam_install_excludes.sh"
-
-RSYNC_EXCLUDES=("${OPENFOAM_INSTALL_EXCLUDES[@]}")
-for path in ${STAGE_EXTRA_EXCLUDES}; do
-  RSYNC_EXCLUDES+=(--exclude="${path}")
-done
+# shellcheck source=../scripts/openfoam_install_paths.sh
+source "${ROOT}/scripts/openfoam_install_paths.sh"
 
 if [[ ! -d "${OPENFOAM_BUILD}/etc" ]]; then
   echo "[stage_openfoam] Missing ${OPENFOAM_BUILD}/etc" >&2
@@ -35,15 +30,14 @@ else
   echo "[stage_openfoam] Initial sync ${OPENFOAM_BUILD}/ -> ${OPENFOAM_STAGE}/"
 fi
 
-rsync -a --delete "${RSYNC_EXCLUDES[@]}" \
-  "${OPENFOAM_BUILD}/" "${OPENFOAM_STAGE}/"
+openfoam_rsync_install_tree "${OPENFOAM_BUILD}" "${OPENFOAM_STAGE}" "${STAGE_EXTRA_INCLUDES}"
 
-for dir in "${OPENFOAM_INSTALL_REQUIRED[@]}"; do
-  if [[ ! -d "${OPENFOAM_STAGE}/${dir}" ]]; then
-    echo "[stage_openfoam] Missing required dir after stage: ${dir}" >&2
+while IFS= read -r dir; do
+  if [[ ! -e "${OPENFOAM_STAGE}/${dir}" ]]; then
+    echo "[stage_openfoam] Missing required path after stage: ${dir}" >&2
     exit 1
   fi
-done
+done < <(openfoam_install_paths "${STAGE_EXTRA_INCLUDES}")
 
 date -u +%Y-%m-%dT%H:%M:%SZ > "${OPENFOAM_STAGE}/.stage-stamp"
 echo "[stage_openfoam] Install tree ready at ${OPENFOAM_STAGE}"

@@ -6,6 +6,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=prefix.sh
 source "${SCRIPT_DIR}/prefix.sh"
+# shellcheck source=shell_prompt.sh
+source "${SCRIPT_DIR}/shell_prompt.sh"
 
 CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-openfoam}"
 
@@ -29,6 +31,7 @@ ${CLI_PREFIX} — native OpenFOAM commands
 
 Developer:
   env                               Print 'source .../etc/bashrc' for wmake/cmake
+  completion bash|zsh               Print tab-completion script
 
 Run:
   run <script|command> [args...]    Run a script in its directory, or a command in cwd
@@ -37,6 +40,7 @@ Run:
 
 Examples:
   eval "\$(openfoam env)" && wmake
+  eval "\$(openfoam completion bash)"   # or: completion zsh
   openfoam run ~/case/Allrun
   openfoam blockMesh -help
   openfoam shell .
@@ -46,6 +50,28 @@ EOF
 cmd_env() {
   require_native_prefix
   printf 'source %s' "${OPENFOAM_BASHRC}"
+}
+
+cmd_completion() {
+  local shell="${1:-}"
+  if [[ -z "${shell}" ]]; then
+    echo "Usage: ${CLI_PREFIX} completion bash|zsh" >&2
+    exit 1
+  fi
+  case "${shell}" in
+  bash)
+    printf 'OPENFOAM_CLI_DIR=%q\n' "${SCRIPT_DIR}"
+    cat "${SCRIPT_DIR}/completion.bash"
+    ;;
+  zsh)
+    printf 'typeset -g OPENFOAM_CLI_DIR=%q\n' "${SCRIPT_DIR}"
+    cat "${SCRIPT_DIR}/completion.zsh"
+    ;;
+  *)
+    echo "Unsupported shell: ${shell} (supported: bash, zsh)" >&2
+    exit 1
+    ;;
+  esac
 }
 
 native_run() {
@@ -71,7 +97,7 @@ cmd_shell() {
     exit 1
   fi
   local inner
-  inner="$(openfoam_shell_cmd 'exec bash')"
+  inner="$(openfoam_interactive_shell_cmd "openfoam" "${OPENFOAM_BASHRC}")"
   (cd "${work_dir}" && exec bash -lc "${inner}")
 }
 
@@ -134,6 +160,7 @@ native_main() {
   shift || true
   case "${cmd}" in
   env) cmd_env "$@" ;;
+  completion) cmd_completion "$@" ;;
   run) cmd_run "$@" ;;
   shell) cmd_shell "$@" ;;
   -h | --help | help | "") usage ;;

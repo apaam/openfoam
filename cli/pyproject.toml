@@ -22,5 +22,9 @@ openfoam_cli = [
   "prefix.py",
   "native.sh",
   "docker_run.sh",
+  "shell_prompt.sh",
+  "shell_bashrc.sh",
+  "completion.bash",
+  "completion.zsh",
   "openfoam-native.tar.gz",
 ]
