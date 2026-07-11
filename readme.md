@@ -64,8 +64,10 @@ NUM_JOBS=8 make
 openfoam/
 ├── openfoam-source/    # OpenFOAM source (git submodule)
 ├── build/              # Compiled OpenFOAM installation
-├── docker/             # Docker image (openfoam:24.04-{arch})
+├── cli/                # openfoam CLI (wheel / cpack / docker)
+├── docker/             # Docker image build scripts
 ├── local/              # Local customizations
+├── scripts/            # Build and packaging scripts
 ├── configure.sh        # macOS-specific configuration
 ├── install.sh          # Cross-platform installation script
 ├── makefile            # Build system makefile
@@ -84,17 +86,44 @@ openfoam/
 
 | Target | Description |
 |--------|-------------|
+| `make help` | List main targets |
 | `make` | Build default version (v2412) |
 | `make v2112` | Build OpenFOAM v2112 |
 | `make v2412` | Build OpenFOAM v2412 |
 | `make deps` | Install dependencies (macOS only) |
-| `make clean` | Remove `build/docker-dist` exports |
+| `make wheel-dist` | Native pip wheel + CLI (uses existing `build/`, skips if up to date) |
+| `make wheel-install` | wheel-dist + pip install |
+| `make cpack-dist` | Native tar.gz + `bin/openfoam` (`build/cpack-dist/`) |
+| `make clean` | Remove dist/stage only (keeps `build/` compile tree) |
 | `make real-clean` | Remove native `build/` and re-sync submodules |
 | `make docker-setup-base` | Pull digest-pinned `phynexis-ubuntu:24.04-{arch}` |
 | `make docker-setup-build` | Build `phynexis-build:24.04-{arch}` toolchain image |
 | `make docker-build` | Build runtime image `openfoam:24.04-{arch}` |
-| `make docker-dist` | Save `openfoam` image as `build/docker-dist/*.tar.gz` |
+| `make docker-dist` | Export image + CLI wheel to `build/docker-dist/` |
+| `make cli-install` | Install CLI wheel from `build/docker-dist/` |
 | `make docker-push` | Push `openfoam` image (set `DOCKER_REGISTRY` in config) |
+
+## Distribution (wheel / cpack / docker)
+
+Three release channels:
+
+| Channel | Make target | Output |
+|---------|-------------|--------|
+| wheel | `make wheel-dist` | `build/wheel-dist/openfoam-2412-*.whl` (no recompile; tar from `build/`) |
+| cpack | `make cpack-dist` | `build/cpack-dist/openfoam-native-*.tar.gz` (install tree + `bin/openfoam`) |
+| docker | `make docker-dist` | `build/docker-dist/openfoam-*.tar.gz` + `openfoam-*.whl` (CLI only) |
+
+After `pip install openfoam-*.whl` or extracting cpack, use the `openfoam` command:
+
+```bash
+openfoam run ~/my_case/Allrun          # run a case script (native)
+openfoam blockMesh -help               # run any OpenFOAM command
+eval "$(openfoam env)" && wmake        # link/build extensions against OpenFOAM
+openfoam docker pull                   # Docker channel
+openfoam docker run ~/my_case/Allrun
+```
+
+cpack: extract archive, add `<prefix>/bin` to `PATH`, then run `openfoam`.
 
 ## Docker
 
@@ -102,8 +131,8 @@ Self-contained image stack in this repo:
 
 ```
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
-phynexis-build:24.04-{arch}   →  docker-setup-build
-openfoam:24.04-{arch}         →  docker-build
+phynexis-build:24.04-{arch}   →  docker-setup-build (compile only)
+openfoam:24.04-{arch}         →  docker-build (phynexis-ubuntu + ldd/dpkg runtime deps + /opt/openfoam)
 ```
 
 Runtime install tree: `/opt/openfoam` (`source /opt/openfoam/etc/bashrc`).
@@ -133,25 +162,27 @@ Build parallelism and arch: edit `make-config-user.mk` (`BUILD_JOBS`, `DOCKER_JO
 
 ## Usage
 
-After successful installation, source the OpenFOAM environment:
+### Development (from source tree)
+
+After `make install`, either source the environment or use the CLI from the repo:
 
 ```bash
-# For bash
 source build/etc/bashrc
-
-# For csh/tcsh
-source build/etc/cshrc
+# or
+eval "$(bash cli/openfoam_cli/openfoam.sh env)"
 ```
 
-Then you can use OpenFOAM tools:
+### End users (wheel / cpack / docker)
+
+Use `openfoam` instead of manual `source` for running solvers (see Distribution above).
+For building projects that link against OpenFOAM, use `openfoam env` once per shell session.
 
 ```bash
 # Check installation
-foamSystemCheck
+openfoam blockMesh -help
 
 # Run a tutorial
-cd $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily
-./Allrun
+openfoam run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 ```
 
 ## Dependencies
@@ -184,9 +215,10 @@ cd $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily
    make -j2  # Use only 2 parallel jobs
    ```
 
-4. **Clean rebuild**: If you encounter build issues, try a clean rebuild
+4. **Clean rebuild**: `make clean` only removes packaging outputs (`wheel-dist`, `docker-dist`, `stage/`, etc.) and keeps the compiled `build/` tree. To wipe the full native build:
+
    ```bash
-   make clean
+   make real-clean
    make
    ```
 

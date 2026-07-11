@@ -1,11 +1,23 @@
 # Default Makefile configuration (tracked).
 # Override in make-config-user.mk at the project root (git-ignored).
 
-# --- Native build (make / install / v2412) ---
+# --- Native build (make / install / wheel / cpack) ---
 BUILD_JOBS = 4
+BUILD_PY = python3
 OPENFOAM_VERSION = v2412
+OPENFOAM_BUILD = build
+OPENFOAM_STAGE = build/stage/openfoam
+BUILD_WHEEL_DIR = build/wheel
+BUILD_WHEEL_DIST_DIR = build/wheel-dist
+BUILD_CPACK_DIR = build/cpack
+BUILD_CPACK_DIST_DIR = build/cpack-dist
+BUILD_WHEEL_MATCH = openfoam-*.whl
 # 0 = core OpenFOAM only (src + applications); 1 = also build modules
 OPENFOAM_BUILD_MODULES = 0
+# foamSystemCheck: auto = skip when build/platforms exists; 1 = always; 0 = never
+OPENFOAM_SYSTEM_CHECK = auto
+# Allwmake: auto = skip when source/config unchanged and build/ is current; 0 = always run
+OPENFOAM_SKIP_ALLWMAKE = auto
 
 # --- Docker image naming ---
 DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
@@ -24,8 +36,10 @@ DOCKER_ARCH =
 DOCKER_JOBS = 4
 # Bump when docker/phynexis_build_packages.txt changes (triggers extend on next build).
 PHYNEXIS_BUILD_DEPS_REV = 1
+# Bump when docker/resolve_runtime_apt.sh changes (rebuilds runtime layer).
+OPENFOAM_RUNTIME_DEPS_REV = 1
 
-# --- Docker paths ---
+# Docker release bundle: image tar.gz + openfoam-*.whl
 DOCKER_DIST_DIR = build/docker-dist
 
 # Optional apt mirror passed to docker/apt_setup.sh

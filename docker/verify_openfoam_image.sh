@@ -18,4 +18,20 @@ if ! docker run --rm "${IMAGE}" bash -lc \
   exit 1
 fi
 
+if ! docker run --rm "${IMAGE}" bash -lc '
+  source /opt/openfoam/etc/bashrc
+  missing=0
+  for cmd in blockMesh; do
+    bin="$(command -v "${cmd}" 2>/dev/null || true)"
+    [[ -n "${bin}" ]] || continue
+    while read -r line; do
+      echo "Missing lib for ${cmd}: ${line}" >&2
+      missing=1
+    done < <(ldd "${bin}" 2>/dev/null | grep "not found" || true)
+  done
+  exit "${missing}"
+'; then
+  exit 1
+fi
+
 echo "[verify_openfoam_image] OK: ${IMAGE}"

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openfoam"
+version = "2412"
+description = "OpenFOAM install and command-line tools"
+requires-python = ">=3.7"
+
+[project.scripts]
+openfoam = "openfoam_cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["openfoam_cli*"]
+
+[tool.setuptools.package-data]
+openfoam_cli = [
+  "openfoam.sh",
+  "prefix.sh",
+  "prefix.py",
+  "native.sh",
+  "docker_run.sh",
+  "openfoam-native.tar.gz",
+]

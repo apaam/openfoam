@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build the openfoam runtime image (fresh final stage, incremental compile via cache).
 #
-# Rebuilds the tagged image from phynexis-build + staged /opt/openfoam each time so
-# layer size stays flat. Compile artifacts persist in the BuildKit cache mount.
+# Rebuilds the tagged image from phynexis-ubuntu + runtime deps + staged /opt/openfoam
+# each time so layer size stays flat. Compile artifacts persist in the BuildKit cache mount.
 #
 # Usage (env vars from make):
 #   DOCKER_OPENFOAM_IMAGE=openfoam:24.04-arm64 \
@@ -18,7 +18,10 @@ PLATFORM="${DOCKER_PLATFORM:?DOCKER_PLATFORM required}"
 TARGETARCH="${PLATFORM#linux/}"
 DOCKERFILE="${DOCKER_DOCKERFILE:-docker/Dockerfile}"
 BUILD_IMAGE_NAME="${DOCKER_BUILD_IMAGE_NAME:-phynexis-build}"
+UBUNTU_IMAGE_NAME="${DOCKER_UBUNTU_IMAGE_NAME:-phynexis-ubuntu}"
 UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
+APT_MIRROR="${DOCKER_APT_MIRROR:-}"
+RUNTIME_DEPS_REV="${OPENFOAM_RUNTIME_DEPS_REV:-1}"
 NUM_JOBS="${DOCKER_JOBS:-4}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 OPENFOAM_BUILD_MODULES="${OPENFOAM_BUILD_MODULES:-0}"
@@ -43,7 +46,10 @@ run_build() {
     --target fresh \
     -f "${DOCKERFILE}" \
     --build-arg "DOCKER_BUILD_IMAGE_NAME=${BUILD_IMAGE_NAME}" \
+    --build-arg "DOCKER_UBUNTU_IMAGE_NAME=${UBUNTU_IMAGE_NAME}" \
     --build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}" \
+    --build-arg "APT_MIRROR=${APT_MIRROR}" \
+    --build-arg "OPENFOAM_RUNTIME_DEPS_REV=${RUNTIME_DEPS_REV}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
     --build-arg "NUM_JOBS=${NUM_JOBS}" \
     --build-arg "OPENFOAM_VERSION=${OPENFOAM_VERSION}" \
