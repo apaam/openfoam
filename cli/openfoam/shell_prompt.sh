@@ -10,6 +10,6 @@ openfoam_interactive_shell_cmd() {
   local wrapper="${3:-$(openfoam_shell_bashrc_path)/shell_bashrc.sh}"
   local cli_dir
   cli_dir="$(openfoam_shell_bashrc_path)"
-  printf 'source %q && export OPENFOAM_SHELL=1 OPENFOAM_SHELL_TAG=%q OPENFOAM_CLI_DIR=%q && exec bash --rcfile %q -i' \
+  printf 'source %q && export OPENFOAM_SHELL=1 OPENFOAM_SHELL_TAG=%q OPENFOAM_PACKAGE_DIR=%q && exec bash --rcfile %q -i' \
     "${bashrc}" "${tag}" "${cli_dir}" "${wrapper}"
 }

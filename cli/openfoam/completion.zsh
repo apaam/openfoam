@@ -4,9 +4,9 @@
 
 typeset -ga _openfoam_apps_cache
 
-_openfoam_cli_dir() {
-  if [[ -n ${OPENFOAM_CLI_DIR:-} ]]; then
-    print -r -- "${OPENFOAM_CLI_DIR}"
+_openfoam_package_dir() {
+  if [[ -n ${OPENFOAM_PACKAGE_DIR:-} ]]; then
+    print -r -- "${OPENFOAM_PACKAGE_DIR}"
   else
     print -r -- "${${(%):-%x}:A:h}"
   fi
@@ -19,7 +19,7 @@ _openfoam_resolve_prefix() {
   fi
 
   local cli_dir
-  cli_dir="$(_openfoam_cli_dir)"
+  cli_dir="$(_openfoam_package_dir)"
   bash -c 'source "'"${cli_dir}"'/prefix.sh" && resolve_openfoam_prefix' 2>/dev/null
 }
 

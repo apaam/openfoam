@@ -17,7 +17,7 @@ if [[ -n "${WM_PROJECT_DIR:-}" && -f "${WM_PROJECT_DIR}/etc/config.sh/bash_compl
   source "${WM_PROJECT_DIR}/etc/config.sh/bash_completion"
 fi
 
-if [[ -n "${OPENFOAM_CLI_DIR:-}" && -f "${OPENFOAM_CLI_DIR}/completion.bash" ]]; then
+if [[ -n "${OPENFOAM_PACKAGE_DIR:-}" && -f "${OPENFOAM_PACKAGE_DIR}/completion.bash" ]]; then
   # shellcheck disable=SC1090
-  source "${OPENFOAM_CLI_DIR}/completion.bash"
+  source "${OPENFOAM_PACKAGE_DIR}/completion.bash"
 fi

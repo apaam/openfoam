@@ -5,7 +5,8 @@
 BUILD_JOBS = 4
 BUILD_PY = python3
 OPENFOAM_VERSION = v2412
-OPENFOAM_BUILD = build
+# WM_PROJECT_DIR (compile + install tree); packaging lives alongside under build/.
+OPENFOAM_BUILD = build/openfoam
 OPENFOAM_STAGE = build/stage/openfoam
 BUILD_WHEEL_DIR = build/wheel
 BUILD_WHEEL_DIST_DIR = build/wheel-dist
@@ -14,9 +15,9 @@ BUILD_CPACK_DIST_DIR = build/cpack-dist
 BUILD_WHEEL_MATCH = openfoam-*.whl
 # 0 = core OpenFOAM only (src + applications); 1 = also build modules
 OPENFOAM_BUILD_MODULES = 0
-# foamSystemCheck: auto = skip when build/platforms exists; 1 = always; 0 = never
+# foamSystemCheck: auto = skip when OPENFOAM_BUILD/platforms exists; 1 = always; 0 = never
 OPENFOAM_SYSTEM_CHECK = auto
-# Allwmake: auto = skip when source/config unchanged and build/ is current; 0 = always run
+# Allwmake: auto = skip when source/config unchanged and $(OPENFOAM_BUILD) is current; 0 = always run
 OPENFOAM_SKIP_ALLWMAKE = auto
 # Bundle dylibs for distributable wheel/cpack (-dist targets); 0 for local wheel/cpack
 OPENFOAM_BUNDLE_RUNTIME = 0

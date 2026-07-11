@@ -3,7 +3,7 @@ set -euo pipefail
 
 OPENFOAM_ROOT="${OPENFOAM_ROOT:-$(pwd)}"
 OPENFOAM_SOURCE="${OPENFOAM_SOURCE:-${OPENFOAM_ROOT}/openfoam-source}"
-OPENFOAM_BUILD="${OPENFOAM_BUILD:-${OPENFOAM_ROOT}/build}"
+OPENFOAM_BUILD="${OPENFOAM_BUILD:-${OPENFOAM_ROOT}/build/openfoam}"
 CACHE_BUILD="${CACHE_BUILD:-}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 NUM_JOBS="${NUM_JOBS:-2}"
@@ -152,7 +152,7 @@ seed_cache() {
   [[ -d "${OPENFOAM_BUILD}/etc" ]] && return 0
   [[ -d "${CACHE_BUILD}/etc" ]] || return 0
 
-  echo "[build_openfoam] Seeding build/ from cache -> ${OPENFOAM_BUILD}"
+  echo "[build_openfoam] Seeding ${OPENFOAM_BUILD} from cache -> ${CACHE_BUILD}"
   openfoam_rsync_install_tree "${CACHE_BUILD}" "${OPENFOAM_BUILD}"
 }
 
@@ -166,9 +166,15 @@ refresh_cache() {
 
 sync_source() {
   mkdir -p "${OPENFOAM_BUILD}"
-  rsync -ura --delete-excluded \
+  # Do not use --delete-excluded: rsync 3.x treats it like --delete and would
+  # remove compile artifacts (platforms/, wmake build/, stamps) and packaging
+  # dirs that only exist under build/.
+  rsync -ura \
     "${OPENFOAM_SOURCE_SYNC_EXCLUDES[@]}" \
     "${OPENFOAM_SOURCE}/" "${OPENFOAM_BUILD}/"
+  if [[ "${OPENFOAM_BUILD_MODULES}" =~ ^(0|false|no|off)$ ]]; then
+    rm -rf "${OPENFOAM_BUILD}/modules" "${OPENFOAM_BUILD}/plugins"
+  fi
 }
 
 setup_platform_deps() {

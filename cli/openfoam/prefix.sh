@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Resolve native OpenFOAM install prefix and etc/bashrc.
 
-openfoam_cli_dir() {
-  cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd
+_openfoam_python() {
+  printf '%s' "${OPENFOAM_PYTHON:-python3}"
 }
 
 resolve_openfoam_prefix() {
@@ -11,25 +11,22 @@ resolve_openfoam_prefix() {
     return 0
   fi
 
-  local cli_dir repo_root
-  cli_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  repo_root="$(cd "${cli_dir}/../.." && pwd)"
-  if [[ -f "${repo_root}/build/etc/bashrc" ]]; then
-    printf '%s' "$(cd "${repo_root}/build" && pwd)"
+  local pkg_dir repo_root py
+  pkg_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  repo_root="$(cd "${pkg_dir}/../.." && pwd)"
+  py="$(_openfoam_python)"
+
+  if [[ -f "${repo_root}/build/openfoam/etc/bashrc" ]]; then
+    printf '%s' "$(cd "${repo_root}/build/openfoam" && pwd)"
     return 0
   fi
 
-  if [[ -f "${cli_dir}/prefix/etc/bashrc" ]]; then
-    printf '%s' "${cli_dir}/prefix"
+  if [[ -f "${pkg_dir}/prefix/etc/bashrc" ]]; then
+    "${py}" -m openfoam.prefix
     return 0
   fi
 
-  if [[ -f "${cli_dir}/openfoam-native.tar.gz" ]]; then
-    python3 -c 'from openfoam_cli.prefix import native_prefix; print(native_prefix())'
-    return 0
-  fi
-
-  return 1
+  "${py}" -m openfoam.prefix
 }
 
 require_native_prefix() {

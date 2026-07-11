@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Shared path lists for OpenFOAM install tree packaging.
-# build_openfoam.sh copies openfoam-source/ into build/, then Allwmake adds platforms/ and build/.
+# build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (build/openfoam/),
+# then Allwmake adds platforms/ and build/ (wmake objects) there.
+# Packaging outputs live under build/stage/, build/wheel/, etc.
 # shellcheck shell=bash
 
 # Optional OpenFOAM components (not built by default); omit from source sync.
@@ -43,10 +45,11 @@ openfoam_rsync_install_tree() {
       return 1
     fi
     if [[ -d "${src}/${item}" ]]; then
-      mkdir -p "${dst}/${item}"
-      rsync -a --delete "${src}/${item}/" "${dst}/${item}/"
+      rm -rf "${dst}/${item}"
+      mkdir -p "${dst}"
+      (cd "${src}" && tar -cf - "${item}") | (cd "${dst}" && tar -xf -)
     else
-      rsync -a "${src}/${item}" "${dst}/${item}"
+      cp -a "${src}/${item}" "${dst}/${item}"
     fi
   done
 

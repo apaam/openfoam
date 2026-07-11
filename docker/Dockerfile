@@ -52,5 +52,5 @@ RUN chmod +x /usr/local/bin/apt_setup.sh /usr/local/bin/openfoam_runtime_install
 COPY --from=compile /build/stage/openfoam /opt/openfoam
 COPY docker/rewrite_openfoam_paths.sh /usr/local/bin/rewrite_openfoam_paths.sh
 RUN chmod +x /usr/local/bin/rewrite_openfoam_paths.sh \
-  && rewrite_openfoam_paths.sh /opt/openfoam /build/openfoam/build /opt/openfoam \
+  && rewrite_openfoam_paths.sh /opt/openfoam /build/openfoam/build/openfoam /opt/openfoam \
   && test -f /opt/openfoam/etc/bashrc

@@ -16,7 +16,7 @@ abs_path() {
   if command -v realpath >/dev/null; then
     realpath "${path}"
   else
-    python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "${path}"
+    "${OPENFOAM_PYTHON:-python3}" -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "${path}"
   fi
 }
 
@@ -60,11 +60,11 @@ cmd_completion() {
   fi
   case "${shell}" in
   bash)
-    printf 'OPENFOAM_CLI_DIR=%q\n' "${SCRIPT_DIR}"
+    printf 'OPENFOAM_PACKAGE_DIR=%q\n' "${SCRIPT_DIR}"
     cat "${SCRIPT_DIR}/completion.bash"
     ;;
   zsh)
-    printf 'typeset -g OPENFOAM_CLI_DIR=%q\n' "${SCRIPT_DIR}"
+    printf 'typeset -g OPENFOAM_PACKAGE_DIR=%q\n' "${SCRIPT_DIR}"
     cat "${SCRIPT_DIR}/completion.zsh"
     ;;
   *)

@@ -20,7 +20,7 @@ FORCE_STAGE="${FORCE_STAGE:-0}"
 
 install_cpack_cli() {
   local stage="$1"
-  local cli_src="${ROOT}/cli/openfoam_cli"
+  local cli_src="${ROOT}/cli/openfoam"
   local share_cli="${stage}/share/openfoam/cli"
 
   mkdir -p "${share_cli}"
@@ -60,8 +60,8 @@ STAGE_STAMP="${OPENFOAM_STAGE}/.pack-stamp"
 mkdir -p "${CPACK_DIR}"
 archive="${CPACK_DIR}/openfoam-native-${version}-${os_name}-${arch}.tar.gz"
 
-if [[ -f "${archive}" && -f "${STAGE_STAMP}" && "${archive}" -nt "${STAGE_STAMP}" \
-  && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}" ]]; then
+if [[ -f "${archive}" && -f "${STAGE_STAMP}" && "${archive}" -nt "${STAGE_STAMP}" ]] \
+  && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}"; then
   echo "[cpack] Up to date: ${archive}"
   ls -la "${archive}"
   exit 0

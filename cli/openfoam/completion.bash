@@ -2,9 +2,9 @@
 # Enable: eval "$(openfoam completion bash)"
 # Or source this file from shell_bashrc.sh inside openfoam shell.
 
-_openfoam_cli_dir() {
-  if [[ -n "${OPENFOAM_CLI_DIR:-}" ]]; then
-    printf '%s' "${OPENFOAM_CLI_DIR}"
+_openfoam_package_dir() {
+  if [[ -n "${OPENFOAM_PACKAGE_DIR:-}" ]]; then
+    printf '%s' "${OPENFOAM_PACKAGE_DIR}"
   else
     cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
   fi
@@ -17,7 +17,7 @@ _openfoam_resolve_prefix() {
   fi
 
   local cli_dir prefix_sh
-  cli_dir="$(_openfoam_cli_dir)"
+  cli_dir="$(_openfoam_package_dir)"
   prefix_sh="${cli_dir}/prefix.sh"
   if [[ -f "${prefix_sh}" ]]; then
     # shellcheck disable=SC1090

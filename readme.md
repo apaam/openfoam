@@ -63,7 +63,10 @@ NUM_JOBS=8 make
 ```
 openfoam/
 ├── openfoam-source/    # OpenFOAM source (git submodule)
-├── build/              # Compiled OpenFOAM installation
+├── build/              # Local build workspace
+│   ├── openfoam/       # WM_PROJECT_DIR (compile + install tree)
+│   ├── stage/          # Packaging staging
+│   └── wheel/ ...      # Distribution outputs
 ├── cli/                # openfoam CLI (wheel / cpack / docker)
 ├── docker/             # Docker image build scripts
 ├── local/              # Local customizations
@@ -91,11 +94,11 @@ openfoam/
 | `make v2112` | Build OpenFOAM v2112 |
 | `make v2412` | Build OpenFOAM v2412 |
 | `make deps` | Install dependencies (macOS only) |
-| `make wheel-dist` | Native pip wheel + CLI (uses existing `build/`, skips if up to date) |
-| `make wheel-install` | wheel-dist + pip install |
+| `make wheel-dist` | Native pip wheel + CLI (uses existing `build/openfoam/`, skips if up to date) |
+| `make wheel-install` | `make wheel` + pip install (local, no dylib bundle) |
 | `make cpack-dist` | Native tar.gz + `bin/openfoam` (`build/cpack-dist/`) |
-| `make clean` | Remove dist/stage only (keeps `build/` compile tree) |
-| `make real-clean` | Remove native `build/` and re-sync submodules |
+| `make clean` | Remove `build/` (compile cache + packaging) |
+| `make real-clean` | `clean` + reset `openfoam-source` + sync-submodule |
 | `make docker-setup-base` | Pull digest-pinned `phynexis-ubuntu:24.04-{arch}` |
 | `make docker-setup-build` | Build `phynexis-build:24.04-{arch}` toolchain image |
 | `make docker-build` | Build runtime image `openfoam:24.04-{arch}` |
@@ -109,7 +112,7 @@ Three release channels:
 
 | Channel | Make target | Output |
 |---------|-------------|--------|
-| wheel | `make wheel-dist` | `build/wheel-dist/openfoam-2412-*.whl` (no recompile; tar from `build/`) |
+| wheel | `make wheel-dist` | `build/wheel-dist/openfoam-2412-*.whl` (no recompile; tar from `build/openfoam/`) |
 | cpack | `make cpack-dist` | `build/cpack-dist/openfoam-native-*.tar.gz` (install tree + `bin/openfoam`) |
 | docker | `make docker-dist` | `build/docker-dist/openfoam-*.tar.gz` + `openfoam-*.whl` (CLI only) |
 
@@ -141,9 +144,10 @@ Docker path layout (shared convention with phynexis-v0):
 
 | Role | openfoam | phynexis-v0 |
 |------|----------|-------------|
-| Source | `/build/openfoam` | `/build/phynexis-v0` |
-| Compile | `/build/openfoam/build` | `/build/phynexis-v0/build` |
-| Cache mount | `/cache/openfoam` → `build/` | `/cache/phynexis-v0` → `build/` |
+| Repo root | `/build/openfoam` | `/build/phynexis-v0` |
+| WM_PROJECT_DIR | `/build/openfoam/build/openfoam` | `/build/phynexis-v0/build/...` |
+| wmake objects | `.../build/openfoam/build` | `.../build/.../build` |
+| Cache mount | `/cache/openfoam` → `build/openfoam/` | `/cache/phynexis-v0` → `build/` |
 | Cache id | `openfoam-build-{arch}` | `phynexis-build-{arch}` |
 | Stage | — | `/build/stage/phynexis-v0`, `/build/stage/openfoam` |
 | Runtime | `/opt/openfoam` | `/opt/phynexis`, `/opt/openfoam` |
@@ -167,9 +171,9 @@ Build parallelism and arch: edit `make-config-user.mk` (`BUILD_JOBS`, `DOCKER_JO
 After `make install`, either source the environment or use the CLI from the repo:
 
 ```bash
-source build/etc/bashrc
+source build/openfoam/etc/bashrc
 # or
-eval "$(bash cli/openfoam_cli/openfoam.sh env)"
+eval "$(bash cli/openfoam/openfoam.sh env)"
 ```
 
 ### End users (wheel / cpack / docker)
@@ -215,7 +219,7 @@ openfoam run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
    make -j2  # Use only 2 parallel jobs
    ```
 
-4. **Clean rebuild**: `make clean` only removes packaging outputs (`wheel-dist`, `docker-dist`, `stage/`, etc.) and keeps the compiled `build/` tree. To wipe the full native build:
+4. **Clean rebuild**: `make clean` removes the entire `build/` workspace (compile cache and packaging). To also reset the `openfoam-source` submodule:
 
    ```bash
    make real-clean

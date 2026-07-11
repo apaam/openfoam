@@ -9,14 +9,14 @@ description = "OpenFOAM install and command-line tools"
 requires-python = ">=3.7"
 
 [project.scripts]
-openfoam = "openfoam_cli.cli:main"
+openfoam = "openfoam.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["openfoam_cli*"]
+include = ["openfoam"]
 
 [tool.setuptools.package-data]
-openfoam_cli = [
+openfoam = [
   "openfoam.sh",
   "prefix.sh",
   "prefix.py",
@@ -26,5 +26,4 @@ openfoam_cli = [
   "shell_bashrc.sh",
   "completion.bash",
   "completion.zsh",
-  "openfoam-native.tar.gz",
 ]
