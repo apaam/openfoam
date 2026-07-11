@@ -2,3 +2,7 @@
 local/
 build/
 make-config-user.mk
+
+# Python
+__pycache__/
+*.py[cod]

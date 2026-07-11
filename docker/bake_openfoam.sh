@@ -12,6 +12,6 @@ export NUM_JOBS="${NUM_JOBS:-$(nproc)}"
 export PLATFORM=linux
 
 bash "${ROOT}/scripts/build_openfoam.sh"
-bash "${SCRIPT_DIR}/stage_openfoam.sh" "${ROOT}/build" "${ROOT}/build/stage/openfoam"
+bash "${SCRIPT_DIR}/stage_openfoam.sh" "${ROOT}/build" "/build/stage/openfoam"
 bash "${SCRIPT_DIR}/resolve_runtime_apt.sh" \
   /build/stage/openfoam /build/stage/openfoam.runtime-apt.txt
