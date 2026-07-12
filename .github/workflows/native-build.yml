@@ -101,23 +101,11 @@ jobs:
       - name: Build
         run: make ${{ inputs.make_target }}
 
-      - name: Upload dist archives
+      - name: Upload dist artifacts
         if: inputs.upload_dist
         uses: actions/upload-artifact@v4
         with:
           name: openfoam-dist-${{ matrix.os }}
-          path: |
-            build/openfoam-dist/openfoam-native-*.tar.gz
-            build/openfoam-dist/openfoam-cli-*.tar.gz
-          if-no-files-found: error
-          retention-days: 14
-
-      # Pure-Python wheel is identical across platforms; ship one copy from Linux.
-      - name: Upload CLI wheel
-        if: inputs.upload_dist && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: openfoam-dist-wheel
-          path: build/openfoam-dist/openfoam-*.whl
+          path: build/openfoam-dist/*
           if-no-files-found: error
           retention-days: 14

@@ -37,7 +37,7 @@ sed_inplace() {
 
 mkdir -p "${WHEEL_DIR}"
 STAMP="${WHEEL_DIR}/.cli-wheel-stamp"
-existing_whl="$(ls -t "${WHEEL_DIR}"/openfoam-*.whl 2>/dev/null | head -1 || true)"
+existing_whl="$(ls -t "${WHEEL_DIR}"/openfoam_cli-*.whl 2>/dev/null | head -1 || true)"
 if [[ -n "${existing_whl}" && -f "${STAMP}" && "${existing_whl}" -nt "${STAMP}" \
   && "$(<"${STAMP}")" == "${PKG_VERSION}" ]]; then
   printf '[cli-wheel] Up to date: %s\n' "${existing_whl}"
@@ -74,7 +74,7 @@ done
 source "${ROOT}/cli/openfoam/manifest.sh"
 write_cli_manifest "${STAGING_DIR}/openfoam/manifest.json" "wheel" 0 "${PKG_VERSION}"
 
-rm -f "${WHEEL_DIR}"/openfoam-*.whl 2>/dev/null || true
+rm -f "${WHEEL_DIR}"/openfoam_cli-*.whl "${WHEEL_DIR}"/openfoam-*.whl 2>/dev/null || true
 
 wheel_pip_status=0
 (
@@ -85,7 +85,7 @@ wheel_pip_status=0
   if ! "${BUILD_PY}" -m pip wheel . -w "${WHEEL_DIR}" --no-cache-dir \
     --config-settings=--build-option=--keep-temp; then
     wheel_pip_status=$?
-    whl="$(ls -t "${WHEEL_DIR}"/openfoam-*.whl 2>/dev/null | head -1 || true)"
+    whl="$(ls -t "${WHEEL_DIR}"/openfoam_cli-*.whl 2>/dev/null | head -1 || true)"
     if [[ -z "${whl}" ]]; then
       exit "${wheel_pip_status}"
     fi
@@ -96,4 +96,4 @@ wheel_pip_status=0
 openfoam_safe_rm "${STAGING_DIR}"
 openfoam_safe_rm "${CLI_BUILD_DIR}"
 printf '%s\n' "${PKG_VERSION}" >"${STAMP}"
-printf '[cli-wheel] -> %s/openfoam-*.whl\n' "${WHEEL_DIR}"
+printf '[cli-wheel] -> %s/openfoam_cli-*.whl\n' "${WHEEL_DIR}"

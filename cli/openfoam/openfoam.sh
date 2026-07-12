@@ -25,7 +25,7 @@ Docker:
   docker uninstall-image            Remove runtime image
 
 Examples:
-  pip install openfoam-*.whl
+  pip install openfoam_cli-*.whl
   export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
   source "\$OPENFOAM_PREFIX/etc/bashrc"
   blockMesh -help
