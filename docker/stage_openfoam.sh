@@ -19,7 +19,7 @@ fi
 
 if [[ "${FORCE_STAGE}" == "1" ]]; then
   echo "[stage_openfoam] Force refresh ${OPENFOAM_STAGE}/"
-  rm -rf "${OPENFOAM_STAGE}"
+  openfoam_safe_rm "${OPENFOAM_STAGE}"
 fi
 
 mkdir -p "${OPENFOAM_STAGE}"

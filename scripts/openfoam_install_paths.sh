@@ -23,6 +23,35 @@ OPENFOAM_INSTALL_INCLUDES=(
   META-INFO
 )
 
+# macOS Finder may drop .DS_Store while large trees are being removed, leaving
+# ENOTEMPTY ("Directory not empty") from rm/rmtree. Move aside first when needed.
+openfoam_safe_rm() {
+  local target="$1"
+  [[ -e "${target}" ]] || return 0
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    export COPYFILE_DISABLE=1
+  fi
+
+  find "${target}" -name .DS_Store -delete 2>/dev/null || true
+  chmod -R u+w "${target}" 2>/dev/null || true
+  if rm -rf "${target}" 2>/dev/null; then
+    return 0
+  fi
+
+  local trash parent base
+  parent="$(dirname "${target}")"
+  base="$(basename "${target}")"
+  trash="$(mktemp -d "${TMPDIR:-/tmp}/openfoam-rm.XXXXXX")"
+  if mv "${target}" "${trash}/${base}" 2>/dev/null; then
+    rm -rf "${trash}" &
+    return 0
+  fi
+
+  find "${target}" -name .DS_Store -delete 2>/dev/null || true
+  rm -rf "${target}"
+}
+
 # Sync only whitelisted paths from src/ to dst/ (packaging, cache).
 # Optional third argument: space-separated extra top-level paths (STAGE_EXTRA_INCLUDES).
 openfoam_rsync_install_tree() {
@@ -45,7 +74,7 @@ openfoam_rsync_install_tree() {
       return 1
     fi
     if [[ -d "${src}/${item}" ]]; then
-      rm -rf "${dst}/${item}"
+      openfoam_safe_rm "${dst}/${item}"
       mkdir -p "${dst}"
       (cd "${src}" && tar -cf - "${item}") | (cd "${dst}" && tar -xf -)
     else
@@ -67,7 +96,7 @@ openfoam_rsync_install_tree() {
       fi
     done
     if [[ "${found}" == false ]]; then
-      rm -rf "${existing}"
+      openfoam_safe_rm "${existing}"
     fi
   done
   shopt -u nullglob

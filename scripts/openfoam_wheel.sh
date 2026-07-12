@@ -105,7 +105,7 @@ if [[ "${INCLUDE_NATIVE}" == "1" && -n "${existing_whl}" && -f "${STAGE_STAMP}" 
   exit 0
 fi
 
-rm -rf "${STAGING_DIR}"
+openfoam_safe_rm "${STAGING_DIR}"
 mkdir -p "${STAGING_DIR}/openfoam"
 
 cp "${CLI_SRC}/openfoam/"*.py "${STAGING_DIR}/openfoam/"
@@ -124,7 +124,7 @@ if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
   bash "${ROOT}/scripts/prepare_openfoam_pack_tree.sh"
 
   echo "[openfoam-wheel] Staging native install -> openfoam/prefix/"
-  rm -rf "${NATIVE_PREFIX}"
+  openfoam_safe_rm "${NATIVE_PREFIX}"
   mkdir -p "${NATIVE_PREFIX}"
   openfoam_rsync_install_tree "${OPENFOAM_STAGE}" "${NATIVE_PREFIX}"
 
@@ -139,12 +139,24 @@ fi
 
 rm -f "${WHEELHOUSE_DIR}"/openfoam-*.whl 2>/dev/null || true
 
+wheel_pip_status=0
 (
   cd "${STAGING_DIR}"
-  "${BUILD_PY}" -m pip wheel . -w "${WHEELHOUSE_DIR}" --no-cache-dir
-)
+  for path in build openfoam.egg-info dist; do
+    openfoam_safe_rm "${path}"
+  done
+  if ! "${BUILD_PY}" -m pip wheel . -w "${WHEELHOUSE_DIR}" --no-cache-dir \
+    --config-settings=--build-option=--keep-temp; then
+    wheel_pip_status=$?
+    whl="$(ls -t "${WHEELHOUSE_DIR}"/openfoam-*.whl 2>/dev/null | head -1 || true)"
+    if [[ -z "${whl}" ]]; then
+      exit "${wheel_pip_status}"
+    fi
+    echo "[openfoam-wheel] pip exited ${wheel_pip_status} during temp cleanup; wheel OK: ${whl}" >&2
+  fi
+) || exit $?
 
-rm -rf "${STAGING_DIR}"
+openfoam_safe_rm "${STAGING_DIR}"
 if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
   printf '[openfoam-wheel] -> %s/openfoam-*.whl\n' "${WHEELHOUSE_DIR}"
 else

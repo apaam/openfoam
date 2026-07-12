@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT}/scripts/load_make_config.sh"
+# shellcheck source=openfoam_install_paths.sh
+source "${ROOT}/scripts/openfoam_install_paths.sh"
 
 _bundle_override="${OPENFOAM_BUNDLE_RUNTIME+x}"
 _saved_bundle="${OPENFOAM_BUNDLE_RUNTIME-}"
@@ -40,7 +42,7 @@ if [[ "${OPENFOAM_BUNDLE_RUNTIME}" =~ ^(1|yes|true|on)$ ]]; then
   bash "${ROOT}/scripts/bundle_openfoam_runtime.sh" "${NEW_PREFIX}"
   bash "${ROOT}/scripts/rewrite_openfoam_prefs.sh" "${NEW_PREFIX}"
 else
-  rm -rf "${NEW_PREFIX}/lib"
+  openfoam_safe_rm "${NEW_PREFIX}/lib"
   echo "[prepare_openfoam_pack_tree] Skipping runtime bundle (OPENFOAM_BUNDLE_RUNTIME=${OPENFOAM_BUNDLE_RUNTIME})"
 fi
 
