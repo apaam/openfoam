@@ -6,7 +6,7 @@ OPENFOAM_VERSION = v2412
 
 # BUILD_JOBS = 8
 # OPENFOAM_BUILD = build/openfoam-build
-# OPENFOAM_CLI_BUILD = build/cli
+# OPENFOAM_CLI_BUILD = build
 # OPENFOAM_STAGE = build/stage/openfoam-build
 # OPENFOAM_BUILD_MODULES = 0
 # OPENFOAM_SYSTEM_CHECK = auto
@@ -17,6 +17,7 @@ OPENFOAM_VERSION = v2412
 # OPENFOAM_DIST_DIR = build/openfoam-dist
 # BUILD_CLI_PACK_DIR = build/cli-pack
 # BUILD_CLI_WHEEL_DIR = build/cli-wheel
+# BUILD_CLI_BUILD_DIR = build/cli-build
 
 # --- Docker ---
 # DOCKER_OPENFOAM_BUILD = build/docker-build

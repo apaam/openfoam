@@ -15,6 +15,12 @@ case "${WHEEL_DIR}" in
 *) WHEEL_DIR="${ROOT}/${WHEEL_DIR}" ;;
 esac
 
+CLI_BUILD_DIR="${BUILD_CLI_BUILD_DIR:-build/cli-build}"
+case "${CLI_BUILD_DIR}" in
+/*) ;;
+*) CLI_BUILD_DIR="${ROOT}/${CLI_BUILD_DIR}" ;;
+esac
+
 CLI_SRC="${ROOT}/cli"
 STAGING_DIR="${ROOT}/build/stage/cli-wheel"
 BUILD_PY="${BUILD_PY:-python3}"
@@ -39,12 +45,18 @@ if [[ -n "${existing_whl}" && -f "${STAMP}" && "${existing_whl}" -nt "${STAMP}" 
 fi
 
 openfoam_safe_rm "${STAGING_DIR}"
-mkdir -p "${STAGING_DIR}/openfoam" "${STAGING_DIR}/completions/bash"
+openfoam_safe_rm "${CLI_BUILD_DIR}"
+openfoam_safe_rm "${CLI_SRC}/build"
+mkdir -p "${STAGING_DIR}/openfoam" "${STAGING_DIR}/completions/bash" "${CLI_BUILD_DIR}"
 
 cp "${CLI_SRC}/openfoam/"*.py "${STAGING_DIR}/openfoam/"
 cp "${CLI_SRC}/completions/bash/openfoam" "${STAGING_DIR}/completions/bash/openfoam"
 cp "${CLI_SRC}/pyproject.toml" "${STAGING_DIR}/"
 cp "${CLI_SRC}/setup.py" "${STAGING_DIR}/"
+cat >"${STAGING_DIR}/setup.cfg" <<EOF
+[build]
+build-base=${CLI_BUILD_DIR}
+EOF
 sed_inplace -E "s/^__version__ = \".*\"/__version__ = \"${PKG_VERSION}\"/" \
   "${STAGING_DIR}/openfoam/__init__.py"
 sed_inplace -E "s/^version = \".*\"/version = \"${PKG_VERSION}\"/" \
@@ -67,7 +79,7 @@ rm -f "${WHEEL_DIR}"/openfoam-*.whl 2>/dev/null || true
 wheel_pip_status=0
 (
   cd "${STAGING_DIR}"
-  for path in build openfoam.egg-info dist; do
+  for path in openfoam.egg-info dist; do
     openfoam_safe_rm "${path}"
   done
   if ! "${BUILD_PY}" -m pip wheel . -w "${WHEEL_DIR}" --no-cache-dir \
@@ -82,5 +94,6 @@ wheel_pip_status=0
 ) || exit $?
 
 openfoam_safe_rm "${STAGING_DIR}"
+openfoam_safe_rm "${CLI_BUILD_DIR}"
 printf '%s\n' "${PKG_VERSION}" >"${STAMP}"
 printf '[cli-wheel] -> %s/openfoam-*.whl\n' "${WHEEL_DIR}"

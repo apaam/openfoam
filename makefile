@@ -124,7 +124,7 @@ help:
 	@echo "Top-level:"
 	@echo "  make                         show this help"
 	@echo "  make openfoam                compile openfoam (-> $(OPENFOAM_BUILD)/)"
-	@echo "  make cli                     install cli locally (-> $(OPENFOAM_CLI_BUILD)/)"
+	@echo "  make cli                     install cli locally (-> $(OPENFOAM_CLI_BUILD)/bin/)"
 	@echo "  make all                     openfoam + cli + cli-wheel"
 	@echo "  make install                 pip install CLI wheel"
 	@echo "  make all install             all + pip install CLI"

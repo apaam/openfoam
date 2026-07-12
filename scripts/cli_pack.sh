@@ -47,5 +47,5 @@ mkdir -p "$(dirname "${archive}")"
 tar -czf "${archive}" -C "${CLI_BUILD}" \
   --exclude='.DS_Store' \
   --exclude='*/.DS_Store' \
-  .
+  bin share
 ls -la "${archive}"

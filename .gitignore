@@ -7,5 +7,7 @@ make-config-user.mk
 __pycache__/
 *.py[cod]
 *.egg-info/
+cli/build/
+cli/dist/
 
 plan.md

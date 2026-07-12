@@ -51,8 +51,9 @@ make -j8 openfoam
 openfoam/
 ├── openfoam-source/      # OpenFOAM source (git submodule)
 ├── build/
+│   ├── bin/              # local CLI (OPENFOAM_CLI_BUILD)
+│   ├── share/            # local CLI data + completions
 │   ├── openfoam-build/   # WM_PROJECT_DIR (native; OPENFOAM_BUILD)
-│   ├── cli/              # local CLI (OPENFOAM_CLI_BUILD)
 │   ├── cli-wheel/        # pip wheel output
 │   ├── cli-pack/         # CLI tar.gz
 │   ├── openfoam-pack/    # native openfoam tar.gz (dev pack)
@@ -76,7 +77,7 @@ openfoam/
 |--------|-------------|
 | `make help` | List main targets (default) |
 | `make openfoam` | Compile OpenFOAM locally → `build/openfoam-build/` |
-| `make cli` | Install CLI locally → `build/cli/` |
+| `make cli` | Install CLI locally → `build/bin/` |
 | `make all` | `openfoam` + `cli` + `cli-wheel` |
 | `make install` | pip install CLI wheel |
 | `make openfoam-pack` | tar.gz from existing build (no bundle) |
@@ -110,7 +111,7 @@ Top-level: `openfoam help`, `openfoam docker help`.
 
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
-| local dev | `make all` | `build/cli/bin/openfoam` or `make install` |
+| local dev | `make all` | `build/bin/openfoam` or `make install` |
 | native release | `tar xzf openfoam-native-*.tar.gz -C <prefix>` | `pip install openfoam-*.whl` or `tar xzf openfoam-cli-*.tar.gz -C <prefix>` |
 | docker | `openfoam docker install-image` | host `pip install openfoam-*.whl` |
 
@@ -127,7 +128,7 @@ Load OpenFOAM the native way: `source <prefix>/etc/bashrc`.
 ```bash
 # local dev
 source build/openfoam-build/etc/bashrc
-export PATH="build/cli/bin:$PATH"
+export PATH="build/bin:$PATH"
 
 # native release (openfoam-dist)
 mkdir -p ~/opt/openfoam && tar xzf build/openfoam-dist/openfoam-native-*.tar.gz -C ~/opt/openfoam
@@ -181,7 +182,7 @@ After `make all`:
 
 ```bash
 source build/openfoam-build/etc/bashrc
-export PATH="build/cli/bin:$PATH"
+export PATH="build/bin:$PATH"
 wmake
 ```
 
