@@ -118,7 +118,7 @@ Top-level: `openfoam help`, `openfoam docker help`.
 | Make target | Output |
 |-------------|--------|
 | `dist-native` | `build/dist-native/` — host `openfoam-native-*.tar.gz`, CLI wheel/pack |
-| `dist-docker` | `build/dist-docker/` — Linux `openfoam-docker-*.tar.gz` + CLI (no macOS image) |
+| `dist-docker` | `build/dist-docker/` — Linux `openfoam-docker-*-linux-{amd64,arm64}.tar.gz` + CLI |
 | `cli-wheel` | `build/cli-wheel/openfoam-*.whl` |
 
 ### Shell setup
@@ -140,6 +140,7 @@ pip install build/dist-native/openfoam-*.whl
 # docker (pip-installed CLI does not auto-find repo build/dist-docker/)
 pip install build/dist-docker/openfoam-*.whl
 openfoam docker install-image build/dist-docker/openfoam-docker-2412-linux-amd64.tar.gz
+# Apple Silicon Docker: openfoam-docker-*-linux-arm64.tar.gz
 # or: OPENFOAM_PACK=/path/to/openfoam-docker-2412-linux-amd64.tar.gz openfoam docker install-image
 ```
 
@@ -156,9 +157,9 @@ openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 
 ## Docker
 
-Docker images are **Linux-only** (Docker Desktop on macOS still runs Linux containers). macOS users who want a native install use `make dist-native`; there is no macOS Docker image.
+Docker (Linux image only; Docker Desktop on macOS/Windows still runs Linux containers). macOS users who want a native install use `make dist-native`; there is no macOS Docker image.
 
-`dist-docker` packs a linux `openfoam-native-*-linux-*.tar.gz` into a runtime image. Release builds it on Ubuntu from the Linux `dist-native` artifact.
+`dist-docker` packs a linux `openfoam-native-*-linux-*.tar.gz` into a runtime image. Release builds **amd64** and **arm64** images from the matching Linux `dist-native` artifacts.
 
 ```
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base

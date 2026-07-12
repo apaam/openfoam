@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: ""
+      runners:
+        description: "JSON array of GitHub-hosted runners"
+        required: false
+        type: string
+        default: '["ubuntu-latest", "macos-latest"]'
 
 env:
   BUILD_JOBS: 2
@@ -27,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(inputs.runners) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     steps:

@@ -24,10 +24,22 @@ jobs:
       make_target: dist-native
       upload_dist: true
       checkout_ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      # linux amd64 + linux arm64 + macOS (darwin arm64 on macos-latest)
+      runners: '["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest"]'
 
   docker:
     needs: build
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            native_artifact: dist-native-ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            native_artifact: dist-native-ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -35,23 +47,23 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
-      - name: Download linux dist-native
+      - name: Download matching linux dist-native
         uses: actions/download-artifact@v4
         with:
-          name: dist-native-ubuntu-latest
+          name: ${{ matrix.native_artifact }}
           path: build/dist-native
 
       - name: List dist-native inputs
         run: ls -la build/dist-native
 
-      - name: Build dist-docker
-        run: make dist-docker
+      - name: Build dist-docker (${{ matrix.arch }})
+        run: DOCKER_ARCH=${{ matrix.arch }} make dist-docker
 
-      - name: Upload dist-docker
+      - name: Upload docker image (${{ matrix.arch }})
         uses: actions/upload-artifact@v4
         with:
-          name: dist-docker
-          path: build/dist-docker/*
+          name: dist-docker-${{ matrix.arch }}
+          path: build/dist-docker/openfoam-docker-*.tar.gz
           if-no-files-found: error
           retention-days: 14
 
@@ -66,14 +78,30 @@ jobs:
           merge-multiple: true
           path: dist
 
-      - name: Download dist-docker artifact
+      - name: Download docker images
         uses: actions/download-artifact@v4
         with:
-          name: dist-docker
+          pattern: dist-docker-*
+          merge-multiple: true
           path: dist
 
-      - name: List release files
-        run: ls -la dist
+      - name: Deduplicate release assets
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          declare -A seen=()
+          for f in dist/*; do
+            [[ -f "$f" ]] || continue
+            base="$(basename "$f")"
+            if [[ -n "${seen[$base]:-}" ]]; then
+              echo "Removing duplicate: $base"
+              rm -f "$f"
+            else
+              seen[$base]=1
+            fi
+          done
+          echo "==> Release assets"
+          ls -la dist
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -84,3 +112,34 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           draft: false
+          body: |
+            ## Install
+
+            | Platform | OpenFOAM | CLI |
+            |----------|----------|-----|
+            | **macOS** | `openfoam-native-*-darwin-*.tar.gz` | `pip install openfoam_cli-*.whl` or darwin `openfoam-cli-*.tar.gz` |
+            | **Linux** | `openfoam-native-*-linux-*.tar.gz` (amd64 / arm64) | same wheel / matching `openfoam-cli-*.tar.gz` |
+            | **Windows / Docker** | `openfoam docker install-image` with `openfoam-docker-*-linux-amd64.tar.gz` or `*-linux-arm64.tar.gz` | host `pip install openfoam_cli-*.whl` |
+
+            Native extract (macOS needs a case-sensitive volume):
+
+            ```bash
+            mkdir -p ~/opt/openfoam && tar xzf openfoam-native-*.tar.gz -C ~/opt/openfoam
+            source ~/opt/openfoam/etc/bashrc
+            export OPENFOAM_PREFIX=~/opt/openfoam
+            pip install openfoam_cli-*.whl
+            ```
+
+            Docker (Linux images only; Docker Desktop on macOS/Windows still runs Linux):
+
+            ```bash
+            pip install openfoam_cli-*.whl
+            # pick amd64 or arm64 to match the machine / Docker platform
+            openfoam docker install-image openfoam-docker-*-linux-amd64.tar.gz
+            # openfoam docker install-image openfoam-docker-*-linux-arm64.tar.gz
+            openfoam docker run …
+            ```
+
+            Notes:
+            - There is no macOS Docker image.
+            - Release ships Linux Docker for `amd64` and `arm64`.
