@@ -78,10 +78,6 @@ rsync_would_change() {
     | grep -qE '^[><ch][fdLDS\.]'
 }
 
-platform_config_changed() {
-  platform_meta_config_changed "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" "${PLATFORM}"
-}
-
 should_skip_allwmake() {
   case "${OPENFOAM_SKIP_ALLWMAKE}" in
   0 | no | false | off) return 1 ;;
@@ -99,7 +95,7 @@ should_skip_allwmake() {
   [[ "${saved_source}" == "$(source_tree_id)" ]] || return 1
   [[ "${saved_config}" == "$(build_config_id)" ]] || return 1
   rsync_would_change && return 1
-  platform_config_changed && return 1
+  platform_config_changed "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" "${PLATFORM}" && return 1
   openfoam_build_complete || return 1
   return 0
 }
@@ -152,23 +148,16 @@ sync_source() {
   fi
 }
 
-darwin_cleanup_foreign_platforms() {
-  if compgen -G "${OPENFOAM_BUILD}/platforms/linuxARM64*" >/dev/null; then
-    echo "[build_openfoam] Removing foreign linuxARM64 platform artifacts"
-    rm -rf "${OPENFOAM_BUILD}"/platforms/linuxARM64* "${OPENFOAM_BUILD}"/build/linuxARM64*
-  fi
-}
-
 setup_platform_deps() {
   case "${PLATFORM}" in
     darwin)
       rsync -u "${OPENFOAM_ROOT}/Brewfile" "${OPENFOAM_BUILD}/Brewfile"
       rsync -u "${OPENFOAM_ROOT}/configure.sh" "${OPENFOAM_BUILD}/configure.sh"
-      darwin_cleanup_foreign_platforms
+      darwin_cleanup_foreign_platforms "${OPENFOAM_BUILD}"
       local need_brew=false
       if ! is_incremental_build; then
         need_brew=true
-      elif darwin_meta_need_configure "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"; then
+      elif darwin_need_configure "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"; then
         need_brew=true
       fi
       if [[ "${need_brew}" == true ]]; then
@@ -181,26 +170,17 @@ setup_platform_deps() {
       else
         echo "[build_openfoam] Skipping brew bundle (incremental, Brewfile unchanged)"
       fi
-      if darwin_meta_need_configure "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"; then
+      if darwin_need_configure "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"; then
         cd "${OPENFOAM_BUILD}"
-        export OPENFOAM_META_PREFS_SH="$(
-          openfoam_runtime_meta_prefs "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" darwin
-        )"
-        export OPENFOAM_META_PREFS_CSH="$(
-          openfoam_runtime_meta_prefs_csh "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" darwin
-        )"
-        mkdir -p "$(dirname "${OPENFOAM_META_PREFS_SH}")"
         bash -ex configure.sh
       else
-        echo "[build_openfoam] Skipping configure.sh (meta prefs up to date)"
+        echo "[build_openfoam] Skipping configure.sh (prefs up to date)"
       fi
-      openfoam_apply_meta_prefs "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" darwin
       ;;
     linux)
       linux_sync_etc_from_source "${OPENFOAM_SOURCE}" "${OPENFOAM_BUILD}"
-      openfoam_prepare_linux_meta "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"
       linux_cleanup_stale_platforms "${OPENFOAM_BUILD}"
-      openfoam_apply_meta_prefs "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" linux
+      linux_write_prefs "${OPENFOAM_BUILD}"
       ;;
     *)
       echo "[build_openfoam] Unsupported PLATFORM: ${PLATFORM}" >&2

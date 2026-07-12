@@ -54,20 +54,15 @@ openfoam_validate_build_dir() {
   channel="$(openfoam_build_channel "${build_dir}")"
   expected_compiler="$(openfoam_expected_compiler "${platform}")"
 
-  case "${platform}" in
-  linux)
-    if [[ "${channel}" != docker ]]; then
-      echo "[build_openfoam] ERROR: linux builds must use build/docker-build (got ${build_dir})" >&2
-      exit 1
-    fi
-    ;;
-  darwin)
-    if [[ "${channel}" == docker ]]; then
-      echo "[build_openfoam] ERROR: macOS builds must use build/openfoam-build (got ${build_dir})" >&2
-      exit 1
-    fi
-    ;;
-  esac
+  # docker-build is always linux/Gcc; native openfoam-build is darwin or linux.
+  if [[ "${channel}" == docker && "${platform}" != linux ]]; then
+    echo "[build_openfoam] ERROR: docker-build is linux-only (got platform=${platform}, dir=${build_dir})" >&2
+    exit 1
+  fi
+  if [[ "${channel}" == native && "${platform}" != darwin && "${platform}" != linux ]]; then
+    echo "[build_openfoam] ERROR: unsupported native platform ${platform} (dir=${build_dir})" >&2
+    exit 1
+  fi
 
   local profile="${build_dir}/.phynexis-build-profile"
   if [[ -f "${profile}" ]]; then

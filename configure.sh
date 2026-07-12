@@ -4,8 +4,8 @@ set -euo pipefail
 SYSTEM_COMPILER="Clang"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-PREFS_SH="${OPENFOAM_META_PREFS_SH:-etc/prefs.sh}"
-PREFS_CSH="${OPENFOAM_META_PREFS_CSH:-etc/prefs.csh}"
+PREFS_SH="etc/prefs.sh"
+PREFS_CSH="etc/prefs.csh"
 for _scripts in "${ROOT}/../scripts/platform_paths.sh" "${ROOT}/scripts/platform_paths.sh"; do
   if [[ -f "${_scripts}" ]]; then
     # shellcheck source=/dev/null
