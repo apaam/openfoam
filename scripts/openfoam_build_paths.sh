@@ -3,8 +3,8 @@
 # Call openfoam_apply_build_path_defaults after load_make_config.
 
 openfoam_apply_build_path_defaults() {
-  : "${OPENFOAM_BUILD:=build/host-build}"
-  : "${OPENFOAM_STAGE:=build/stage/host-build}"
+  : "${OPENFOAM_BUILD:=build/openfoam-build}"
+  : "${OPENFOAM_STAGE:=build/stage/openfoam-build}"
   : "${DOCKER_OPENFOAM_BUILD:=build/docker-build}"
   : "${DOCKER_OPENFOAM_STAGE:=build/stage/docker-build}"
 }

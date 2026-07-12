@@ -51,7 +51,7 @@ make -j8 openfoam
 openfoam/
 ├── openfoam-source/      # OpenFOAM source (git submodule)
 ├── build/
-│   ├── host-build/       # WM_PROJECT_DIR (native; OPENFOAM_BUILD)
+│   ├── openfoam-build/   # WM_PROJECT_DIR (native; OPENFOAM_BUILD)
 │   ├── cli/              # local CLI (OPENFOAM_CLI_BUILD)
 │   ├── cli-wheel/        # pip wheel output
 │   ├── cli-pack/         # CLI tar.gz
@@ -74,15 +74,15 @@ openfoam/
 | Target | Description |
 |--------|-------------|
 | `make help` | List main targets (default) |
-| `make openfoam` | Compile OpenFOAM locally → `build/host-build/` |
+| `make openfoam` | Compile OpenFOAM locally → `build/openfoam-build/` |
 | `make cli` | Install CLI locally → `build/cli/` |
 | `make all` | `openfoam` + `cli` + `cli-wheel` |
-| `make install` | pip install CLI wheel (`cli-wheel-install`) |
+| `make install` | pip install CLI wheel |
 | `make openfoam-pack` | tar.gz from existing build (no bundle) |
 | `make openfoam-dist` | `openfoam` + bundled tar.gz (release) |
 | `make cli-wheel` | CLI pip wheel → `build/cli-wheel/` |
 | `make cli-pack` | CLI tar.gz → `build/cli-pack/` |
-| `make openfoam-build` | Docker compile + runtime image |
+| `make docker-build` | Docker compile + runtime image |
 | `make docker-dist` | Export image → `build/docker-dist/` |
 | `make deps` | Install dependencies (macOS only) |
 | `make clean` | Remove `build/` |
@@ -125,7 +125,7 @@ Load OpenFOAM the native way: `source <prefix>/etc/bashrc`.
 
 ```bash
 # local dev
-source build/host-build/etc/bashrc
+source build/openfoam-build/etc/bashrc
 export PATH="build/cli/bin:$PATH"
 
 # native release (openfoam-dist)
@@ -156,18 +156,18 @@ openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 ```
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
 phynexis-build:24.04-{arch}   →  docker-setup-build
-build/docker-build/            →  openfoam-build (DOCKER_OPENFOAM_BUILD)
+build/docker-build/            →  docker-build (DOCKER_OPENFOAM_BUILD)
 openfoam:24.04-{arch}          →  runtime image
 build/docker-dist/             →  exported image tar.gz
 ```
 
 ```bash
-make openfoam-build
+make docker-build
 make docker-dist
 make docker-push
 ```
 
-Use `FORCE=1 make openfoam-build` to rebuild the toolchain image when needed.
+Use `FORCE=1 make docker-build` to rebuild the toolchain image when needed.
 
 Path variables: `docs/make-config-default.mk`, override in `make-config-user.mk`.
 
@@ -178,7 +178,7 @@ Path variables: `docs/make-config-default.mk`, override in `make-config-user.mk`
 After `make all`:
 
 ```bash
-source build/host-build/etc/bashrc
+source build/openfoam-build/etc/bashrc
 export PATH="build/cli/bin:$PATH"
 wmake
 ```

@@ -54,7 +54,7 @@ DOCKER_DIST_BASENAME := $(subst :,-,$(subst /,-,$(DOCKER_OPENFOAM_IMAGE)))
 DOCKER_BUILD_IMAGE_TAR = $(BUILD_DOCKER_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 DOCKER_DIST_IMAGE = $(DOCKER_DIST_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 
-.NOTPARALLEL: openfoam-pack openfoam-dist cli-wheel cli-pack openfoam-build docker-dist
+.NOTPARALLEL: openfoam-pack openfoam-dist cli-wheel cli-pack docker-build docker-dist
 
 # =============================================================================
 # Build
@@ -68,8 +68,6 @@ cli:
 	  bash scripts/install_openfoam_cli.sh "$(CURDIR)/$(OPENFOAM_CLI_BUILD)" "$(CURDIR)/$(OPENFOAM_BUILD)"
 
 all: openfoam cli cli-wheel
-
-install: cli-wheel-install
 
 check-build:
 	@test -f $(OPENFOAM_BUILD)/etc/bashrc || \
@@ -102,20 +100,13 @@ cli-pack: cli
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  bash scripts/cli_pack.sh
 
-cli-wheel-install:
+install:
 	@wheel=$$(ls -t "$(BUILD_CLI_WHEEL_DIR)"/$(BUILD_CLI_WHEEL_MATCH) 2>/dev/null | head -1); \
 	if [ -z "$$wheel" ]; then \
 	  printf 'Wheel not found under %s; run make cli-wheel first\n' \
 	    "$(BUILD_CLI_WHEEL_DIR)" >&2; exit 1; fi; \
-	printf '[cli-wheel-install] %s\n' "$$wheel"; \
+	printf '[install] %s\n' "$$wheel"; \
 	$(BUILD_PY) -m pip install --force-reinstall "$$wheel"
-
-wheel wheel-bundle wheel-dist wheel-bundle-dist wheel-install \
-cpack cpack-bundle cpack-dist cpack-bundle-dist \
-docker-build docker-cli cli-install \
-build build-cli install-cli docker-cli-install v2112 v2412:
-	@echo "Removed target '$@'; see make help" >&2
-	@exit 1
 
 deps:
 	brew bundle -f
@@ -131,7 +122,7 @@ help:
 	@echo "  make openfoam                compile openfoam (-> $(OPENFOAM_BUILD)/)"
 	@echo "  make cli                     install cli locally (-> $(OPENFOAM_CLI_BUILD)/)"
 	@echo "  make all                     openfoam + cli + cli-wheel"
-	@echo "  make install                 pip install CLI wheel (cli-wheel-install)"
+	@echo "  make install                 pip install CLI wheel"
 	@echo "  make all install             all + pip install CLI"
 	@echo ""
 	@echo "Native openfoam pack:"
@@ -141,11 +132,10 @@ help:
 	@echo "CLI pack:"
 	@echo "  make cli-wheel               pip wheel (-> $(BUILD_CLI_WHEEL_DIR)/)"
 	@echo "  make cli-pack                tar.gz (-> $(BUILD_CLI_PACK_DIR)/)"
-	@echo "  make cli-wheel-install       pip install from $(BUILD_CLI_WHEEL_DIR)/"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make openfoam-build          docker compile + image (-> $(DOCKER_OPENFOAM_BUILD)/ + $(BUILD_DOCKER_DIR)/)"
-	@echo "  make docker-dist             openfoam-build + export image (-> $(DOCKER_DIST_DIR)/)"
+	@echo "  make docker-build            docker compile + image (-> $(DOCKER_OPENFOAM_BUILD)/ + $(BUILD_DOCKER_DIR)/)"
+	@echo "  make docker-dist             docker-build + export image (-> $(DOCKER_DIST_DIR)/)"
 	@echo "  make docker-setup-base       pull $(DOCKER_UBUNTU_IMAGE)"
 	@echo "  make docker-setup-build      build $(DOCKER_BUILD_IMAGE)"
 	@echo "  make docker-push             push image (set DOCKER_REGISTRY)"
@@ -207,7 +197,7 @@ docker-setup-build: docker-setup-base
 	  FORCE=$(FORCE) \
 	  bash docker/setup_build_image.sh
 
-openfoam-build: sync-submodule docker-setup-build
+docker-build: sync-submodule docker-setup-build
 	@DOCKER_OPENFOAM_IMAGE=$(DOCKER_OPENFOAM_IMAGE) \
 	  DOCKER_BUILD_IMAGE=$(DOCKER_BUILD_IMAGE) \
 	  DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
@@ -224,7 +214,7 @@ openfoam-build: sync-submodule docker-setup-build
 	  FORCE=$(FORCE) \
 	  bash docker/setup_openfoam_image.sh
 	@mkdir -p "$(BUILD_DOCKER_DIR)"
-	@printf '[openfoam-build] Saving %s -> %s\n' \
+	@printf '[docker-build] Saving %s -> %s\n' \
 	  "$(DOCKER_OPENFOAM_IMAGE)" "$(DOCKER_BUILD_IMAGE_TAR)"
 	@docker save "$(DOCKER_OPENFOAM_IMAGE)" | gzip > "$(DOCKER_BUILD_IMAGE_TAR)"
 
@@ -239,7 +229,7 @@ docker-push:
 	  docker tag "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker push "$$remote"
 
-docker-dist: openfoam-build
+docker-dist: docker-build
 	@mkdir -p "$(DOCKER_DIST_DIR)"
 	@printf '[docker-dist] Exporting %s -> %s\n' \
 	  "$(DOCKER_BUILD_IMAGE_TAR)" "$(DOCKER_DIST_IMAGE)"
@@ -252,10 +242,6 @@ docker-prune-images:
 .PHONY: help openfoam cli all install get-jobs deps sync-submodule clean real-clean \
 	check-build \
 	openfoam-pack openfoam-dist \
-	cli-wheel cli-pack cli-wheel-install \
-	wheel wheel-bundle wheel-dist wheel-bundle-dist wheel-install \
-	cpack cpack-bundle cpack-dist cpack-bundle-dist \
-	docker-build docker-cli cli-install \
-	build build-cli install-cli docker-cli-install v2112 v2412 \
-	docker-setup-base docker-setup-build openfoam-build docker-push docker-dist \
+	cli-wheel cli-pack \
+	docker-setup-base docker-setup-build docker-build docker-push docker-dist \
 	docker-prune-images

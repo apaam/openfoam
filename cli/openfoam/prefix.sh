@@ -87,7 +87,7 @@ prefix_hint_missing_bashrc() {
   cat >&2 <<EOF
 Note: ${prefix}/etc/bashrc not found.
 Pack:    tar xzf openfoam-native-*.tar.gz -C <prefix>
-Local:   make openfoam && source ${OPENFOAM_BUILD:-build/host-build}/etc/bashrc
+Local:   make openfoam && source ${OPENFOAM_BUILD:-build/openfoam-build}/etc/bashrc
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
 EOF
 }
@@ -113,7 +113,7 @@ require_native_prefix() {
 OpenFOAM install not found at ${prefix}.
 
 Pack:    tar xzf openfoam-native-*.tar.gz -C <prefix>
-Local:   make all && source ${OPENFOAM_BUILD:-build/host-build}/etc/bashrc
+Local:   make all && source ${OPENFOAM_BUILD:-build/openfoam-build}/etc/bashrc
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
 EOF
     exit 1

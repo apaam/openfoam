@@ -5,9 +5,9 @@
 OPENFOAM_VERSION = v2412
 
 # BUILD_JOBS = 8
-# OPENFOAM_BUILD = build/host-build
+# OPENFOAM_BUILD = build/openfoam-build
 # OPENFOAM_CLI_BUILD = build/cli
-# OPENFOAM_STAGE = build/stage/host-build
+# OPENFOAM_STAGE = build/stage/openfoam-build
 # OPENFOAM_BUILD_MODULES = 0
 # OPENFOAM_SYSTEM_CHECK = auto
 # OPENFOAM_SKIP_ALLWMAKE = auto

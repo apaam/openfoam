@@ -5,9 +5,9 @@
 BUILD_JOBS = 4
 BUILD_PY = python3
 OPENFOAM_VERSION = v2412
-OPENFOAM_BUILD = build/host-build
+OPENFOAM_BUILD = build/openfoam-build
 OPENFOAM_CLI_BUILD = build/cli
-OPENFOAM_STAGE = build/stage/host-build
+OPENFOAM_STAGE = build/stage/openfoam-build
 BUILD_OPENFOAM_PACK_DIR = build/openfoam-pack
 BUILD_CLI_PACK_DIR = build/cli-pack
 BUILD_CLI_WHEEL_DIR = build/cli-wheel
