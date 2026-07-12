@@ -234,9 +234,8 @@ resolve_platform
 cd "${OPENFOAM_ROOT}"
 
 openfoam_validate_build_dir "${OPENFOAM_BUILD}" "${PLATFORM}"
-channel="$(openfoam_build_channel "${OPENFOAM_BUILD}")"
 compiler="$(openfoam_expected_compiler "${PLATFORM}")"
-echo "[build_openfoam] tree=${OPENFOAM_BUILD} platform=${PLATFORM} compiler=${compiler} channel=${channel}"
+echo "[build_openfoam] tree=${OPENFOAM_BUILD} platform=${PLATFORM} compiler=${compiler}"
 
 if is_incremental_build; then
   echo "[build_openfoam] Incremental build ${OPENFOAM_VERSION} (jobs=${NUM_JOBS})"

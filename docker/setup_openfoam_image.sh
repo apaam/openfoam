@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Build the openfoam runtime image:
-#   1. docker run + bind mount -> DOCKER_OPENFOAM_BUILD (same scripts as local make)
-#   2. docker build fresh stage from DOCKER_OPENFOAM_STAGE via --build-context
+# Build the openfoam runtime image from a linux native-dist archive.
 #
 # Usage (env vars from make):
 #   DOCKER_OPENFOAM_IMAGE=openfoam:24.04-arm64 \
@@ -19,75 +17,101 @@ openfoam_load_build_paths "${ROOT}"
 IMAGE="${DOCKER_OPENFOAM_IMAGE:?DOCKER_OPENFOAM_IMAGE required}"
 PLATFORM="${DOCKER_PLATFORM:?DOCKER_PLATFORM required}"
 TARGETARCH="${PLATFORM#linux/}"
-DOCKERFILE="${DOCKER_DOCKERFILE:-docker/Dockerfile}"
-BUILD_IMAGE="${DOCKER_BUILD_IMAGE:?DOCKER_BUILD_IMAGE required}"
+DOCKERFILE="docker/Dockerfile"
 UBUNTU_IMAGE_NAME="${DOCKER_UBUNTU_IMAGE_NAME:-phynexis-ubuntu}"
 UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
 APT_MIRROR="${DOCKER_APT_MIRROR:-}"
-RUNTIME_DEPS_REV="${OPENFOAM_RUNTIME_DEPS_REV:-1}"
-NUM_JOBS="${DOCKER_JOBS:-4}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
-OPENFOAM_BUILD_MODULES="${OPENFOAM_BUILD_MODULES:-0}"
-FORCE="${FORCE:-0}"
+DIST_VERSION="${OPENFOAM_VERSION#v}"
+DIST_DIR="$(openfoam_abs_under_root "${ROOT}" "${NATIVE_DIST_DIR:-build/native-dist}")"
+BUILD_DOCKER_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_DOCKER_DIR:-build/docker}")"
+IMAGE_TAR="${DOCKER_IMAGE_TAR:-${BUILD_DOCKER_DIR}/openfoam-docker-${DIST_VERSION}-linux-${TARGETARCH}.tar.gz}"
+CONTEXT_DIR="${BUILD_DOCKER_DIR}/of-dist-context"
 
-STAGE_DIR="$(openfoam_abs_under_root "${ROOT}" "${DOCKER_OPENFOAM_STAGE}")"
+arch_globs() {
+  case "${TARGETARCH}" in
+  amd64) printf '%s\n' 'x86_64' 'amd64' ;;
+  arm64) printf '%s\n' 'arm64' 'aarch64' ;;
+  *) printf '%s\n' "${TARGETARCH}" ;;
+  esac
+}
+
+find_linux_native_archive() {
+  local arch name candidate
+  if [[ -n "${OPENFOAM_NATIVE_DIST:-}" ]]; then
+    candidate="${OPENFOAM_NATIVE_DIST}"
+    case "${candidate}" in
+    /*) ;;
+    *) candidate="${ROOT}/${candidate}" ;;
+    esac
+    if [[ ! -f "${candidate}" ]]; then
+      echo "[setup_openfoam_image] OPENFOAM_NATIVE_DIST not found: ${candidate}" >&2
+      exit 1
+    fi
+    printf '%s' "${candidate}"
+    return 0
+  fi
+
+  while IFS= read -r arch; do
+    name="openfoam-native-${DIST_VERSION}-linux-${arch}.tar.gz"
+    candidate="${DIST_DIR}/${name}"
+    if [[ -f "${candidate}" ]]; then
+      printf '%s' "${candidate}"
+      return 0
+    fi
+  done < <(arch_globs)
+
+  echo "[setup_openfoam_image] Missing linux native dist for ${PLATFORM}" >&2
+  echo "[setup_openfoam_image] Expected under ${DIST_DIR}/:" >&2
+  while IFS= read -r arch; do
+    echo "  openfoam-native-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
+  done < <(arch_globs)
+  echo "[setup_openfoam_image] On Linux: make native-dist" >&2
+  echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST=/path/to/openfoam-native-*-linux-*.tar.gz" >&2
+  exit 1
+}
 
 verify() {
   bash "${ROOT}/docker/verify_openfoam_image.sh" "${IMAGE}"
 }
 
 prune_dangling() {
-  local dangling=()
-  mapfile -t dangling < <(docker images --filter "dangling=true" -q)
-  if [[ "${#dangling[@]}" -eq 0 ]]; then
+  local ids
+  ids="$(docker images --filter "dangling=true" -q || true)"
+  if [[ -z "${ids}" ]]; then
     return 0
   fi
-  printf '==> Removing %s dangling image(s)\n' "${#dangling[@]}"
-  docker rmi "${dangling[@]}" >/dev/null 2>&1 || true
+  printf '==> Removing dangling image(s)\n'
+  # shellcheck disable=SC2086
+  docker rmi ${ids} >/dev/null 2>&1 || true
 }
 
-require_stage() {
-  if [[ ! -f "${STAGE_DIR}/etc/bashrc" ]]; then
-    printf 'Missing %s/etc/bashrc after compile\n' "${DOCKER_OPENFOAM_STAGE}" >&2
-    exit 1
-  fi
-  if [[ ! -f "${STAGE_DIR}/runtime-apt.txt" ]]; then
-    printf 'Missing %s/runtime-apt.txt after compile\n' "${DOCKER_OPENFOAM_STAGE}" >&2
-    exit 1
-  fi
-}
+ARCHIVE="$(find_linux_native_archive)"
+printf '==> Packaging %s -> image %s\n' "${ARCHIVE}" "${IMAGE}"
 
-run_image_build() {
-  DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
-    --build-context "of-stage=${STAGE_DIR}" \
-    --target fresh \
-    -f "${DOCKERFILE}" \
-    --build-arg "DOCKER_UBUNTU_IMAGE_NAME=${UBUNTU_IMAGE_NAME}" \
-    --build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}" \
-    --build-arg "APT_MIRROR=${APT_MIRROR}" \
-    --build-arg "OPENFOAM_RUNTIME_DEPS_REV=${RUNTIME_DEPS_REV}" \
-    --build-arg "TARGETARCH=${TARGETARCH}" \
-    --build-arg "DOCKER_OPENFOAM_BUILD=${DOCKER_OPENFOAM_BUILD}" \
-    -t "${IMAGE}" \
-    --load \
-    "${ROOT}"
-}
+UBUNTU_VERSION="${UBUNTU_VERSION}" \
+  DOCKER_UBUNTU_IMAGE_NAME="${UBUNTU_IMAGE_NAME}" \
+  PLATFORM="${PLATFORM}" \
+  bash "${ROOT}/docker/setup_base_image.sh"
 
-if [[ "${FORCE}" = "1" ]]; then
-  printf '==> FORCE=1: compile + image %s\n' "${IMAGE}"
-else
-  printf '==> Building %s\n' "${IMAGE}"
-fi
+mkdir -p "${CONTEXT_DIR}"
+cp "${ARCHIVE}" "${CONTEXT_DIR}/openfoam-native.tar.gz"
 
-DOCKER_BUILD_IMAGE="${BUILD_IMAGE}" \
-  DOCKER_PLATFORM="${PLATFORM}" \
-  DOCKER_JOBS="${NUM_JOBS}" \
-  OPENFOAM_VERSION="${OPENFOAM_VERSION}" \
-  OPENFOAM_BUILD_MODULES="${OPENFOAM_BUILD_MODULES}" \
-  FORCE="${FORCE}" \
-  bash "${ROOT}/docker/compile_openfoam.sh"
+DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
+  --build-context "of-dist=${CONTEXT_DIR}" \
+  -f "${DOCKERFILE}" \
+  --build-arg "DOCKER_UBUNTU_IMAGE_NAME=${UBUNTU_IMAGE_NAME}" \
+  --build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}" \
+  --build-arg "APT_MIRROR=${APT_MIRROR}" \
+  --build-arg "TARGETARCH=${TARGETARCH}" \
+  -t "${IMAGE}" \
+  --load \
+  "${ROOT}"
 
-require_stage
-run_image_build
 verify
 prune_dangling
+
+mkdir -p "$(dirname "${IMAGE_TAR}")"
+printf '==> Saving %s -> %s\n' "${IMAGE}" "${IMAGE_TAR}"
+docker save "${IMAGE}" | gzip > "${IMAGE_TAR}"
+ls -la "${IMAGE_TAR}"

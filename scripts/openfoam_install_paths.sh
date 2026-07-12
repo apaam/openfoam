@@ -2,7 +2,7 @@
 # Shared path lists for OpenFOAM install tree packaging.
 # build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (see docs/make-config-default.mk).
 # then Allwmake adds platforms/ and build/ (wmake objects) there.
-# Packaging outputs live under build/stage/, build/openfoam-pack/, build/openfoam-dist/, etc.
+# Packaging outputs live under build/stage/, build/openfoam-pack/, build/native-dist/, etc.
 # shellcheck shell=bash
 
 # Optional OpenFOAM components (not built by default); omit from source sync.
@@ -21,22 +21,6 @@ OPENFOAM_INSTALL_INCLUDES=(
   wmake
   tutorials
   META-INFO
-)
-
-# Runtime-only paths (used when splitting install trees).
-OPENFOAM_RUNTIME_INCLUDES=(
-  etc
-  bin
-  platforms
-  tutorials
-  META-INFO
-)
-
-# Compile tree paths (optional split packaging).
-OPENFOAM_DEV_INCLUDES=(
-  src
-  applications
-  wmake
 )
 
 # macOS Finder may drop .DS_Store while large trees are being removed, leaving
@@ -84,22 +68,13 @@ openfoam_safe_rm() {
 
 # Sync only whitelisted paths from src/ to dst/ (packaging).
 # Optional third argument: space-separated extra top-level paths (STAGE_EXTRA_INCLUDES).
-# Optional fourth argument: "runtime" | "dev" | "full" (default full).
 openfoam_rsync_install_tree() {
   local src="${1:?source dir}"
   local dst="${2:?dest dir}"
   local extra="${3:-}"
-  local mode="${4:-full}"
-  local -a includes=()
+  local -a includes=("${OPENFOAM_INSTALL_INCLUDES[@]}")
   local item name existing found
 
-  if [[ "${mode}" == runtime ]]; then
-    includes=("${OPENFOAM_RUNTIME_INCLUDES[@]}")
-  elif [[ "${mode}" == dev ]]; then
-    includes=("${OPENFOAM_DEV_INCLUDES[@]}")
-  else
-    includes=("${OPENFOAM_INSTALL_INCLUDES[@]}")
-  fi
   for item in ${extra}; do
     includes+=("${item}")
   done
@@ -161,30 +136,6 @@ openfoam_pack_stamp_matches() {
   local bundle="${2:?bundle mode}"
   [[ -f "${stamp}" ]] || return 1
   grep -q "^bundle=${bundle}$" "${stamp}" 2>/dev/null
-}
-
-openfoam_dist_version() {
-  local version="${OPENFOAM_VERSION:-v2412}"
-  version="${version#v}"
-  printf '%s' "${version}"
-}
-
-openfoam_docker_image_suffix() {
-  local arch="${DOCKER_ARCH:-}"
-  if [[ -n "${arch}" ]]; then
-    printf '%s' "${arch}"
-    return
-  fi
-  case "$(uname -m)" in
-  arm64 | aarch64) printf '%s' 'arm64' ;;
-  *) printf '%s' 'amd64' ;;
-  esac
-}
-
-openfoam_docker_dist_basename() {
-  printf 'openfoam-docker-%s-linux-%s' \
-    "$(openfoam_dist_version)" \
-    "$(openfoam_docker_image_suffix)"
 }
 
 # Pack staged install tree into a release .tar.gz (case-sensitive volume on macOS).

@@ -1,5 +1,4 @@
-# Canonical phynexis-build apt packages (ecosystem-wide).
-# Keep identical in openfoam and phynexis-v0 repos.
+# Canonical apt packages for native Linux builds (CI / local).
 build-essential
 rsync
 git

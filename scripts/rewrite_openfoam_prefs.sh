@@ -6,7 +6,7 @@ STAGE="${1:?stage prefix required}"
 PREFS="${STAGE}/etc/prefs.sh"
 BASHRC="${STAGE}/etc/bashrc"
 BUNDLED='${WM_PROJECT_DIR}/lib/bundled'
-MARKER='# Bundled runtime libraries (openfoam-dist)'
+MARKER='# Bundled runtime libraries (native-dist)'
 
 if [[ ! -f "${BASHRC}" ]]; then
   echo "[rewrite_openfoam_prefs] Missing ${BASHRC}" >&2

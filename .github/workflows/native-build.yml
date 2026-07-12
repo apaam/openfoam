@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       make_target:
-        description: "make target (all or openfoam-dist)"
+        description: "make target (all or native-dist)"
         required: true
         type: string
       upload_dist:
-        description: "Upload build/openfoam-dist artifacts"
+        description: "Upload build/native-dist artifacts"
         required: false
         type: boolean
         default: false
@@ -90,7 +90,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          mapfile -t pkgs < <(grep -v '^#' docker/phynexis_build_packages.txt | grep -v '^[[:space:]]*$')
+          mapfile -t pkgs < <(grep -v '^#' scripts/linux_build_packages.txt | grep -v '^[[:space:]]*$')
           sudo apt-get install -y "${pkgs[@]}"
           sudo python3 -m pip install --break-system-packages setuptools wheel mpi4py
 
@@ -105,7 +105,7 @@ jobs:
         if: inputs.upload_dist
         uses: actions/upload-artifact@v4
         with:
-          name: openfoam-dist-${{ matrix.os }}
-          path: build/openfoam-dist/*
+          name: native-dist-${{ matrix.os }}
+          path: build/native-dist/*
           if-no-files-found: error
           retention-days: 14

@@ -65,7 +65,7 @@ sed_inplace -E "s/^version = \".*\"/version = \"${PKG_VERSION}\"/" \
 for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
   shell_bashrc.sh _openfoam completion.bash completion.zsh rewrite_openfoam_paths.sh manifest.sh; do
   src="${CLI_SRC}/openfoam/${script}"
-  [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/docker/rewrite_openfoam_paths.sh"
+  [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/scripts/rewrite_openfoam_paths.sh"
   cp "${src}" "${STAGING_DIR}/openfoam/${script}"
   chmod +x "${STAGING_DIR}/openfoam/${script}"
 done

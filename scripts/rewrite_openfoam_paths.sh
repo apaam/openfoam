@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Rewrite staged OpenFOAM config paths for runtime install prefix.
-# Mirrors phynexis-v0 docker/stage_openfoam_runtime.sh path handling.
+# Rewrite OpenFOAM etc/ paths for a new install prefix (pack / docker image / CLI).
 set -euo pipefail
 
 STAGE="${1:?stage dir required}"

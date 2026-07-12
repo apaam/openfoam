@@ -30,7 +30,7 @@ mkdir -p "${SHARE_CLI}"
 for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
   shell_bashrc.sh _openfoam completion.bash completion.zsh rewrite_openfoam_paths.sh manifest.sh; do
   src="${CLI_SRC}/${script}"
-  [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/docker/rewrite_openfoam_paths.sh"
+  [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/scripts/rewrite_openfoam_paths.sh"
   cp "${src}" "${SHARE_CLI}/${script}"
   chmod +x "${SHARE_CLI}/${script}"
 done

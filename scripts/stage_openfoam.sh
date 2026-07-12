@@ -9,7 +9,7 @@ STAGE_EXTRA_INCLUDES="${STAGE_EXTRA_INCLUDES:-}"
 FORCE_STAGE="${FORCE_STAGE:-0}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../scripts/openfoam_install_paths.sh
+# shellcheck source=openfoam_install_paths.sh
 source "${ROOT}/scripts/openfoam_install_paths.sh"
 
 if [[ ! -d "${OPENFOAM_BUILD}/etc" ]]; then

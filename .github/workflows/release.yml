@@ -21,19 +21,55 @@ jobs:
   build:
     uses: ./.github/workflows/native-build.yml
     with:
-      make_target: openfoam-dist
+      make_target: native-dist
       upload_dist: true
       checkout_ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
-  publish:
+  docker:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - name: Download dist artifacts
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Download linux native-dist
         uses: actions/download-artifact@v4
         with:
-          pattern: openfoam-dist-*
+          name: native-dist-ubuntu-latest
+          path: build/native-dist
+
+      - name: List native-dist inputs
+        run: ls -la build/native-dist
+
+      - name: Build docker-dist
+        run: make docker-dist
+
+      - name: Upload docker-dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-dist
+          path: build/docker-dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [build, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download native-dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-dist-*
           merge-multiple: true
+          path: dist
+
+      - name: Download docker-dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-dist
           path: dist
 
       - name: List release files

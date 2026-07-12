@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare install tree for openfoam-pack / openfoam-dist (same staging as docker/bake_openfoam.sh).
+# Prepare install tree for openfoam-pack / native-dist.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,11 +22,11 @@ OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
 FORCE_STAGE="${FORCE_STAGE:-0}"
 
 export FORCE_STAGE
-bash "${ROOT}/docker/stage_openfoam.sh" "${OPENFOAM_BUILD}" "${OPENFOAM_STAGE}"
+bash "${ROOT}/scripts/stage_openfoam.sh" "${OPENFOAM_BUILD}" "${OPENFOAM_STAGE}"
 
 OLD_PREFIX="$(cd "${OPENFOAM_BUILD}" && pwd)"
 NEW_PREFIX="$(cd "${OPENFOAM_STAGE}" && pwd)"
-bash "${ROOT}/docker/rewrite_openfoam_paths.sh" \
+bash "${ROOT}/scripts/rewrite_openfoam_paths.sh" \
   "${NEW_PREFIX}" "${OLD_PREFIX}" "${NEW_PREFIX}"
 
 if [[ "${OPENFOAM_BUNDLE_RUNTIME}" =~ ^(1|yes|true|on)$ ]]; then
