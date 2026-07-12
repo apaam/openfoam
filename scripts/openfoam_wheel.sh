@@ -3,13 +3,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
-source "${ROOT}/scripts/load_make_config.sh"
+source "${ROOT}/scripts/openfoam_build_paths.sh"
 # shellcheck source=openfoam_install_paths.sh
 source "${ROOT}/scripts/openfoam_install_paths.sh"
 
 _bundle_override="${OPENFOAM_BUNDLE_RUNTIME+x}"
 _saved_bundle="${OPENFOAM_BUNDLE_RUNTIME-}"
-load_make_config "${ROOT}"
+openfoam_load_build_paths "${ROOT}"
 if [[ -n "${_bundle_override}" ]]; then
   export OPENFOAM_BUNDLE_RUNTIME="${_saved_bundle}"
 else
@@ -19,19 +19,15 @@ fi
 # 1 = native install tree + CLI (make wheel); 0 = CLI only (make cli)
 INCLUDE_NATIVE="${INCLUDE_NATIVE:-1}"
 
-OPENFOAM_BUILD="${OPENFOAM_BUILD:-${ROOT}/build/openfoam}"
-OPENFOAM_STAGE="${OPENFOAM_STAGE:-${ROOT}/build/stage/openfoam}"
+OPENFOAM_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_BUILD}")"
+OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
 WHEELHOUSE_DIR="${WHEEL_OUT:-${OPENFOAM_WHEEL_DIR:-${BUILD_WHEEL_DIR:-build/wheel}}}"
 if [[ "${INCLUDE_NATIVE}" == "0" ]]; then
-  WHEELHOUSE_DIR="${WHEEL_OUT:-${DOCKER_DIST_DIR:-build/docker-dist}}"
+  WHEELHOUSE_DIR="${WHEEL_OUT:-${OPENFOAM_WHEEL_DIR:-${BUILD_DOCKER_DIR:-build/docker}}}"
 fi
 case "${WHEELHOUSE_DIR}" in
 /*) ;;
 *) WHEELHOUSE_DIR="${ROOT}/${WHEELHOUSE_DIR}" ;;
-esac
-case "${OPENFOAM_STAGE}" in
-/*) ;;
-*) OPENFOAM_STAGE="${ROOT}/${OPENFOAM_STAGE}" ;;
 esac
 
 CLI_SRC="${ROOT}/cli"
@@ -132,10 +128,7 @@ if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
   bash "${ROOT}/scripts/prepare_openfoam_pack_tree.sh"
 
   echo "[openfoam-wheel] Packing openfoam-prefix.tar.gz (full install tree)"
-  PREFIX_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/openfoam-prefix-pack.XXXXXX")"
-  openfoam_rsync_install_tree "${OPENFOAM_STAGE}" "${PREFIX_STAGE}" "" full
-  tar -czf "${PREFIX_TAR}" -C "${PREFIX_STAGE}" .
-  openfoam_safe_rm "${PREFIX_STAGE}"
+  openfoam_pack_prefix_tar "${OPENFOAM_STAGE}" "${PREFIX_TAR}"
 
   write_native_manifest
   write_native_setup_py

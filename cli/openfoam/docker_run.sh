@@ -76,14 +76,20 @@ abs_path() {
 find_pack_archive() {
   local name dir
   name="$(pack_basename).tar.gz"
-  for dir in "${SCRIPT_DIR}" "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" "$(pwd)"; do
+  for dir in "${SCRIPT_DIR}" \
+    "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
+    "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
+    "$(pwd)"; do
     if [[ -f "${dir}/${name}" ]]; then
       abs_path "${dir}/${name}"
       return 0
     fi
   done
   name="$(pack_basename).tar"
-  for dir in "${SCRIPT_DIR}" "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" "$(pwd)"; do
+  for dir in "${SCRIPT_DIR}" \
+    "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
+    "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
+    "$(pwd)"; do
     if [[ -f "${dir}/${name}" ]]; then
       abs_path "${dir}/${name}"
       return 0

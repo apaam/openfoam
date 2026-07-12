@@ -5,11 +5,11 @@
 BUILD_JOBS = 4
 BUILD_PY = python3
 OPENFOAM_VERSION = v2412
-# WM_PROJECT_DIR (compile + install tree); packaging lives alongside under build/.
-OPENFOAM_BUILD = build/openfoam
+# WM_PROJECT_DIR on host (native compile); docker uses DOCKER_OPENFOAM_BUILD.
+OPENFOAM_BUILD = build/host-build
 # Local CLI install root (separate from OPENFOAM_BUILD); override in make-config-user.mk
 OPENFOAM_CLI_BUILD = build/cli
-OPENFOAM_STAGE = build/stage/openfoam
+OPENFOAM_STAGE = build/stage/host-build
 BUILD_WHEEL_DIR = build/wheel
 BUILD_WHEEL_DIST_DIR = build/wheel-dist
 BUILD_CPACK_DIR = build/cpack
@@ -44,7 +44,13 @@ PHYNEXIS_BUILD_DEPS_REV = 1
 # Bump when docker/resolve_runtime_apt.sh changes (rebuilds runtime layer).
 OPENFOAM_RUNTIME_DEPS_REV = 1
 
-# Docker release bundle: image tar.gz + openfoam-*.whl
+# Docker compile tree (Linux WM_PROJECT_DIR; isolated from OPENFOAM_BUILD / host-build)
+DOCKER_OPENFOAM_BUILD = build/docker-build
+DOCKER_OPENFOAM_STAGE = build/stage/docker-build
+
+# Docker build workspace (image tar.gz + CLI wheel from docker-build / cli)
+BUILD_DOCKER_DIR = build/docker
+# Docker release bundle: copy of BUILD_DOCKER_DIR artifacts for distribution
 DOCKER_DIST_DIR = build/docker-dist
 
 # Optional apt mirror passed to docker/apt_setup.sh

@@ -64,9 +64,11 @@ NUM_JOBS=8 make
 openfoam/
 ├── openfoam-source/    # OpenFOAM source (git submodule)
 ├── build/              # Local build workspace
-│   ├── openfoam/       # WM_PROJECT_DIR (compile + install tree)
-│   ├── stage/          # Packaging staging
-│   └── wheel/ ...      # Distribution outputs
+│   ├── host-build/     # WM_PROJECT_DIR (native compile; OPENFOAM_BUILD)
+│   ├── docker-build/   # WM_PROJECT_DIR (Docker/Linux compile; DOCKER_OPENFOAM_BUILD)
+│   ├── stage/          # host-build + docker-build staging
+│   └── docker/         # Docker image tar + CLI wheel
+│   └── docker-dist/    # Docker release bundle
 ├── cli/                # openfoam CLI (wheel / cpack / docker)
 ├── docker/             # Docker image build scripts
 ├── local/              # Local customizations
@@ -94,16 +96,16 @@ openfoam/
 | `make v2112` | Build OpenFOAM v2112 |
 | `make v2412` | Build OpenFOAM v2412 |
 | `make deps` | Install dependencies (macOS only) |
-| `make wheel-dist` | Native pip wheel + CLI (uses existing `build/openfoam/`, skips if up to date) |
+| `make wheel-dist` | Native pip wheel + CLI (uses existing `OPENFOAM_BUILD`, skips if up to date) |
 | `make wheel-install` | `make wheel` + pip install (local, no dylib bundle) |
 | `make cpack-dist` | Native tar.gz + `bin/openfoam` (`build/cpack-dist/`) |
 | `make clean` | Remove `build/` (compile cache + packaging) |
 | `make real-clean` | `clean` + reset `openfoam-source` + sync-submodule |
 | `make docker-setup-base` | Pull digest-pinned `phynexis-ubuntu:24.04-{arch}` |
 | `make docker-setup-build` | Build `phynexis-build:24.04-{arch}` toolchain image |
-| `make docker-build` | Build runtime image `openfoam:24.04-{arch}` |
-| `make docker-dist` | Export image + CLI wheel to `build/docker-dist/` |
-| `make cli-install` | Install CLI wheel from `build/docker-dist/` |
+| `make docker-build` | `docker run` compile → `DOCKER_OPENFOAM_BUILD/`, then runtime image |
+| `make docker-dist` | Package `build/docker/` → `build/docker-dist/` |
+| `make cli-install` | Install CLI wheel from `build/docker-dist/` or `build/docker/` |
 | `make docker-push` | Push `openfoam` image (set `DOCKER_REGISTRY` in config) |
 
 ## Distribution (wheel / cpack / docker)
@@ -118,7 +120,7 @@ Top-level: `openfoam help`, `openfoam docker help`, `openfoam dev help`.
 |---------|---------|
 | `prefix` | Print install root (`OPENFOAM_PREFIX` or default `/opt/openfoam`) |
 | `dev install` | Extract full OpenFOAM tree into `OPENFOAM_PREFIX` (wheel channel) |
-| `dev clean` | Remove `src`, `applications`, `wmake` from `OPENFOAM_PREFIX` |
+| `dev clean` | Remove entire `OPENFOAM_PREFIX` |
 | `completion bash\|zsh` | Print tab-completion script (pip install registers it automatically) |
 | `run <script> [args]` | Run Allrun or another script in its directory |
 | `shell [dir]` | Interactive shell with OpenFOAM environment |
@@ -131,7 +133,7 @@ Environment: `OPENFOAM_PREFIX` (your install root, set in shell), `OPENFOAM_IMAG
 
 | Channel | Install | Prefix location |
 |---------|---------|-----------------|
-| local build | `make install` | `build/openfoam/` (CLI: `build/cli/`) |
+| local build | `make install` | `OPENFOAM_BUILD` (default `build/host-build/`; CLI: `build/cli/`) |
 | wheel | `pip install` + `openfoam dev install` | `OPENFOAM_PREFIX` (default `/opt/openfoam`) |
 | cpack | `tar xzf ... -C <dir>` | extract root (`<dir>/`) |
 | docker | `pip install` CLI + `openfoam docker pull` | `/opt/openfoam` (in container) |
@@ -140,7 +142,7 @@ Environment: `OPENFOAM_PREFIX` (your install root, set in shell), `OPENFOAM_IMAG
 |-------------|--------|
 | wheel / wheel-dist | `build/wheel/` or `build/wheel-dist/openfoam-*.whl` |
 | cpack / cpack-dist | `build/cpack/` or `build/cpack-dist/openfoam-native-*.tar.gz` |
-| docker | `build/docker-dist/openfoam-*.tar.gz` + CLI wheel |
+| docker-build / docker-dist | `DOCKER_OPENFOAM_BUILD` + `build/docker/` or `build/docker-dist/` |
 
 ### Shell setup (~/.bashrc)
 
@@ -154,7 +156,7 @@ export PATH="/path/to/extract/bin:$PATH"
 fpath=(/path/to/extract/share/zsh/site-functions $fpath)
 
 # local build
-source /path/to/repo/build/openfoam/etc/bashrc
+source /path/to/repo/build/host-build/etc/bashrc
 export PATH="/path/to/repo/build/cli/bin:$PATH"
 fpath=(/path/to/repo/build/cli/share/zsh/site-functions $fpath)
 
@@ -198,7 +200,7 @@ After `source .../etc/bashrc`, OpenFOAM apps are on PATH. Use `openfoam` for ins
 ### Daily use
 
 ```bash
-source build/openfoam/etc/bashrc   # or openfoam prefix + source for wheel
+source build/host-build/etc/bashrc   # OPENFOAM_BUILD; or wheel/cpack prefix
 openfoam run ~/my_case/Allrun
 openfoam shell ~/my_case
 wmake                            # after source etc/bashrc
@@ -218,7 +220,7 @@ export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam   # optional; default /opt
 openfoam dev install
 source "${OPENFOAM_PREFIX}/etc/bashrc"
 wmake
-openfoam dev clean   # remove src/applications/wmake only
+openfoam dev clean   # remove entire OPENFOAM_PREFIX
 ```
 
 Default `OPENFOAM_PREFIX` is `/opt/openfoam` when unset.
@@ -229,23 +231,32 @@ Self-contained image stack in this repo:
 
 ```
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
-phynexis-build:24.04-{arch}   →  docker-setup-build (compile only)
-openfoam:24.04-{arch}         →  docker-build (phynexis-ubuntu + ldd/dpkg runtime deps + /opt/openfoam)
+phynexis-build:24.04-{arch}   →  docker-setup-build (toolchain)
+build/host-build/             →  make install (OPENFOAM_BUILD)
+build/docker-build/           →  docker run + build_openfoam.sh (DOCKER_OPENFOAM_BUILD)
+build/stage/docker-build/     →  staged install tree for runtime image
+openfoam:24.04-{arch}         →  docker build fresh stage → /opt/openfoam
+build/docker/                 →  image tar.gz + cli wheel
+build/docker-dist/            →  docker-dist release bundle
 ```
 
-Runtime install tree: `/opt/openfoam` (`source /opt/openfoam/etc/bashrc`).
+Compile uses the **same** `scripts/build_openfoam.sh` as `make install`, with the repo bind-mounted into the container. Incremental builds persist under `DOCKER_OPENFOAM_BUILD` on the host.
 
-Docker path layout (shared convention with phynexis-v0):
+Path variables (`docs/make-config-default.mk`):
 
-| Role | openfoam | phynexis-v0 |
-|------|----------|-------------|
-| Repo root | `/build/openfoam` | `/build/phynexis-v0` |
-| WM_PROJECT_DIR | `/build/openfoam/build/openfoam` | `/build/phynexis-v0/build/...` |
-| wmake objects | `.../build/openfoam/build` | `.../build/.../build` |
-| Cache mount | `/cache/openfoam` → `build/openfoam/` | `/cache/phynexis-v0` → `build/` |
-| Cache id | `openfoam-build-{arch}` | `phynexis-build-{arch}` |
-| Stage | — | `/build/stage/phynexis-v0`, `/build/stage/openfoam` |
-| Runtime | `/opt/openfoam` | `/opt/phynexis`, `/opt/openfoam` |
+| Variable | Default | Role |
+|----------|---------|------|
+| `OPENFOAM_BUILD` | `build/host-build` | Native WM_PROJECT_DIR |
+| `OPENFOAM_STAGE` | `build/stage/host-build` | Native wheel/cpack stage |
+| `DOCKER_OPENFOAM_BUILD` | `build/docker-build` | Docker WM_PROJECT_DIR |
+| `DOCKER_OPENFOAM_STAGE` | `build/stage/docker-build` | Docker runtime image stage |
+
+| Role | Path |
+|------|------|
+| Repo root (in container) | `/build/openfoam` |
+| WM_PROJECT_DIR (docker) | `DOCKER_OPENFOAM_BUILD` |
+| WM_PROJECT_DIR (native) | `OPENFOAM_BUILD` |
+| Runtime (in image) | `/opt/openfoam` |
 
 ```bash
 make docker-build
@@ -266,7 +277,7 @@ Build parallelism and arch: edit `make-config-user.mk` (`BUILD_JOBS`, `DOCKER_JO
 After `make install`:
 
 ```bash
-source build/openfoam/etc/bashrc
+source build/host-build/etc/bashrc
 export PATH="build/cli/bin:$PATH"
 wmake
 ```

@@ -4,31 +4,22 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
-source "${ROOT}/scripts/load_make_config.sh"
+source "${ROOT}/scripts/openfoam_build_paths.sh"
 # shellcheck source=openfoam_install_paths.sh
 source "${ROOT}/scripts/openfoam_install_paths.sh"
 
 _bundle_override="${OPENFOAM_BUNDLE_RUNTIME+x}"
 _saved_bundle="${OPENFOAM_BUNDLE_RUNTIME-}"
-load_make_config "${ROOT}"
+openfoam_load_build_paths "${ROOT}"
 if [[ -n "${_bundle_override}" ]]; then
   export OPENFOAM_BUNDLE_RUNTIME="${_saved_bundle}"
 else
   export OPENFOAM_BUNDLE_RUNTIME="${OPENFOAM_BUNDLE_RUNTIME:-0}"
 fi
 
-OPENFOAM_BUILD="${OPENFOAM_BUILD:-${ROOT}/build/openfoam}"
-OPENFOAM_STAGE="${OPENFOAM_STAGE:-${ROOT}/build/stage/openfoam}"
+OPENFOAM_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_BUILD}")"
+OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
 FORCE_STAGE="${FORCE_STAGE:-0}"
-
-case "${OPENFOAM_BUILD}" in
-/*) ;;
-*) OPENFOAM_BUILD="${ROOT}/${OPENFOAM_BUILD}" ;;
-esac
-case "${OPENFOAM_STAGE}" in
-/*) ;;
-*) OPENFOAM_STAGE="${ROOT}/${OPENFOAM_STAGE}" ;;
-esac
 
 export FORCE_STAGE
 bash "${ROOT}/docker/stage_openfoam.sh" "${OPENFOAM_BUILD}" "${OPENFOAM_STAGE}"

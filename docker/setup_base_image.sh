@@ -30,15 +30,24 @@ esac
 
 PLATFORM="${PLATFORM:-${DEFAULT_PLATFORM}}"
 
-get_digest() {
+resolve_digest() {
     local platform="$1"
-    docker buildx imagetools inspect "${SOURCE_IMAGE}" --raw 2>/dev/null \
-      | jq -r --arg platform "${platform}" '
-          .manifests[]
-          | select(.platform.os == ($platform | split("/")[0])
-               and .platform.architecture == ($platform | split("/")[1])
-               and .platform.architecture != "unknown")
-          | .digest'
+    local raw digest
+    if ! raw="$(docker buildx imagetools inspect "${SOURCE_IMAGE}" --raw 2>&1)"; then
+        echo "${raw}" >&2
+        return 1
+    fi
+    digest="$(jq -r --arg platform "${platform}" '
+        .manifests[]
+        | select(.platform.os == ($platform | split("/")[0])
+             and .platform.architecture == ($platform | split("/")[1])
+             and .platform.architecture != "unknown")
+        | .digest' <<< "${raw}")"
+    if [[ -z "${digest}" ]]; then
+        echo "ERROR: no ${platform} manifest in ${SOURCE_IMAGE}" >&2
+        return 1
+    fi
+    printf '%s' "${digest}"
 }
 
 pull_and_tag() {
@@ -51,11 +60,27 @@ pull_and_tag() {
         return 0
     fi
 
+    local candidate arch
+    for candidate in \
+        "ubuntu:${UBUNTU_VERSION}-${suffix}" \
+        "ubuntu:${UBUNTU_VERSION}"; do
+        if docker image inspect "${candidate}" >/dev/null 2>&1; then
+            arch="$(docker image inspect "${candidate}" \
+              --format '{{.Architecture}}' 2>/dev/null || true)"
+            if [[ -z "${arch}" || "${arch}" == "${suffix}" \
+                || ( "${suffix}" == "arm64" && "${arch}" == "arm64" ) \
+                || ( "${suffix}" == "amd64" && "${arch}" == "amd64" ) ]]; then
+                echo "==> Tagging local ${candidate} as ${target} (no pull)"
+                docker tag "${candidate}" "${target}"
+                return 0
+            fi
+        fi
+    done
+
     echo "==> Resolving digest for ${SOURCE_IMAGE} platform=${platform}"
     local digest
-    digest="$(get_digest "${platform}")"
-    if [[ -z "${digest}" ]]; then
-        echo "ERROR: could not resolve digest for ${SOURCE_IMAGE} ${platform}" >&2
+    if ! digest="$(resolve_digest "${platform}")"; then
+        echo "Hint: pull ubuntu:${UBUNTU_VERSION} manually, or fix Docker Hub access." >&2
         exit 1
     fi
 

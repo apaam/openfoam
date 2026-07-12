@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
-# Install or partially remove OpenFOAM under OPENFOAM_PREFIX from openfoam-prefix.tar.gz.
+# Install or remove the full OpenFOAM prefix under OPENFOAM_PREFIX from openfoam-prefix.tar.gz.
 
 set -euo pipefail
 
-DEV_TREE_ITEMS=(src applications wmake)
 INSTALL_STAMP=".openfoam-install-stamp"
 PREFIX_ARCHIVE="openfoam-prefix.tar.gz"
 DEFAULT_DEV_PREFIX="${DEFAULT_OPENFOAM_PREFIX:-/opt/openfoam}"
+
+_prefix_case_sensitive() {
+  local dir="$1" probe
+  [[ -d "${dir}" ]] || return 0
+  probe="$(mktemp -d "${dir}/.case-probe.XXXXXX")"
+  rm -f "${probe}/probe_a" "${probe}/PROBE_A"
+  touch "${probe}/probe_a"
+  if [[ -e "${probe}/PROBE_A" ]]; then
+    _dev_safe_rm "${probe}"
+    return 1
+  fi
+  _dev_safe_rm "${probe}"
+  return 0
+}
 
 _dev_safe_rm() {
   local target="$1"
@@ -65,12 +78,57 @@ find_prefix_tar() {
   return 1
 }
 
+_ln_include_ready() {
+  local prefix="$1"
+  local header
+
+  for header in \
+    "${prefix}/src/OpenFOAM/lnInclude/addToRunTimeSelectionTable.H" \
+    "${prefix}/src/finiteVolume/lnInclude/volFields.H" \
+    "${prefix}/src/meshTools/lnInclude/fixedJumpFvPatchField.H"
+  do
+    [[ -e "${header}" ]] || return 1
+  done
+  return 0
+}
+
+_restore_ln_include() {
+  local prefix="$1"
+  local tool="${prefix}/wmake/wmakeLnIncludeAll"
+  local -a force_args=()
+
+  [[ -x "${tool}" ]] || return 0
+  _ln_include_ready "${prefix}" && return 0
+
+  if [[ -d "${prefix}/src/OpenFOAM/lnInclude" ]]; then
+    force_args=(-force)
+  fi
+
+  echo "[openfoam dev install] Regenerating lnInclude (required for wmake) ..."
+  (
+    cd "${prefix}" || exit 1
+    jobs="${WM_NCOMPPROCS:-${NUM_JOBS:-4}}"
+    WM_PROJECT_DIR="${prefix}" \
+    WM_NCOMPPROCS="${jobs}" \
+    PATH="${prefix}/wmake:${PATH}" \
+      bash "${tool}" "${force_args[@]}" -j"${jobs}" src applications
+  ) || {
+    echo "[openfoam dev install] lnInclude regeneration failed; check ${prefix}/wmake/wmakeLnIncludeAll" >&2
+    exit 1
+  }
+
+  _ln_include_ready "${prefix}" || {
+    echo "[openfoam dev install] lnInclude still incomplete after regeneration" >&2
+    exit 1
+  }
+}
+
 dev_usage() {
   cat <<EOF
 ${CLI_PREFIX} dev — install OpenFOAM to OPENFOAM_PREFIX
 
-  install                         Extract openfoam-prefix.tar.gz (full install tree)
-  clean                           Remove src, applications, wmake from OPENFOAM_PREFIX
+  install                         Install full OpenFOAM prefix from openfoam-prefix.tar.gz
+  clean                           Remove entire OPENFOAM_PREFIX
 
 OPENFOAM_PREFIX sets the install root (default: ${DEFAULT_DEV_PREFIX}).
 Wheel installs CLI only; dev install populates the prefix (same layout as cpack).
@@ -85,27 +143,40 @@ EOF
 }
 
 cmd_dev_install() {
-  local tar=""
+  local tar="" prefix_tar=""
   resolve_dev_prefix
   if ! tar="$(find_prefix_tar)"; then
     echo "Missing ${PREFIX_ARCHIVE}; pip install openfoam-*.whl (make wheel-install)" >&2
     exit 1
   fi
+  if [[ "$(uname -s)" == "Darwin" ]] && ! _prefix_case_sensitive "${OPENFOAM_PREFIX}"; then
+    echo "Warning: ${OPENFOAM_PREFIX} is on a case-insensitive volume; use a case-sensitive path (e.g. /Volumes/OpenFOAM/opt/openfoam)." >&2
+  fi
+  _dev_safe_rm "${OPENFOAM_PREFIX}"
   mkdir -p "${OPENFOAM_PREFIX}"
+  prefix_tar="${OPENFOAM_PREFIX}/.${PREFIX_ARCHIVE}"
   echo "[openfoam dev install] ${OPENFOAM_PREFIX} <- ${tar}"
-  tar -xzf "${tar}" -C "${OPENFOAM_PREFIX}"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    export COPYFILE_DISABLE=1
+  fi
+  cp -f "${tar}" "${prefix_tar}"
+  tar -xzf "${prefix_tar}" -C "${OPENFOAM_PREFIX}" \
+    --exclude='.DS_Store' \
+    --exclude='*/.DS_Store'
+  rm -f "${prefix_tar}"
+  if [[ ! -f "${OPENFOAM_PREFIX}/etc/bashrc" ]]; then
+    echo "[openfoam dev install] Missing ${OPENFOAM_PREFIX}/etc/bashrc after extract" >&2
+    exit 1
+  fi
+  _restore_ln_include "${OPENFOAM_PREFIX}"
   rewrite_installed_prefix "${OPENFOAM_PREFIX}"
   date -u +%Y-%m-%dT%H:%M:%SZ >"${OPENFOAM_PREFIX}/${INSTALL_STAMP}"
 }
 
 cmd_dev_clean() {
-  local item
   resolve_dev_prefix
-  for item in "${DEV_TREE_ITEMS[@]}"; do
-    _dev_safe_rm "${OPENFOAM_PREFIX}/${item}"
-  done
-  rm -f "${OPENFOAM_PREFIX}/${INSTALL_STAMP}"
-  echo "[openfoam dev clean] removed src applications wmake under ${OPENFOAM_PREFIX}"
+  _dev_safe_rm "${OPENFOAM_PREFIX}"
+  echo "[openfoam dev clean] removed ${OPENFOAM_PREFIX}"
 }
 
 cmd_dev() {

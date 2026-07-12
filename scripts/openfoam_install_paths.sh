@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared path lists for OpenFOAM install tree packaging.
-# build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (build/openfoam/),
+# build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (see docs/make-config-default.mk).
 # then Allwmake adds platforms/ and build/ (wmake objects) there.
 # Packaging outputs live under build/stage/, build/wheel/, etc.
 # shellcheck shell=bash
@@ -11,7 +11,7 @@ OPENFOAM_SOURCE_SYNC_EXCLUDES=(
   --exclude=plugins/
 )
 
-# Whitelist top-level paths under WM_PROJECT_DIR for packaging and cache sync.
+# Whitelist top-level paths under WM_PROJECT_DIR for packaging sync.
 OPENFOAM_INSTALL_INCLUDES=(
   etc
   bin
@@ -32,7 +32,7 @@ OPENFOAM_RUNTIME_INCLUDES=(
   META-INFO
 )
 
-# Compile tree paths (dev clean / optional split packaging).
+# Compile tree paths (optional split packaging).
 OPENFOAM_DEV_INCLUDES=(
   src
   applications
@@ -41,6 +41,20 @@ OPENFOAM_DEV_INCLUDES=(
 
 # macOS Finder may drop .DS_Store while large trees are being removed, leaving
 # ENOTEMPTY ("Directory not empty") from rm/rmtree. Move aside first when needed.
+openfoam_dir_case_sensitive() {
+  local dir="$1" probe
+  [[ -d "${dir}" ]] || return 0
+  probe="$(mktemp -d "${dir}/.case-probe.XXXXXX")"
+  rm -f "${probe}/probe_a" "${probe}/PROBE_A"
+  touch "${probe}/probe_a"
+  if [[ -e "${probe}/PROBE_A" ]]; then
+    openfoam_safe_rm "${probe}"
+    return 1
+  fi
+  openfoam_safe_rm "${probe}"
+  return 0
+}
+
 openfoam_safe_rm() {
   local target="$1"
   [[ -e "${target}" ]] || return 0
@@ -68,7 +82,7 @@ openfoam_safe_rm() {
   rm -rf "${target}"
 }
 
-# Sync only whitelisted paths from src/ to dst/ (packaging, cache).
+# Sync only whitelisted paths from src/ to dst/ (packaging).
 # Optional third argument: space-separated extra top-level paths (STAGE_EXTRA_INCLUDES).
 # Optional fourth argument: "runtime" | "dev" | "full" (default full).
 openfoam_rsync_install_tree() {
@@ -100,8 +114,11 @@ openfoam_rsync_install_tree() {
     if [[ -d "${src}/${item}" ]]; then
       openfoam_safe_rm "${dst}/${item}"
       mkdir -p "${dst}"
-      # lnInclude symlinks are compile-only; they break pip uninstall of the wheel.
-      (cd "${src}" && tar -cf - --exclude='*/lnInclude' "${item}") | (cd "${dst}" && tar -xf -)
+      # lnInclude symlinks are required for wmake; keep them in prefix tar.
+      (cd "${src}" && tar -cf - \
+        --exclude='.DS_Store' \
+        --exclude='*/.DS_Store' \
+        "${item}") | (cd "${dst}" && tar -xf -)
     else
       cp -a "${src}/${item}" "${dst}/${item}"
     fi
@@ -143,4 +160,27 @@ openfoam_pack_stamp_matches() {
   local bundle="${2:?bundle mode}"
   [[ -f "${stamp}" ]] || return 1
   grep -q "^bundle=${bundle}$" "${stamp}" 2>/dev/null
+}
+
+# Pack install tree into openfoam-prefix.tar.gz from staged prefix (case-sensitive volume).
+openfoam_pack_prefix_tar() {
+  local src="${1:?source stage}"
+  local archive="${2:?output .tar.gz}"
+  local pack_parent
+
+  pack_parent="$(dirname "${src}")"
+  if [[ "$(uname -s)" == "Darwin" ]] && [[ -d "${pack_parent}" ]] \
+    && ! openfoam_dir_case_sensitive "${pack_parent}"; then
+    echo "[openfoam_pack_prefix_tar] Pack parent must be case-sensitive: ${pack_parent}" >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "${archive}")"
+  tar -czf "${archive}" -C "${src}" \
+    --exclude='.DS_Store' \
+    --exclude='*/.DS_Store' \
+    --exclude='.stage-stamp' \
+    --exclude='.pack-stamp' \
+    --exclude='.dist-stamp' \
+    .
 }

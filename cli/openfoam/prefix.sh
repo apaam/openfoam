@@ -117,7 +117,7 @@ OpenFOAM install not found at ${prefix}.
 
 Wheel:   pip install openfoam-*.whl && openfoam dev install
 Cpack:   tar xzf openfoam-native-*.tar.gz -C <prefix>
-Local:   make install && source build/openfoam/etc/bashrc
+Local:   make install && source ${OPENFOAM_BUILD:-build/host-build}/etc/bashrc
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
 EOF
     exit 1

@@ -2,9 +2,7 @@
 set -euo pipefail
 
 OPENFOAM_ROOT="${OPENFOAM_ROOT:-$(pwd)}"
-OPENFOAM_SOURCE="${OPENFOAM_SOURCE:-${OPENFOAM_ROOT}/openfoam-source}"
-OPENFOAM_BUILD="${OPENFOAM_BUILD:-${OPENFOAM_ROOT}/build/openfoam}"
-CACHE_BUILD="${CACHE_BUILD:-}"
+OPENFOAM_SOURCE="${OPENFOAM_SOURCE:-openfoam-source}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 NUM_JOBS="${NUM_JOBS:-2}"
 PLATFORM="${PLATFORM:-auto}"
@@ -12,23 +10,13 @@ OPENFOAM_BUILD_MODULES="${OPENFOAM_BUILD_MODULES:-0}"
 OPENFOAM_SYSTEM_CHECK="${OPENFOAM_SYSTEM_CHECK:-auto}"
 OPENFOAM_SKIP_ALLWMAKE="${OPENFOAM_SKIP_ALLWMAKE:-auto}"
 
-if [[ -f "${OPENFOAM_ROOT}/scripts/load_make_config.sh" ]]; then
-  # shellcheck disable=SC1091
-  source "${OPENFOAM_ROOT}/scripts/load_make_config.sh"
-  load_make_config "${OPENFOAM_ROOT}"
-fi
-
-abs_under_root() {
-  local path="$1"
-  case "${path}" in
-  /*) printf '%s' "${path}" ;;
-  *) printf '%s' "${OPENFOAM_ROOT}/${path}" ;;
-  esac
-}
+# shellcheck disable=SC1091
+source "${OPENFOAM_ROOT}/scripts/openfoam_build_paths.sh"
+openfoam_load_build_paths "${OPENFOAM_ROOT}"
 
 OPENFOAM_ROOT="$(cd "${OPENFOAM_ROOT}" && pwd)"
-OPENFOAM_BUILD="$(abs_under_root "${OPENFOAM_BUILD}")"
-OPENFOAM_SOURCE="$(abs_under_root "${OPENFOAM_SOURCE:-openfoam-source}")"
+OPENFOAM_BUILD="$(openfoam_abs_under_root "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}")"
+OPENFOAM_SOURCE="$(openfoam_abs_under_root "${OPENFOAM_ROOT}" "${OPENFOAM_SOURCE}")"
 BUILD_STAMP="${OPENFOAM_BUILD}/.openfoam-build-stamp"
 
 # shellcheck source=scripts/openfoam_install_paths.sh
@@ -153,23 +141,6 @@ resolve_platform() {
   fi
 }
 
-seed_cache() {
-  [[ -n "${CACHE_BUILD}" ]] || return 0
-  [[ -d "${OPENFOAM_BUILD}/etc" ]] && return 0
-  [[ -d "${CACHE_BUILD}/etc" ]] || return 0
-
-  echo "[build_openfoam] Seeding ${OPENFOAM_BUILD} from cache -> ${CACHE_BUILD}"
-  openfoam_rsync_install_tree "${CACHE_BUILD}" "${OPENFOAM_BUILD}"
-}
-
-refresh_cache() {
-  [[ -n "${CACHE_BUILD}" ]] || return 0
-  [[ -d "${OPENFOAM_BUILD}/etc" ]] || return 0
-
-  echo "[build_openfoam] Refreshing cache (${CACHE_BUILD}/)"
-  openfoam_rsync_install_tree "${OPENFOAM_BUILD}" "${CACHE_BUILD}"
-}
-
 sync_source() {
   mkdir -p "${OPENFOAM_BUILD}"
   # Do not use --delete-excluded: rsync 3.x treats it like --delete and would
@@ -259,7 +230,6 @@ compile_openfoam() {
 
 resolve_platform
 cd "${OPENFOAM_ROOT}"
-seed_cache
 
 if is_incremental_build; then
   echo "[build_openfoam] Incremental build ${OPENFOAM_VERSION} (jobs=${NUM_JOBS})"
@@ -285,7 +255,6 @@ else
     exit 1
   fi
 fi
-refresh_cache
 
 if [[ ! -d "${OPENFOAM_BUILD}/etc" ]]; then
   echo "[build_openfoam] Missing ${OPENFOAM_BUILD}/etc" >&2

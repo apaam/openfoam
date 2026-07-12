@@ -7,6 +7,11 @@
 # BUILD_WHEEL_DIST_DIR = build/wheel-dist
 # BUILD_CPACK_DIR = build/cpack
 # BUILD_CPACK_DIST_DIR = build/cpack-dist
+# OPENFOAM_BUILD = build/host-build
+# OPENFOAM_STAGE = build/stage/host-build
+# DOCKER_OPENFOAM_BUILD = build/docker-build
+# DOCKER_OPENFOAM_STAGE = build/stage/docker-build
+# BUILD_DOCKER_DIR = build/docker
 # DOCKER_DIST_DIR = build/docker-dist
 # OPENFOAM_SYSTEM_CHECK = auto
 
