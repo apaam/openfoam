@@ -11,40 +11,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  BUILD_JOBS: 2
-  OPENFOAM_BUILD_MODULES: 0
-
 jobs:
   native:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Fetch openfoam-source (core only)
-        run: |
-          set -euo pipefail
-          git -c submodule.recurse=false submodule sync -- openfoam-source
-          git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
-
-      - name: Install build dependencies (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          mapfile -t pkgs < <(grep -v '^#' docker/phynexis_build_packages.txt | grep -v '^[[:space:]]*$')
-          sudo apt-get install -y "${pkgs[@]}"
-          sudo python3 -m pip install --break-system-packages setuptools wheel mpi4py
-
-      - name: Install Python packaging (macOS)
-        if: runner.os == 'macOS'
-        run: python3 -m pip install --break-system-packages setuptools wheel
-
-      - run: make all
+    uses: ./.github/workflows/native-build.yml
+    with:
+      make_target: all
+      upload_dist: false

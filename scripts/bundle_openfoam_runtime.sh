@@ -15,10 +15,6 @@ if [[ ! -f "${STAGE}/etc/bashrc" ]]; then
 fi
 
 platform="$(uname -s)"
-if [[ "${platform}" == "Darwin" ]] && ! command -v dylibbundler >/dev/null; then
-  echo "[bundle_openfoam_runtime] dylibbundler required (brew install dylibbundler)" >&2
-  exit 1
-fi
 if [[ "${platform}" == "Linux" ]] && ! command -v patchelf >/dev/null; then
   echo "[bundle_openfoam_runtime] patchelf required" >&2
   exit 1
@@ -67,12 +63,15 @@ collect_search_paths() {
 is_bundle_target() {
   local path="$1"
   [[ -f "${path}" ]] || return 1
+  case "${path}" in
+  *.o | *.a | *.pyc) return 1 ;;
+  esac
   case "${platform}" in
   Darwin)
-    file -b "${path}" 2>/dev/null | grep -qE 'Mach-O (executable|64-bit|dylib|bundle)'
+    file -b "${path}" 2>/dev/null | grep -qE 'Mach-O.*(executable|dynamically linked shared library|bundle)'
     ;;
   Linux)
-    file -b "${path}" 2>/dev/null | grep -q 'ELF'
+    file -b "${path}" 2>/dev/null | grep -qE 'ELF.*(executable|shared object)'
     ;;
   *)
     return 1
@@ -86,12 +85,14 @@ path_marker_for() {
   Darwin)
     if [[ "${target}" == */platforms/*/lib/* ]]; then
       printf '@loader_path/../../../lib/bundled'
+    elif [[ "${target}" == */platforms/*/bin/* ]]; then
+      printf '@executable_path/../../../lib/bundled'
     else
       printf '@executable_path/../lib/bundled'
     fi
     ;;
   Linux)
-    if [[ "${target}" == */platforms/*/lib/* ]]; then
+    if [[ "${target}" == */platforms/*/lib/* || "${target}" == */platforms/*/bin/* ]]; then
       printf '$ORIGIN/../../../lib/bundled'
     else
       printf '$ORIGIN/../lib/bundled'
@@ -140,11 +141,11 @@ for target in "${targets[@]}"; do
   fi
 done
 
-rm -f "${STAGE}"/.bundle-log-*.txt
 if ((failures > 0)); then
-  echo "[bundle_openfoam_runtime] Failed for ${failures}/${total} target(s)" >&2
+  echo "[bundle_openfoam_runtime] Failed for ${failures}/${total} target(s); logs: ${STAGE}/.bundle-log-*.txt" >&2
   exit 1
 fi
 
+rm -f "${STAGE}"/.bundle-log-*.txt
 date -u +%Y-%m-%dT%H:%M:%SZ > "${RUNTIME_DIR}/.bundle-stamp"
 echo "[bundle_openfoam_runtime] Done"

@@ -1,0 +1,123 @@
+name: Native build
+
+on:
+  workflow_call:
+    inputs:
+      make_target:
+        description: "make target (all or openfoam-dist)"
+        required: true
+        type: string
+      upload_dist:
+        description: "Upload build/openfoam-dist artifacts"
+        required: false
+        type: boolean
+        default: false
+      checkout_ref:
+        description: "Git ref to checkout (tag/sha/branch); empty uses caller ref"
+        required: false
+        type: string
+        default: ""
+
+env:
+  BUILD_JOBS: 2
+  OPENFOAM_BUILD_MODULES: 0
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    steps:
+      # OpenFOAM sources have case-only filename collisions. macOS runners are
+      # case-insensitive by default; put $GITHUB_WORKSPACE on a CS volume first.
+      - name: Case-sensitive workspace (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          img="${RUNNER_TEMP}/openfoam-cs.sparseimage"
+          mnt="/Volumes/OpenFOAM"
+          if [[ -d "${mnt}" || -L "${mnt}" ]]; then
+            hdiutil detach "${mnt}" -force 2>/dev/null || true
+          fi
+          hdiutil create \
+            -size 60g \
+            -type SPARSE \
+            -fs "Case-sensitive APFS" \
+            -volname OpenFOAM \
+            "${img}"
+          hdiutil attach "${img}" -mountpoint "${mnt}"
+          cs_work="${mnt}/workspace"
+          mkdir -p "${cs_work}"
+          if [[ -e "${GITHUB_WORKSPACE}" || -L "${GITHUB_WORKSPACE}" ]]; then
+            rm -rf "${GITHUB_WORKSPACE}"
+          fi
+          ln -s "${cs_work}" "${GITHUB_WORKSPACE}"
+          probe="${GITHUB_WORKSPACE}/.case-probe-a"
+          rm -f "${probe}" "${GITHUB_WORKSPACE}/.CASE-PROBE-A"
+          touch "${probe}"
+          if [[ -e "${GITHUB_WORKSPACE}/.CASE-PROBE-A" ]]; then
+            echo "GITHUB_WORKSPACE is still case-insensitive: ${GITHUB_WORKSPACE}" >&2
+            exit 1
+          fi
+          rm -f "${probe}"
+          echo "Case-sensitive workspace ready: ${GITHUB_WORKSPACE} -> ${cs_work}"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.checkout_ref != '' && inputs.checkout_ref || github.ref }}
+
+      - name: Fetch openfoam-source (core only)
+        run: |
+          set -euo pipefail
+          git -c submodule.recurse=false submodule sync -- openfoam-source
+          git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
+
+      - name: Verify openfoam-source case pairs (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          test -f openfoam-source/src/OpenFOAM/db/Time/instant/instant.H
+          test -f openfoam-source/src/OpenFOAM/db/Time/instant/Instant.H
+          test -f openfoam-source/src/finiteVolume/finiteVolume/fvc/fvcDdt.H
+          test -f openfoam-source/src/finiteVolume/finiteVolume/fvc/fvcDDt.H
+
+      - name: Install build dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          mapfile -t pkgs < <(grep -v '^#' docker/phynexis_build_packages.txt | grep -v '^[[:space:]]*$')
+          sudo apt-get install -y "${pkgs[@]}"
+          sudo python3 -m pip install --break-system-packages setuptools wheel mpi4py
+
+      - name: Install Python packaging (macOS)
+        if: runner.os == 'macOS'
+        run: python3 -m pip install --break-system-packages setuptools wheel
+
+      - name: Build
+        run: make ${{ inputs.make_target }}
+
+      - name: Upload dist archives
+        if: inputs.upload_dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: openfoam-dist-${{ matrix.os }}
+          path: |
+            build/openfoam-dist/openfoam-native-*.tar.gz
+            build/openfoam-dist/openfoam-cli-*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      # Pure-Python wheel is identical across platforms; ship one copy from Linux.
+      - name: Upload CLI wheel
+        if: inputs.upload_dist && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openfoam-dist-wheel
+          path: build/openfoam-dist/openfoam-*.whl
+          if-no-files-found: error
+          retention-days: 14
