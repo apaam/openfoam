@@ -6,3 +6,4 @@ make-config-user.mk
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
