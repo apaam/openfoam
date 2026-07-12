@@ -47,6 +47,9 @@ mkdir -p "${ROOT}/build/docker"
 docker_sock_args=()
 if [[ -S /var/run/docker.sock ]]; then
   docker_sock_args=(-v /var/run/docker.sock:/var/run/docker.sock)
+else
+  echo "[build_in_container] WARNING: /var/run/docker.sock missing;" >&2
+  echo "[build_in_container]          make dist-docker inside this shell will fail." >&2
 fi
 
 printf '==> Shell in %s (%s); tree=build/docker/ (CONTAINER_BUILD=1)\n' \

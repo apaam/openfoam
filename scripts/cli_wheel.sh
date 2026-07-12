@@ -22,7 +22,7 @@ case "${CLI_BUILD_DIR}" in
 esac
 
 CLI_SRC="${ROOT}/cli"
-STAGING_DIR="${ROOT}/build/stage/cli-wheel"
+STAGING_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_CLI_WHEEL_STAGE_DIR:-build/stage/cli-wheel}")"
 BUILD_PY="${BUILD_PY:-python3}"
 PKG_VERSION="${OPENFOAM_VERSION:-v2412}"
 PKG_VERSION="${PKG_VERSION#v}"

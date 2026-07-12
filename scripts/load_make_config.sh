@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Load docs/make-config-default.mk and make-config-user.mk into the shell environment.
 # Precedence: explicit environment variables > make-config-user.mk > make-config-default.mk
+# CONTAINER_BUILD=1 path remapping is applied by openfoam_load_build_paths (not here).
 
 load_make_config() {
   local root="${1:-}"

@@ -1,10 +1,51 @@
 #!/usr/bin/env bash
-# Fallback build path defaults (tracked defaults: docs/make-config-default.mk).
-# Call openfoam_apply_build_path_defaults after load_make_config.
+# Build path helpers (tracked defaults: docs/make-config-default.mk).
+# openfoam_load_build_paths: load config, apply CONTAINER_BUILD remap, then defaults.
 
 openfoam_apply_build_path_defaults() {
   : "${OPENFOAM_BUILD:=build/openfoam-build}"
   : "${OPENFOAM_STAGE:=build/stage/openfoam-build}"
+  : "${OPENFOAM_CLI_BUILD:=build}"
+  : "${BUILD_OPENFOAM_PACK_DIR:=build/openfoam-pack}"
+  : "${DIST_NATIVE_DIR:=build/dist-native}"
+  : "${DIST_DOCKER_DIR:=build/dist-docker}"
+  : "${BUILD_DOCKER_DIR:=build/docker}"
+  : "${BUILD_CLI_PACK_DIR:=build/cli-pack}"
+  : "${BUILD_CLI_WHEEL_DIR:=build/cli-wheel}"
+  : "${BUILD_CLI_BUILD_DIR:=build/cli-build}"
+  : "${BUILD_CLI_WHEEL_STAGE_DIR:=build/stage/cli-wheel}"
+}
+
+# Match makefile CONTAINER_BUILD=1 remapping (docker-shell isolated tree).
+openfoam_apply_container_build_paths() {
+  case "${CONTAINER_BUILD:-}" in
+  1 | true | yes | on) ;;
+  *) return 0 ;;
+  esac
+
+  : "${DOCKER_OPENFOAM_BUILD:=build/docker/openfoam-build}"
+  : "${DOCKER_OPENFOAM_CLI_BUILD:=build/docker}"
+  : "${DOCKER_OPENFOAM_STAGE:=build/docker/stage/openfoam-build}"
+  : "${DOCKER_BUILD_OPENFOAM_PACK_DIR:=build/docker/openfoam-pack}"
+  : "${DOCKER_DIST_NATIVE_DIR:=build/docker/dist-native}"
+  : "${DOCKER_DIST_DOCKER_DIR:=build/docker/dist-docker}"
+  : "${DOCKER_BUILD_DOCKER_DIR:=build/docker}"
+  : "${DOCKER_BUILD_CLI_PACK_DIR:=build/docker/cli-pack}"
+  : "${DOCKER_BUILD_CLI_WHEEL_DIR:=build/docker/cli-wheel}"
+  : "${DOCKER_BUILD_CLI_BUILD_DIR:=build/docker/cli-build}"
+  : "${DOCKER_BUILD_CLI_WHEEL_STAGE_DIR:=build/docker/stage/cli-wheel}"
+
+  export OPENFOAM_BUILD="${DOCKER_OPENFOAM_BUILD}"
+  export OPENFOAM_CLI_BUILD="${DOCKER_OPENFOAM_CLI_BUILD}"
+  export OPENFOAM_STAGE="${DOCKER_OPENFOAM_STAGE}"
+  export BUILD_OPENFOAM_PACK_DIR="${DOCKER_BUILD_OPENFOAM_PACK_DIR}"
+  export DIST_NATIVE_DIR="${DOCKER_DIST_NATIVE_DIR}"
+  export DIST_DOCKER_DIR="${DOCKER_DIST_DOCKER_DIR}"
+  export BUILD_DOCKER_DIR="${DOCKER_BUILD_DOCKER_DIR}"
+  export BUILD_CLI_PACK_DIR="${DOCKER_BUILD_CLI_PACK_DIR}"
+  export BUILD_CLI_WHEEL_DIR="${DOCKER_BUILD_CLI_WHEEL_DIR}"
+  export BUILD_CLI_BUILD_DIR="${DOCKER_BUILD_CLI_BUILD_DIR}"
+  export BUILD_CLI_WHEEL_STAGE_DIR="${DOCKER_BUILD_CLI_WHEEL_STAGE_DIR}"
 }
 
 openfoam_abs_under_root() {
@@ -23,6 +64,7 @@ openfoam_load_build_paths() {
     source "${root}/scripts/load_make_config.sh"
     load_make_config "${root}"
   fi
+  openfoam_apply_container_build_paths
   openfoam_apply_build_path_defaults
 }
 

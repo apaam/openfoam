@@ -16,7 +16,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=shell_prompt.sh
 source "${SCRIPT_DIR}/shell_prompt.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-if [[ -f "${REPO_ROOT}/scripts/load_make_config.sh" ]]; then
+if [[ -f "${REPO_ROOT}/scripts/openfoam_build_paths.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "${REPO_ROOT}/scripts/openfoam_build_paths.sh"
+  openfoam_load_build_paths "${REPO_ROOT}"
+elif [[ -f "${REPO_ROOT}/scripts/load_make_config.sh" ]]; then
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/scripts/load_make_config.sh"
   load_make_config "${REPO_ROOT}"
