@@ -23,6 +23,8 @@ BUILD_STAMP="${OPENFOAM_BUILD}/.openfoam-build-stamp"
 source "${OPENFOAM_ROOT}/scripts/openfoam_install_paths.sh"
 # shellcheck source=scripts/platform_paths.sh
 source "${OPENFOAM_ROOT}/scripts/platform_paths.sh"
+# shellcheck source=scripts/openfoam_build_meta.sh
+source "${OPENFOAM_ROOT}/scripts/openfoam_build_meta.sh"
 
 is_incremental_build() {
   [[ -d "${OPENFOAM_BUILD}/platforms" && -f "${OPENFOAM_BUILD}/etc/bashrc" ]]
@@ -63,7 +65,10 @@ source_tree_id() {
 }
 
 build_config_id() {
-  printf '%s:%s' "${PLATFORM}" "${OPENFOAM_BUILD_MODULES}"
+  printf '%s:%s:%s' \
+    "${PLATFORM}" \
+    "$(openfoam_expected_compiler "${PLATFORM}")" \
+    "${OPENFOAM_BUILD_MODULES}"
 }
 
 rsync_would_change() {
@@ -74,14 +79,7 @@ rsync_would_change() {
 }
 
 platform_config_changed() {
-  case "${PLATFORM}" in
-  darwin)
-    [[ -f "${OPENFOAM_BUILD}/etc/prefs.sh" ]] || return 0
-    [[ "${OPENFOAM_ROOT}/Brewfile" -nt "${OPENFOAM_BUILD}/etc/prefs.sh" ]] && return 0
-    [[ "${OPENFOAM_ROOT}/configure.sh" -nt "${OPENFOAM_BUILD}/etc/prefs.sh" ]] && return 0
-    ;;
-  esac
-  return 1
+  platform_meta_config_changed "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" "${PLATFORM}"
 }
 
 should_skip_allwmake() {
@@ -154,21 +152,27 @@ sync_source() {
   fi
 }
 
+darwin_cleanup_foreign_platforms() {
+  if compgen -G "${OPENFOAM_BUILD}/platforms/linuxARM64*" >/dev/null; then
+    echo "[build_openfoam] Removing foreign linuxARM64 platform artifacts"
+    rm -rf "${OPENFOAM_BUILD}"/platforms/linuxARM64* "${OPENFOAM_BUILD}"/build/linuxARM64*
+  fi
+}
+
 setup_platform_deps() {
   case "${PLATFORM}" in
     darwin)
       rsync -u "${OPENFOAM_ROOT}/Brewfile" "${OPENFOAM_BUILD}/Brewfile"
       rsync -u "${OPENFOAM_ROOT}/configure.sh" "${OPENFOAM_BUILD}/configure.sh"
-      cd "${OPENFOAM_BUILD}"
+      darwin_cleanup_foreign_platforms
       local need_brew=false
       if ! is_incremental_build; then
         need_brew=true
-      elif [[ "${OPENFOAM_ROOT}/Brewfile" -nt etc/prefs.sh ]] \
-        || [[ "${OPENFOAM_ROOT}/configure.sh" -nt etc/prefs.sh ]] \
-        || [[ ! -f etc/prefs.sh ]]; then
+      elif darwin_meta_need_configure "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"; then
         need_brew=true
       fi
       if [[ "${need_brew}" == true ]]; then
+        cd "${OPENFOAM_BUILD}"
         brew bundle -f
         brew bundle check --verbose --no-upgrade
         if [[ -f Brewfile.lock.json ]]; then
@@ -177,16 +181,26 @@ setup_platform_deps() {
       else
         echo "[build_openfoam] Skipping brew bundle (incremental, Brewfile unchanged)"
       fi
-      if [[ ! -f etc/prefs.sh ]] \
-        || [[ "${OPENFOAM_ROOT}/Brewfile" -nt etc/prefs.sh ]] \
-        || [[ "${OPENFOAM_ROOT}/configure.sh" -nt etc/prefs.sh ]]; then
+      if darwin_meta_need_configure "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"; then
+        cd "${OPENFOAM_BUILD}"
+        export OPENFOAM_META_PREFS_SH="$(
+          openfoam_runtime_meta_prefs "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" darwin
+        )"
+        export OPENFOAM_META_PREFS_CSH="$(
+          openfoam_runtime_meta_prefs_csh "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" darwin
+        )"
+        mkdir -p "$(dirname "${OPENFOAM_META_PREFS_SH}")"
         bash -ex configure.sh
       else
-        echo "[build_openfoam] Skipping configure.sh (prefs up to date)"
+        echo "[build_openfoam] Skipping configure.sh (meta prefs up to date)"
       fi
+      openfoam_apply_meta_prefs "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" darwin
       ;;
     linux)
-      cd "${OPENFOAM_BUILD}"
+      linux_sync_etc_from_source "${OPENFOAM_SOURCE}" "${OPENFOAM_BUILD}"
+      openfoam_prepare_linux_meta "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}"
+      linux_cleanup_stale_platforms "${OPENFOAM_BUILD}"
+      openfoam_apply_meta_prefs "${OPENFOAM_ROOT}" "${OPENFOAM_BUILD}" linux
       ;;
     *)
       echo "[build_openfoam] Unsupported PLATFORM: ${PLATFORM}" >&2
@@ -196,6 +210,7 @@ setup_platform_deps() {
 }
 
 compile_openfoam() {
+  cd "${OPENFOAM_BUILD}"
   local -a allwmake_extra=()
   local incremental=false
   if is_incremental_build; then
@@ -217,19 +232,31 @@ compile_openfoam() {
     echo "[build_openfoam] Skipping foamSystemCheck (OPENFOAM_SYSTEM_CHECK=${OPENFOAM_SYSTEM_CHECK})"
   fi
 
+  local allwmake_status=0
   if [[ "${incremental}" == true ]]; then
     echo "[build_openfoam] Incremental Allwmake (-s only)"
-    ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s
+    ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s || allwmake_status=$?
   else
     echo "[build_openfoam] Full Allwmake (bootstrap + finalize)"
-    ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s -q -k
-    ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s
+    ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s -q -k || allwmake_status=$?
+    if [[ "${allwmake_status}" -eq 0 ]]; then
+      ./Allwmake -j "${NUM_JOBS}" "${allwmake_extra[@]}" -s || allwmake_status=$?
+    fi
   fi
   set -eu
+  if [[ "${allwmake_status}" -ne 0 ]]; then
+    echo "[build_openfoam] Allwmake failed (exit ${allwmake_status})" >&2
+    exit "${allwmake_status}"
+  fi
 }
 
 resolve_platform
 cd "${OPENFOAM_ROOT}"
+
+openfoam_validate_build_dir "${OPENFOAM_BUILD}" "${PLATFORM}"
+channel="$(openfoam_build_channel "${OPENFOAM_BUILD}")"
+compiler="$(openfoam_expected_compiler "${PLATFORM}")"
+echo "[build_openfoam] tree=${OPENFOAM_BUILD} platform=${PLATFORM} compiler=${compiler} channel=${channel}"
 
 if is_incremental_build; then
   echo "[build_openfoam] Incremental build ${OPENFOAM_VERSION} (jobs=${NUM_JOBS})"
@@ -239,6 +266,7 @@ fi
 
 sync_source
 setup_platform_deps
+openfoam_write_build_profile "${OPENFOAM_BUILD}" "${PLATFORM}"
 if should_skip_allwmake; then
   echo "[build_openfoam] Skipping Allwmake (source and config unchanged)"
 else

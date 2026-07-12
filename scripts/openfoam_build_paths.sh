@@ -27,3 +27,69 @@ openfoam_load_build_paths() {
   fi
   openfoam_apply_build_path_defaults
 }
+
+openfoam_expected_compiler() {
+  case "$1" in
+  darwin) printf 'Clang' ;;
+  linux) printf 'Gcc' ;;
+  *)
+    echo "[build_openfoam] Unsupported PLATFORM for compiler: $1" >&2
+    return 1
+    ;;
+  esac
+}
+
+openfoam_build_channel() {
+  case "${1##*/}" in
+  docker-build) printf 'docker' ;;
+  *) printf 'native' ;;
+  esac
+}
+
+openfoam_validate_build_dir() {
+  local build_dir="$1"
+  local platform="$2"
+  local channel expected_compiler
+
+  channel="$(openfoam_build_channel "${build_dir}")"
+  expected_compiler="$(openfoam_expected_compiler "${platform}")"
+
+  case "${platform}" in
+  linux)
+    if [[ "${channel}" != docker ]]; then
+      echo "[build_openfoam] ERROR: linux builds must use build/docker-build (got ${build_dir})" >&2
+      exit 1
+    fi
+    ;;
+  darwin)
+    if [[ "${channel}" == docker ]]; then
+      echo "[build_openfoam] ERROR: macOS builds must use build/openfoam-build (got ${build_dir})" >&2
+      exit 1
+    fi
+    ;;
+  esac
+
+  local profile="${build_dir}/.phynexis-build-profile"
+  if [[ -f "${profile}" ]]; then
+    local saved_platform saved_compiler saved_channel
+    IFS=' ' read -r saved_platform saved_compiler saved_channel < "${profile}"
+    if [[ "${saved_platform}" != "${platform}" \
+      || "${saved_compiler}" != "${expected_compiler}" \
+      || "${saved_channel}" != "${channel}" ]]; then
+      echo "[build_openfoam] ERROR: ${build_dir} profile is ${saved_platform}/${saved_compiler}/${saved_channel}," >&2
+      echo "[build_openfoam]        but this run is ${platform}/${expected_compiler}/${channel}." >&2
+      echo "[build_openfoam]        Remove ${build_dir} or use the matching make target." >&2
+      exit 1
+    fi
+  fi
+}
+
+openfoam_write_build_profile() {
+  local build_dir="$1"
+  local platform="$2"
+  printf '%s %s %s\n' \
+    "${platform}" \
+    "$(openfoam_expected_compiler "${platform}")" \
+    "$(openfoam_build_channel "${build_dir}")" \
+    > "${build_dir}/.phynexis-build-profile"
+}

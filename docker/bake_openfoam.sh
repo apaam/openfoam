@@ -13,8 +13,15 @@ abs_under_root() {
 
 openfoam_apply_build_path_defaults
 export OPENFOAM_ROOT="${ROOT}"
-export OPENFOAM_BUILD="$(abs_under_root "${OPENFOAM_BUILD}")"
-OPENFOAM_STAGE="$(abs_under_root "${OPENFOAM_STAGE}")"
+export OPENFOAM_BUILD="$(abs_under_root "${OPENFOAM_BUILD:?OPENFOAM_BUILD required}")"
+OPENFOAM_STAGE="$(abs_under_root "${OPENFOAM_STAGE:?OPENFOAM_STAGE required}")"
+case "${OPENFOAM_BUILD}" in
+*docker-build*) ;;
+*)
+  echo "[bake_openfoam] ERROR: expected OPENFOAM_BUILD=build/docker-build (got ${OPENFOAM_BUILD})" >&2
+  exit 1
+  ;;
+esac
 export OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 export NUM_JOBS="${NUM_JOBS:-$(nproc)}"
 export PLATFORM=linux

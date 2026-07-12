@@ -4,6 +4,8 @@ set -euo pipefail
 SYSTEM_COMPILER="Clang"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+PREFS_SH="${OPENFOAM_META_PREFS_SH:-etc/prefs.sh}"
+PREFS_CSH="${OPENFOAM_META_PREFS_CSH:-etc/prefs.csh}"
 for _scripts in "${ROOT}/../scripts/platform_paths.sh" "${ROOT}/scripts/platform_paths.sh"; do
   if [[ -f "${_scripts}" ]]; then
     # shellcheck source=/dev/null
@@ -44,21 +46,22 @@ sed -i '' "s|setenv BOOST_ARCH_PATH.*|setenv BOOST_ARCH_PATH \"$BOOST_PATH\"|" e
 sed -i '' "s|export BOOST_ARCH_PATH=.*|export BOOST_ARCH_PATH=\"$BOOST_PATH\"|" etc/config.sh/CGAL
 
 # Clean up existing prefs files
-rm -f etc/prefs.sh etc/prefs.csh
+rm -f "${PREFS_SH}" "${PREFS_CSH}"
 
 # Set up include and library paths
 CPATH="$BOOST_PATH/include:$CGAL_PATH/include:$LIBOMP_PATH/include:$GMP_PATH/include:$MPFR_PATH/include"
 LIBRARY_PATH="$BOOST_PATH/lib:$CGAL_PATH/lib:$LIBOMP_PATH/lib:$GMP_PATH/lib:$MPFR_PATH/lib"
 
-echo "export CPATH=\"$CPATH\"" >> etc/prefs.sh
-echo "setenv CPATH \"$CPATH\"" >> etc/prefs.csh
-echo "export LIBRARY_PATH=\"$LIBRARY_PATH\"" >> etc/prefs.sh
-echo "setenv LIBRARY_PATH \"$LIBRARY_PATH\"" >> etc/prefs.csh
+mkdir -p "$(dirname "${PREFS_SH}")" "$(dirname "${PREFS_CSH}")"
+echo "export CPATH=\"$CPATH\"" >> "${PREFS_SH}"
+echo "setenv CPATH \"$CPATH\"" >> "${PREFS_CSH}"
+echo "export LIBRARY_PATH=\"$LIBRARY_PATH\"" >> "${PREFS_SH}"
+echo "setenv LIBRARY_PATH \"$LIBRARY_PATH\"" >> "${PREFS_CSH}"
 
 BREW_BIN="$(platform_paths_brew_bin || true)"
 if [[ -n "${BREW_BIN}" ]]; then
-  echo "export PATH=\"${BREW_BIN}:\$PATH\"" >> etc/prefs.sh
-  echo "setenv PATH \"${BREW_BIN}:\$PATH\"" >> etc/prefs.csh
+  echo "export PATH=\"${BREW_BIN}:\$PATH\"" >> "${PREFS_SH}"
+  echo "setenv PATH \"${BREW_BIN}:\$PATH\"" >> "${PREFS_CSH}"
 fi
 
 sed_inplace() {

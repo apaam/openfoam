@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Load docs/make-config-default.mk and make-config-user.mk into the shell environment.
+# Precedence: explicit environment variables > make-config-user.mk > make-config-default.mk
 
 load_make_config() {
   local root="${1:-}"
@@ -21,7 +22,9 @@ load_make_config() {
       val="${val#\"}"
       val="${val%\'}"
       val="${val#\'}"
-      export "${key}=${val}"
+      if [[ -z "${!key+x}" ]]; then
+        export "${key}=${val}"
+      fi
     done < "${root}/${f}"
   done
 }
