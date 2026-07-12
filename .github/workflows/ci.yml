@@ -16,6 +16,13 @@ env:
   DOCKER_JOBS: 2
   OPENFOAM_BUILD_MODULES: 0
 
+x-fetch-openfoam-source: &fetch-openfoam-source
+  name: Fetch openfoam-source (core only)
+  run: |
+    set -euo pipefail
+    git -c submodule.recurse=false submodule sync -- openfoam-source
+    git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
+
 jobs:
   native:
     strategy:
@@ -27,8 +34,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
           fetch-depth: 1
+
+      - *fetch-openfoam-source
 
       - name: Install build dependencies (Ubuntu)
         if: runner.os == 'Linux'
@@ -43,8 +51,7 @@ jobs:
         if: runner.os == 'macOS'
         run: python3 -m pip install setuptools wheel
 
-      - run: make help
-      - run: make cli-wheel
+      - run: make all
 
   docker:
     strategy:
@@ -56,8 +63,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
           fetch-depth: 1
+
+      - *fetch-openfoam-source
 
       - name: Install jq (Ubuntu)
         if: runner.os == 'Linux'

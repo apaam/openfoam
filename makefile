@@ -162,8 +162,8 @@ clean:
 	rm -rf build
 
 sync-submodule:
-	git submodule sync
-	git submodule update --depth 1 --init
+	git -c submodule.recurse=false submodule sync -- openfoam-source
+	git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
 
 real-clean: clean
 	@if [ -d openfoam-source ]; then \
