@@ -80,11 +80,11 @@ openfoam/
 | `make all` | `openfoam` + `cli` + `cli-wheel` |
 | `make install` | pip install CLI wheel |
 | `make openfoam-pack` | tar.gz from existing build (no bundle) |
-| `make dist-native` | Release bundle → `build/dist-native/` |
+| `make dist-native` | Host native release → `build/dist-native/` |
 | `make cli-wheel` | CLI pip wheel → `build/cli-wheel/` |
 | `make cli-pack` | CLI tar.gz → `build/cli-pack/` |
-| `make docker-image` | Pack linux `dist-native` → runtime image |
-| `make dist-docker` | Release bundle → `build/dist-docker/` |
+| `make docker-image` | Pack linux `dist-native` → Linux runtime image |
+| `make dist-docker` | Linux only: image + CLI → `build/dist-docker/` |
 | `make docker-setup-base` | Optional: pull Ubuntu base (also done by `docker-image`) |
 | `make deps` | Install dependencies (macOS only) |
 | `make clean` | Remove `build/` |
@@ -92,7 +92,7 @@ openfoam/
 
 ## Distribution
 
-Release bundles (`dist-native`, `dist-docker`) ship OpenFOAM (native tar or image tar), CLI (`openfoam-cli-*.tar.gz` and `openfoam-*.whl`). Intermediate packs: `openfoam-pack`, `cli-pack`, `cli-wheel`.
+Release bundles: `dist-native` (per-host native tar + CLI), `dist-docker` (Linux Docker image + CLI; no macOS image). Intermediate packs: `openfoam-pack`, `cli-pack`, `cli-wheel`.
 
 ### CLI reference
 
@@ -112,14 +112,14 @@ Top-level: `openfoam help`, `openfoam docker help`.
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
 | local dev | `make all` | `build/bin/openfoam` or `make install` |
-| native release | `tar xzf openfoam-native-*.tar.gz -C <prefix>` | `pip install openfoam-*.whl` or `tar xzf openfoam-cli-*.tar.gz -C <prefix>` |
-| docker | `openfoam docker install-image` | host `pip install openfoam-*.whl` |
+| macOS / Linux native | `tar xzf openfoam-native-*.tar.gz -C <prefix>` (`make dist-native`) | `pip install openfoam-*.whl` or `tar xzf openfoam-cli-*.tar.gz` |
+| Docker (Linux image only) | `openfoam docker install-image` (`make dist-docker` on Linux / CI) | host `pip install openfoam-*.whl` |
 
 | Make target | Output |
 |-------------|--------|
-| `dist-native` | `build/dist-native/` — `openfoam-native-*.tar.gz`, `openfoam-cli-*.tar.gz`, `openfoam-*.whl` |
+| `dist-native` | `build/dist-native/` — host `openfoam-native-*.tar.gz`, CLI wheel/pack |
+| `dist-docker` | `build/dist-docker/` — Linux `openfoam-docker-*.tar.gz` + CLI (no macOS image) |
 | `cli-wheel` | `build/cli-wheel/openfoam-*.whl` |
-| `dist-docker` | `build/dist-docker/` — `openfoam-docker-*.tar.gz`, `openfoam-cli-*.tar.gz`, `openfoam-*.whl` |
 
 ### Shell setup
 
@@ -156,7 +156,9 @@ openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 
 ## Docker
 
-Requires a linux `openfoam-native-*-linux-*.tar.gz` from `make dist-native` (on Linux, or copy the CI artifact). Release builds `dist-docker` from the Ubuntu `dist-native` artifact.
+Docker images are **Linux-only** (Docker Desktop on macOS still runs Linux containers). macOS users who want a native install use `make dist-native`; there is no macOS Docker image.
+
+`dist-docker` packs a linux `openfoam-native-*-linux-*.tar.gz` into a runtime image. Release builds it on Ubuntu from the Linux `dist-native` artifact.
 
 ```
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
@@ -166,13 +168,18 @@ build/dist-docker/             →  release bundle (image + cli-pack + wheel)
 ```
 
 ```bash
-# on Linux (or after placing the linux native archive under build/dist-native/)
+# Linux
 make dist-native
 make dist-docker
 make docker-push
+
+# macOS: native only
+make dist-native
+# optional: pack a Linux image locally if you already have a *-linux-*.tar.gz
+# OPENFOAM_NATIVE_DIST=.../openfoam-native-*-linux-*.tar.gz make dist-docker
 ```
 
-Override archive path with `OPENFOAM_NATIVE_DIST=...`. Path variables: `docs/make-config-default.mk`, override in `make-config-user.mk`.
+Path variables: `docs/make-config-default.mk`, override in `make-config-user.mk`.
 
 ## Usage
 

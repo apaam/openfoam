@@ -16,6 +16,13 @@ openfoam_load_build_paths "${ROOT}"
 
 IMAGE="${DOCKER_OPENFOAM_IMAGE:?DOCKER_OPENFOAM_IMAGE required}"
 PLATFORM="${DOCKER_PLATFORM:?DOCKER_PLATFORM required}"
+case "${PLATFORM}" in
+linux/*) ;;
+*)
+  echo "[setup_openfoam_image] DOCKER_PLATFORM must be linux/* (got ${PLATFORM})" >&2
+  exit 1
+  ;;
+esac
 TARGETARCH="${PLATFORM#linux/}"
 DOCKERFILE="docker/Dockerfile"
 UBUNTU_IMAGE_NAME="${DOCKER_UBUNTU_IMAGE_NAME:-phynexis-ubuntu}"
@@ -37,7 +44,7 @@ arch_globs() {
 }
 
 find_linux_native_archive() {
-  local arch name candidate
+  local arch name candidate base
   if [[ -n "${OPENFOAM_NATIVE_DIST:-}" ]]; then
     candidate="${OPENFOAM_NATIVE_DIST}"
     case "${candidate}" in
@@ -48,6 +55,20 @@ find_linux_native_archive() {
       echo "[setup_openfoam_image] OPENFOAM_NATIVE_DIST not found: ${candidate}" >&2
       exit 1
     fi
+    base="$(basename "${candidate}")"
+    case "${base}" in
+    *darwin*)
+      echo "[setup_openfoam_image] Docker images are Linux-only; refusing darwin archive:" >&2
+      echo "  ${base}" >&2
+      echo "[setup_openfoam_image] On macOS install with: make dist-native" >&2
+      exit 1
+      ;;
+    *linux*) ;;
+    *)
+      echo "[setup_openfoam_image] Expected a linux native archive name (*-linux-*), got: ${base}" >&2
+      exit 1
+      ;;
+    esac
     printf '%s' "${candidate}"
     return 0
   fi
@@ -62,12 +83,23 @@ find_linux_native_archive() {
   done < <(arch_globs)
 
   echo "[setup_openfoam_image] Missing linux native dist for ${PLATFORM}" >&2
+  echo "[setup_openfoam_image] Docker images are always Linux (no macOS Docker image)." >&2
   echo "[setup_openfoam_image] Expected under ${DIST_DIR}/:" >&2
   while IFS= read -r arch; do
     echo "  openfoam-native-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
   done < <(arch_globs)
-  echo "[setup_openfoam_image] On Linux: make dist-native" >&2
-  echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST=/path/to/openfoam-native-*-linux-*.tar.gz" >&2
+  shopt -s nullglob
+  local darwin_archives=("${DIST_DIR}"/openfoam-native-"${DIST_VERSION}"-darwin-*.tar.gz)
+  shopt -u nullglob
+  if [[ ${#darwin_archives[@]} -gt 0 ]]; then
+    echo "[setup_openfoam_image] Found darwin archive(s) for native install only:" >&2
+    for a in "${darwin_archives[@]}"; do
+      echo "  $(basename "${a}")" >&2
+    done
+    echo "[setup_openfoam_image] macOS: make dist-native (no dist-docker)" >&2
+  fi
+  echo "[setup_openfoam_image] Linux: make dist-native && make dist-docker" >&2
+  echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz from CI/release" >&2
   exit 1
 }
 
