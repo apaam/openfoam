@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.4
 # OpenFOAM runtime image from linux dist-native (bundled libs).
 # Build context of-dist must contain openfoam-native.tar.gz.
 

@@ -19,10 +19,11 @@ OPENFOAM_VERSION = v2412
 # BUILD_CLI_WHEEL_DIR = build/cli-wheel
 # BUILD_CLI_BUILD_DIR = build/cli-build
 
-# --- Docker (from linux dist-native) ---
+# --- Docker ---
 # BUILD_DOCKER_DIR = build/docker
 # DIST_DOCKER_DIR = build/dist-docker
 # DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
+# DOCKER_BUILD_IMAGE_NAME = phynexis-build
 # DOCKER_OPENFOAM_IMAGE_NAME = openfoam
 # DOCKER_UBUNTU_VERSION = 24.04
 # DOCKER_REGISTRY = ghcr.io/myorg

@@ -1,6 +1,20 @@
 -include docs/make-config-default.mk
 -include make-config-user.mk
 
+# docker-shell sets CONTAINER_BUILD=1: redirect build outputs under build/docker/.
+ifeq ($(CONTAINER_BUILD),1)
+  OPENFOAM_BUILD := $(DOCKER_OPENFOAM_BUILD)
+  OPENFOAM_CLI_BUILD := $(DOCKER_OPENFOAM_CLI_BUILD)
+  OPENFOAM_STAGE := $(DOCKER_OPENFOAM_STAGE)
+  BUILD_OPENFOAM_PACK_DIR := $(DOCKER_BUILD_OPENFOAM_PACK_DIR)
+  DIST_NATIVE_DIR := $(DOCKER_DIST_NATIVE_DIR)
+  DIST_DOCKER_DIR := $(DOCKER_DIST_DOCKER_DIR)
+  BUILD_DOCKER_DIR := $(DOCKER_BUILD_DOCKER_DIR)
+  BUILD_CLI_PACK_DIR := $(DOCKER_BUILD_CLI_PACK_DIR)
+  BUILD_CLI_WHEEL_DIR := $(DOCKER_BUILD_CLI_WHEEL_DIR)
+  BUILD_CLI_BUILD_DIR := $(DOCKER_BUILD_CLI_BUILD_DIR)
+endif
+
 JOBS := $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS)))
 ifeq ($(JOBS),)
   MAKE_PID := $(shell echo $$PPID)
@@ -130,15 +144,14 @@ help:
 	@echo "Dist:"
 	@echo "  make openfoam-pack           tar.gz, no bundle (-> $(BUILD_OPENFOAM_PACK_DIR)/)"
 	@echo "  make dist-native             host native + cli-pack + wheel (-> $(DIST_NATIVE_DIR)/)"
-	@echo "  make dist-docker             Linux only: image + cli (-> $(DIST_DOCKER_DIR)/)"
+	@echo "  make dist-docker             image + cli (-> $(DIST_DOCKER_DIR)/)"
 	@echo ""
 	@echo "CLI pack:"
 	@echo "  make cli-wheel               pip wheel (-> $(BUILD_CLI_WHEEL_DIR)/)"
 	@echo "  make cli-pack                tar.gz (-> $(BUILD_CLI_PACK_DIR)/)"
 	@echo ""
-	@echo "Docker (Linux image from linux dist-native):"
-	@echo "  make docker-build-native     build dist-native inside $(DOCKER_BUILD_IMAGE)"
-	@echo "  make docker-shell            interactive shell in $(DOCKER_BUILD_IMAGE)"
+	@echo "Docker (Linux image; docker-shell uses tree under $(BUILD_DOCKER_ROOT)/):"
+	@echo "  make docker-shell            interactive $(DOCKER_BUILD_IMAGE) (CONTAINER_BUILD=1)"
 	@echo "  make docker-setup-build      build $(DOCKER_BUILD_IMAGE) (deps baked in)"
 	@echo "  make docker-image            pack linux native dist -> image (+ $(BUILD_DOCKER_DIR)/)"
 	@echo "  make docker-push             push image (set DOCKER_REGISTRY)"
@@ -192,15 +205,6 @@ docker-setup-build:
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
 	  bash docker/setup_build_image.sh
 
-docker-build-native:
-	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
-	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
-	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
-	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
-	  BUILD_JOBS=$(JOBS) \
-	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  bash docker/build_in_container.sh
-
 docker-shell:
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
@@ -208,7 +212,7 @@ docker-shell:
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
 	  BUILD_JOBS=$(JOBS) \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  bash docker/build_in_container.sh shell
+	  bash docker/build_in_container.sh
 
 docker-setup-base:
 	UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
@@ -263,6 +267,6 @@ docker-prune-images:
 	check-build \
 	openfoam-pack dist-native \
 	cli-wheel cli-pack \
-	docker-setup-build docker-build-native docker-shell \
+	docker-setup-build docker-shell \
 	docker-setup-base docker-image docker-push dist-docker \
 	docker-prune-images

@@ -96,7 +96,7 @@ find_linux_native_archive() {
     for a in "${darwin_archives[@]}"; do
       echo "  $(basename "${a}")" >&2
     done
-    echo "[setup_openfoam_image] macOS: make dist-native (no dist-docker)" >&2
+    echo "[setup_openfoam_image] macOS: make docker-shell, then make dist-native && make dist-docker" >&2
   fi
   echo "[setup_openfoam_image] Linux: make dist-native && make dist-docker" >&2
   echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz from CI/release" >&2

@@ -1,35 +1,13 @@
 #!/usr/bin/env bash
-# Build (or open a shell) inside phynexis-build with the repo bind-mounted.
+# Interactive shell in phynexis-build. Repo is bind-mounted; make uses
+# CONTAINER_BUILD=1 so outputs go under build/docker/ (isolated from host build/).
 #
-# Usage:
-#   bash docker/build_in_container.sh              # make dist-native
-#   bash docker/build_in_container.sh shell         # interactive shell
-#   bash docker/build_in_container.sh -- make all   # custom make target(s)
+#   make docker-shell
+#   # inside: make dist-native && make dist-docker
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
-
-MODE="build"
-MAKE_ARGS=()
-if [[ $# -gt 0 ]]; then
-  case "$1" in
-  shell)
-    MODE="shell"
-    shift
-    ;;
-  --)
-    shift
-    MAKE_ARGS=("$@")
-    ;;
-  *)
-    MAKE_ARGS=("$@")
-    ;;
-  esac
-fi
-if [[ ${#MAKE_ARGS[@]} -eq 0 ]]; then
-  MAKE_ARGS=(dist-native)
-fi
 
 PLATFORM="${DOCKER_PLATFORM:-}"
 if [[ -z "${PLATFORM}" ]]; then
@@ -64,38 +42,26 @@ DOCKER_PLATFORM="${PLATFORM}" \
   DOCKER_APT_MIRROR="${APT_MIRROR}" \
   bash "${ROOT}/docker/setup_build_image.sh"
 
-run_container() {
-  local -a docker_args=(
-    run --rm
-    --platform "${PLATFORM}"
-    -v "${ROOT}:/src"
-    -w /src
-    -e "DEBIAN_FRONTEND=noninteractive"
-    -e "BUILD_JOBS=${BUILD_JOBS}"
-    -e "NUM_JOBS=${BUILD_JOBS}"
-    -e "OPENFOAM_VERSION=${OPENFOAM_VERSION}"
-  )
-  if [[ "${MODE}" == "shell" ]]; then
-    docker_args+=(-it)
-  fi
-  docker "${docker_args[@]}" "${IMAGE}" "$@"
-}
+mkdir -p "${ROOT}/build/docker"
 
-if [[ "${MODE}" == "shell" ]]; then
-  printf '==> Interactive shell in %s (%s)\n' "${IMAGE}" "${PLATFORM}"
-  printf '    Inside: make dist-native   (or make all)\n'
-  printf '    Exit:   exit\n'
-  run_container bash -l
-  exit 0
+docker_sock_args=()
+if [[ -S /var/run/docker.sock ]]; then
+  docker_sock_args=(-v /var/run/docker.sock:/var/run/docker.sock)
 fi
 
-printf '==> Container build: make'
-printf ' %q' "${MAKE_ARGS[@]}"
-printf '  [%s %s, jobs=%s]\n' "${IMAGE}" "${PLATFORM}" "${BUILD_JOBS}"
-make_cmd='make'
-for a in "${MAKE_ARGS[@]}"; do
-  make_cmd+=" $(printf '%q' "${a}")"
-done
-run_container bash -lc "${make_cmd}"
-printf '==> Done. Artifacts are under %s/build/\n' "${ROOT}"
-printf '    Next (host): make dist-docker\n'
+printf '==> Shell in %s (%s); tree=build/docker/ (CONTAINER_BUILD=1)\n' \
+  "${IMAGE}" "${PLATFORM}"
+printf '    Example: make dist-native && make dist-docker\n'
+
+docker run --rm -it \
+  --platform "${PLATFORM}" \
+  -v "${ROOT}:/src" \
+  -w /src \
+  "${docker_sock_args[@]}" \
+  -e "DEBIAN_FRONTEND=noninteractive" \
+  -e "BUILD_JOBS=${BUILD_JOBS}" \
+  -e "NUM_JOBS=${BUILD_JOBS}" \
+  -e "OPENFOAM_VERSION=${OPENFOAM_VERSION}" \
+  -e "CONTAINER_BUILD=1" \
+  "${IMAGE}" \
+  bash -l
