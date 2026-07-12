@@ -1,46 +1,19 @@
-"""Resolve native OpenFOAM install prefix (wheel layout)."""
+"""Resolve native OpenFOAM install prefix."""
 
 from __future__ import annotations
 
 import os
-import shutil
 import sys
 from pathlib import Path
 from typing import Optional
 
 _PREFIX: Optional[Path] = None
 _REWRITE_MARKER = ".prefix-rewritten"
+DEFAULT_OPENFOAM_PREFIX = "/opt/openfoam"
 
 
 def _package_dir() -> Path:
     return Path(__file__).resolve().parent
-
-
-def _native_install_dir() -> Path:
-    return _package_dir() / "prefix"
-
-
-def _legacy_xdg_roots() -> list[Path]:
-    import openfoam
-
-    version = openfoam.__version__
-    roots: list[Path] = [Path.home() / ".local" / "share" / "openfoam" / version]
-    xdg = os.environ.get("XDG_DATA_HOME")
-    if xdg:
-        roots.append(Path(xdg) / "openfoam" / version)
-    return roots
-
-
-def _cleanup_legacy_xdg() -> None:
-    for root in _legacy_xdg_roots():
-        prefix = root / "prefix"
-        if prefix.is_dir():
-            shutil.rmtree(prefix)
-        if root.is_dir() and not any(root.iterdir()):
-            root.rmdir()
-        parent = root.parent
-        if parent.is_dir() and parent.name == "openfoam" and not any(parent.iterdir()):
-            parent.rmdir()
 
 
 def _rewrite_installed_prefix(installed: Path) -> None:
@@ -63,35 +36,55 @@ def _rewrite_installed_prefix(installed: Path) -> None:
     rewritten.write_text(str(installed.resolve()), encoding="utf-8")
 
 
+def _local_build_prefix() -> Optional[Path]:
+    pkg_dir = _package_dir()
+    if not str(pkg_dir).endswith("/share/openfoam/cli"):
+        return None
+    cli_root = pkg_dir.parent.parent.parent.resolve()
+    marker = cli_root / ".openfoam-prefix"
+    if marker.is_file():
+        return Path(marker.read_text(encoding="utf-8").strip()).resolve()
+    bashrc = cli_root / "etc" / "bashrc"
+    if bashrc.is_file():
+        return cli_root
+    return None
+
+
+def runtime_prefix() -> Path:
+    """User-facing install root; does not require etc/bashrc."""
+    local = _local_build_prefix()
+    if local is not None:
+        return local
+
+    env = os.environ.get("OPENFOAM_PREFIX")
+    if env:
+        return Path(env).expanduser().resolve()
+
+    return Path(DEFAULT_OPENFOAM_PREFIX)
+
+
 def native_prefix() -> Path:
+    """Installed prefix with etc/bashrc (OPENFOAM_PREFIX or local build)."""
     global _PREFIX
     if _PREFIX is not None:
         return _PREFIX
 
-    env = os.environ.get("OPENFOAM_PREFIX")
-    if env:
-        root = Path(env).resolve()
-        if (root / "etc" / "bashrc").is_file():
-            _rewrite_installed_prefix(root)
-            _PREFIX = root
-            return _PREFIX
-
-    _cleanup_legacy_xdg()
-
-    installed = _native_install_dir()
-    bashrc = installed / "etc" / "bashrc"
-    if not bashrc.is_file():
+    root = runtime_prefix()
+    if not (root / "etc" / "bashrc").is_file():
         raise FileNotFoundError(
-            "Native OpenFOAM install not bundled; use make wheel-dist or cpack-dist"
+            f"OpenFOAM install not found at {root}; run: openfoam dev install"
         )
 
-    _rewrite_installed_prefix(installed)
-    _PREFIX = installed
+    _rewrite_installed_prefix(root)
+    _PREFIX = root
     return _PREFIX
 
 
 def main() -> None:
-    print(native_prefix())
+    if "--runtime" in sys.argv[1:]:
+        print(runtime_prefix())
+    else:
+        print(native_prefix())
 
 
 if __name__ == "__main__":

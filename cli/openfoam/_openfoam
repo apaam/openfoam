@@ -1,0 +1,69 @@
+#compdef openfoam
+
+_openfoam_complete_dirs() {
+  _files -/
+}
+
+_openfoam_complete_paths() {
+  _files
+}
+
+_openfoam() {
+  local -a static docker_static
+
+  if (( CURRENT == 2 )); then
+    static=(prefix dev run shell docker completion help -h --help)
+    _describe 'openfoam command' static
+    return 0
+  fi
+
+  case ${words[2]} in
+  prefix | help | -h | --help)
+    ;;
+  dev)
+    if (( CURRENT == 3 )); then
+      _values 'dev command' install clean help -h --help
+    fi
+    ;;
+  completion)
+    if (( CURRENT == 3 )); then
+      _values 'shell type' bash zsh
+    fi
+    ;;
+  shell)
+    if (( CURRENT == 3 )); then
+      _openfoam_complete_dirs
+    fi
+    ;;
+  run)
+    if (( CURRENT == 3 )); then
+      _openfoam_complete_paths
+      _openfoam_complete_dirs
+    fi
+    ;;
+  docker)
+    case ${CURRENT} in
+    3)
+      docker_static=(
+        run shell pull install-image uninstall-image help -h --help
+      )
+      _describe 'docker command' docker_static
+      ;;
+    4)
+      case ${words[3]} in
+      shell)
+        _openfoam_complete_dirs
+        ;;
+      run)
+        _openfoam_complete_paths
+        _openfoam_complete_dirs
+        ;;
+      install-image)
+        _files -g '*.tar.gz' -g '*.tgz' -g '*.tar'
+        ;;
+      esac
+      ;;
+    esac
+    ;;
+  esac
+}

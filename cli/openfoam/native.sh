@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native OpenFOAM launcher (openfoam env / run / shell / <command>).
+# Native OpenFOAM launcher (openfoam prefix / dev / run / shell).
 
 set -euo pipefail
 
@@ -8,6 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/prefix.sh"
 # shellcheck source=shell_prompt.sh
 source "${SCRIPT_DIR}/shell_prompt.sh"
+# shellcheck source=dev_tree.sh
+source "${SCRIPT_DIR}/dev_tree.sh"
 
 CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-openfoam}"
 
@@ -30,50 +32,40 @@ usage() {
 ${CLI_PREFIX} — native OpenFOAM commands
 
 Developer:
-  env                               Print 'source .../etc/bashrc' (native; use: eval "\$(openfoam env)")
-  env-path                          Print PATH export for openfoam CLI
+  prefix                            Print install root (default /opt/openfoam)
+  dev install|clean                 Install/remove OpenFOAM under OPENFOAM_PREFIX
   completion bash|zsh               Tab completion
 
+Set OPENFOAM_PREFIX to your install root; source <prefix>/etc/bashrc to load the env.
+
 Run:
-  run <script|command> [args...]    Run a script in its directory, or a command in cwd
+  run <script> [args...]            Run a script in its directory
   shell [dir]                       Interactive shell (sources etc/bashrc)
-  blockMesh -help                   Run any OpenFOAM command (shorthand)
 
 Examples:
-  source build/openfoam/etc/bashrc  # native (local build; path known)
-  eval "\$(openfoam env)" && wmake  # wheel, or when prefix path is unknown
+  pip install openfoam-*.whl
+  export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
+  openfoam dev install
+  source "\$OPENFOAM_PREFIX/etc/bashrc"
+  blockMesh -help
   openfoam run ~/case/Allrun
-  openfoam blockMesh -help
   openfoam shell .
 EOF
 }
 
-cmd_env() {
-  require_native_prefix
-  printf 'source %s' "${OPENFOAM_BASHRC}"
-}
+cmd_prefix() {
+  local prefix=""
 
-cmd_env_path() {
-  require_native_prefix
-  local cli_bin="" cli_root=""
+  if (("$#" > 0)); then
+    echo "Usage: ${CLI_PREFIX} prefix" >&2
+    exit 1
+  fi
 
-  if cli_bin="$(command -v openfoam 2>/dev/null)"; then
-    printf 'export PATH=%q:${PATH}\n' "$(dirname "${cli_bin}")"
-    return 0
+  prefix="$(resolve_runtime_prefix)"
+  if ! prefix_has_bashrc "${prefix}"; then
+    prefix_hint_missing_bashrc "${prefix}"
   fi
-  if [[ "${SCRIPT_DIR}" == */share/openfoam/cli ]]; then
-    cli_root="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-    if [[ -x "${cli_root}/bin/openfoam" ]]; then
-      printf 'export PATH=%q:${PATH}\n' "${cli_root}/bin"
-      return 0
-    fi
-  fi
-  if [[ -x "${OPENFOAM_PREFIX}/bin/openfoam" ]]; then
-    printf 'export PATH=%q:${PATH}\n' "${OPENFOAM_PREFIX}/bin"
-    return 0
-  fi
-  echo "openfoam not in PATH; add <cli>/bin or <prefix>/bin" >&2
-  exit 1
+  printf '%s\n' "${prefix}"
 }
 
 cmd_completion() {
@@ -89,7 +81,8 @@ cmd_completion() {
     ;;
   zsh)
     printf 'typeset -g OPENFOAM_PACKAGE_DIR=%q\n' "${SCRIPT_DIR}"
-    cat "${SCRIPT_DIR}/completion.zsh"
+    sed '/^#compdef /d' "${SCRIPT_DIR}/_openfoam"
+    printf '\nautoload -Uz compdef\ncompdef _openfoam openfoam\n'
     ;;
   *)
     echo "Unsupported shell: ${shell} (supported: bash, zsh)" >&2
@@ -130,7 +123,7 @@ resolve_run_target() {
   RUN_CMD=()
 
   if (("$#" == 0)); then
-    echo "Usage: ${CLI_PREFIX} run <script|command> [args...]" >&2
+    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
     exit 1
   fi
 
@@ -148,8 +141,10 @@ resolve_run_target() {
     echo "Or: ${CLI_PREFIX} shell ${first}" >&2
     exit 1
   else
-    RUN_WORK_DIR="$(pwd)"
-    RUN_CMD=("$@")
+    echo "Not a script: ${first}" >&2
+    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
+    echo "Source etc/bashrc and run OpenFOAM commands directly." >&2
+    exit 1
   fi
 }
 
@@ -158,37 +153,24 @@ cmd_run() {
   native_run "${RUN_WORK_DIR}" "${RUN_CMD[@]}"
 }
 
-cmd_exec() {
-  if (("$#" == 0)); then
-    echo "Usage: ${CLI_PREFIX} run ~/case/Allrun" >&2
-    echo "       ${CLI_PREFIX} blockMesh -help" >&2
-    exit 1
-  fi
-
-  local first="$1"
-  if [[ -f "${first}" ]]; then
-    echo "Use: ${CLI_PREFIX} run ${first}" >&2
-    exit 1
-  fi
-  if [[ -d "${first}" ]]; then
-    echo "Use: ${CLI_PREFIX} run ${first}/Allrun" >&2
-    echo "Or: ${CLI_PREFIX} shell ${first}" >&2
-    exit 1
-  fi
-
-  native_run "$(pwd)" "$@"
+unknown_cmd() {
+  local cmd="$1"
+  echo "Unknown command: ${cmd}" >&2
+  echo "Run: ${CLI_PREFIX} help" >&2
+  echo "Source etc/bashrc and run OpenFOAM commands directly." >&2
+  exit 1
 }
 
 native_main() {
   local cmd="${1:-}"
   shift || true
   case "${cmd}" in
-  env) cmd_env "$@" ;;
-  env-path) cmd_env_path "$@" ;;
+  prefix) cmd_prefix "$@" ;;
+  dev) cmd_dev "$@" ;;
   completion) cmd_completion "$@" ;;
   run) cmd_run "$@" ;;
   shell) cmd_shell "$@" ;;
   -h | --help | help | "") usage ;;
-  *) cmd_exec "${cmd}" "$@" ;;
+  *) unknown_cmd "${cmd}" ;;
   esac
 }

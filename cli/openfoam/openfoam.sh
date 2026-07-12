@@ -10,25 +10,28 @@ usage() {
 OpenFOAM CLI
 
 Native (wheel / cpack / local build):
-  env                               Print 'source .../etc/bashrc' (eval in shell)
-  env-path                          Print PATH export for openfoam CLI
+  prefix                            Print install root (default /opt/openfoam)
+  dev install|clean                 Install/remove OpenFOAM under OPENFOAM_PREFIX
   completion bash|zsh               Tab completion
-  run <script|command> [args...]    Run a script in its directory, or a command in cwd
+  run <script> [args...]            Run a script in its directory
   shell [dir]                       Interactive shell (sources etc/bashrc)
-  blockMesh -help                   Run any OpenFOAM command (shorthand)
+
+Set OPENFOAM_PREFIX to your install root; source <prefix>/etc/bashrc
 
 Docker:
-  docker run <script|command> ...   Same as native, in container
+  docker run <script> ...           Same as native, in container
   docker shell [dir]                Interactive shell in container
   docker pull                       Download runtime image
   docker install-image [archive]    Load offline image (make docker-dist)
   docker uninstall-image            Remove runtime image
 
 Examples:
-  source build/openfoam/etc/bashrc  # native environment (local build)
-  eval "\$(openfoam env)" && wmake  # wheel, or unknown prefix path
+  pip install openfoam-*.whl
+  export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
+  openfoam dev install
+  source "\$OPENFOAM_PREFIX/etc/bashrc"
+  blockMesh -help
   openfoam run ~/my_case/Allrun
-  openfoam blockMesh -help
   openfoam docker run ~/my_case/Allrun
 
 See also: openfoam docker help

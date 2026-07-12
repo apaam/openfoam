@@ -8,7 +8,6 @@
 #
 # Usage:
 #   openfoam docker run ~/my_case/Allrun
-#   openfoam docker blockMesh -help
 #   openfoam docker shell .
 
 set -euo pipefail
@@ -117,9 +116,8 @@ Image admin:
   pull                              Download the runtime image from a registry
 
 Run:
-  run <script|command> [args...]    Run a script in its directory, or a command in cwd
+  run <script> [args...]            Run a script in its directory
   shell [dir]                       Interactive shell (default: current directory)
-  blockMesh -help                   Run any OpenFOAM command (shorthand)
 
 Environment:
   OPENFOAM_IMAGE   Docker image (default: ${OPENFOAM_IMAGE})
@@ -128,7 +126,6 @@ Environment:
 Examples:
   openfoam docker pull
   openfoam docker run ~/case/Allrun
-  openfoam docker blockMesh -help
   openfoam docker shell .
 
 Case inputs and outputs stay on your machine.
@@ -257,7 +254,7 @@ resolve_run_target() {
   RUN_CMD=()
 
   if (("$#" == 0)); then
-    echo "Usage: ${CLI_PREFIX} run <script|command> [args...]" >&2
+    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
     exit 1
   fi
 
@@ -275,8 +272,10 @@ resolve_run_target() {
     echo "Or: ${CLI_PREFIX} shell ${first}" >&2
     exit 1
   else
-    RUN_WORK_DIR="$(pwd)"
-    RUN_CMD=("$@")
+    echo "Not a script: ${first}" >&2
+    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
+    echo "Use: ${CLI_PREFIX} shell, then run OpenFOAM commands directly." >&2
+    exit 1
   fi
 }
 
@@ -285,25 +284,12 @@ cmd_run() {
   docker_run_openfoam "${RUN_WORK_DIR}" "${RUN_CMD[@]}"
 }
 
-cmd_exec() {
-  if (("$#" == 0)); then
-    echo "Usage: ${CLI_PREFIX} run ~/case/Allrun" >&2
-    echo "       ${CLI_PREFIX} blockMesh -help" >&2
-    exit 1
-  fi
-
-  local first="$1"
-  if [[ -f "${first}" ]]; then
-    echo "Use: ${CLI_PREFIX} run ${first}" >&2
-    exit 1
-  fi
-  if [[ -d "${first}" ]]; then
-    echo "Use: ${CLI_PREFIX} run ${first}/Allrun" >&2
-    echo "Or: ${CLI_PREFIX} shell ${first}" >&2
-    exit 1
-  fi
-
-  docker_run_openfoam "$(pwd)" "$@"
+unknown_cmd() {
+  local cmd="$1"
+  echo "Unknown command: ${cmd}" >&2
+  echo "Run: ${CLI_PREFIX} help" >&2
+  echo "Use: ${CLI_PREFIX} shell, then run OpenFOAM commands directly." >&2
+  exit 1
 }
 
 main() {
@@ -316,7 +302,7 @@ main() {
   run) cmd_run "$@" ;;
   shell) cmd_shell "$@" ;;
   -h | --help | help | "") usage ;;
-  *) cmd_exec "${cmd}" "$@" ;;
+  *) unknown_cmd "${cmd}" ;;
   esac
 }
 

@@ -27,8 +27,8 @@ fi
 
 rm -rf "${SHARE_CLI}"
 mkdir -p "${SHARE_CLI}"
-for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
-  shell_bashrc.sh completion.bash completion.zsh rewrite_openfoam_paths.sh; do
+for script in openfoam.sh prefix.sh native.sh dev_tree.sh docker_run.sh shell_prompt.sh \
+  shell_bashrc.sh _openfoam completion.bash completion.zsh rewrite_openfoam_paths.sh; do
   src="${CLI_SRC}/${script}"
   [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/docker/rewrite_openfoam_paths.sh"
   cp "${src}" "${SHARE_CLI}/${script}"
@@ -56,6 +56,16 @@ exec bash "${CLI_ROOT}/share/openfoam/cli/openfoam.sh" "$@"
 EOF
 fi
 chmod +x "${CLI_ROOT}/bin/openfoam"
+
+ZSH_COMP_DIR="${CLI_ROOT}/share/zsh/site-functions"
+BASH_COMP_DIR="${CLI_ROOT}/share/bash-completion/completions"
+mkdir -p "${ZSH_COMP_DIR}" "${BASH_COMP_DIR}"
+cp "${CLI_SRC}/_openfoam" "${ZSH_COMP_DIR}/_openfoam"
+cat >"${BASH_COMP_DIR}/openfoam" <<EOF
+OPENFOAM_PACKAGE_DIR="${SHARE_CLI}"
+export OPENFOAM_PACKAGE_DIR
+source "\${OPENFOAM_PACKAGE_DIR}/completion.bash"
+EOF
 
 if [[ "${BUNDLED}" == true ]]; then
   echo "[install_openfoam_cli] Bundled CLI -> ${CLI_ROOT}/bin/openfoam"

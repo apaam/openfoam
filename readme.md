@@ -110,10 +110,29 @@ openfoam/
 
 Three release channels share the same `openfoam` CLI; Docker adds an `openfoam docker` prefix.
 
+### CLI reference
+
+Top-level: `openfoam help`, `openfoam docker help`, `openfoam dev help`.
+
+| Command | Purpose |
+|---------|---------|
+| `prefix` | Print install root (`OPENFOAM_PREFIX` or default `/opt/openfoam`) |
+| `dev install` | Extract full OpenFOAM tree into `OPENFOAM_PREFIX` (wheel channel) |
+| `dev clean` | Remove `src`, `applications`, `wmake` from `OPENFOAM_PREFIX` |
+| `completion bash\|zsh` | Print tab-completion script (pip install registers it automatically) |
+| `run <script> [args]` | Run Allrun or another script in its directory |
+| `shell [dir]` | Interactive shell with OpenFOAM environment |
+| `docker pull` | Pull runtime image |
+| `docker install-image [tar]` | Load offline image (`make docker-dist`) |
+| `docker uninstall-image` | Remove runtime image |
+| `docker run …` / `docker shell …` | Run scripts or shell inside container |
+
+Environment: `OPENFOAM_PREFIX` (your install root, set in shell), `OPENFOAM_IMAGE`, `OPENFOAM_PACK`.
+
 | Channel | Install | Prefix location |
 |---------|---------|-----------------|
 | local build | `make install` | `build/openfoam/` (CLI: `build/cli/`) |
-| wheel | `pip install openfoam-*.whl` | `site-packages/openfoam/prefix/` |
+| wheel | `pip install` + `openfoam dev install` | `OPENFOAM_PREFIX` (default `/opt/openfoam`) |
 | cpack | `tar xzf ... -C <dir>` | extract root (`<dir>/`) |
 | docker | `pip install` CLI + `openfoam docker pull` | `/opt/openfoam` (in container) |
 
@@ -129,16 +148,22 @@ Load the environment the native OpenFOAM way: `source <prefix>/etc/bashrc`.
 Add `openfoam` to PATH only where pip does not (local build / cpack).
 
 ```bash
-# local build
-source /path/to/repo/build/openfoam/etc/bashrc
-export PATH="/path/to/repo/build/cli/bin:$PATH"
-
 # cpack
 source /path/to/extract/etc/bashrc
 export PATH="/path/to/extract/bin:$PATH"
+fpath=(/path/to/extract/share/zsh/site-functions $fpath)
 
-# wheel (prefix path inside site-packages; use openfoam env)
-eval "$(openfoam env)"
+# local build
+source /path/to/repo/build/openfoam/etc/bashrc
+export PATH="/path/to/repo/build/cli/bin:$PATH"
+fpath=(/path/to/repo/build/cli/share/zsh/site-functions $fpath)
+
+# wheel (CLI only from pip; prefix via dev install — same layout as cpack)
+pip install build/wheel-dist/openfoam-*.whl
+openfoam dev install
+source "$(openfoam prefix)/etc/bashrc"
+# pip install also registers zsh/bash tab completion automatically
+# (requires compinit in zsh, bash-completion in bash)
 ```
 
 ### Install
@@ -149,6 +174,7 @@ make install
 
 # wheel
 pip install build/wheel-dist/openfoam-*.whl
+openfoam dev install
 
 # cpack
 tar xzf build/cpack-dist/openfoam-native-*.tar.gz -C ~/opt/openfoam
@@ -161,24 +187,41 @@ openfoam docker pull
 ### Verify (same commands for wheel and cpack)
 
 ```bash
-openfoam blockMesh -help           # always via openfoam CLI
-openfoam docker blockMesh -help    # docker channel
+source "$(openfoam prefix)/etc/bashrc"
+blockMesh -help
+openfoam run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
+openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 ```
 
-After `source .../etc/bashrc`, `blockMesh` is on PATH. Use `openfoam` for run/shell/docker.
+After `source .../etc/bashrc`, OpenFOAM apps are on PATH. Use `openfoam` for install/run/shell/docker.
 
 ### Daily use
 
 ```bash
-source build/openfoam/etc/bashrc   # or eval "$(openfoam env)" for wheel
+source build/openfoam/etc/bashrc   # or openfoam prefix + source for wheel
 openfoam run ~/my_case/Allrun
 openfoam shell ~/my_case
 wmake                            # after source etc/bashrc
 openfoam docker run ~/my_case/Allrun
 ```
 
-`OPENFOAM_PREFIX` overrides prefix discovery. Local build links CLI to prefix via
-`build/cli/.openfoam-prefix`; cpack sets it in `bin/openfoam`; wheel uses `openfoam/prefix/`.
+`OPENFOAM_PREFIX` is the install root for wheel and cpack. Local build links CLI to prefix via
+`build/cli/.openfoam-prefix`; cpack sets it in `bin/openfoam`.
+
+Wheel pip package is CLI only; `openfoam dev install` extracts the full prefix tree to
+`OPENFOAM_PREFIX` (same layout as cpack). Use a case-sensitive volume on macOS.
+
+```bash
+pip install build/wheel/openfoam-*.whl
+
+export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam   # optional; default /opt/openfoam
+openfoam dev install
+source "${OPENFOAM_PREFIX}/etc/bashrc"
+wmake
+openfoam dev clean   # remove src/applications/wmake only
+```
+
+Default `OPENFOAM_PREFIX` is `/opt/openfoam` when unset.
 
 ## Docker
 
@@ -230,16 +273,16 @@ wmake
 
 ### End users (wheel / cpack / docker)
 
-Add `source <prefix>/etc/bashrc` to your shell (see Distribution). Use `openfoam` for
-run/shell/docker; use `eval "$(openfoam env)"` when the prefix path is not obvious (wheel).
+Add `source <prefix>/etc/bashrc` to your shell (see Distribution). Set `OPENFOAM_PREFIX`
+to your install root; use `openfoam dev install` to populate it from the wheel.
 
 ```bash
 # Native channels (wheel / cpack)
-openfoam blockMesh -help
+source "$(openfoam prefix)/etc/bashrc"
+blockMesh -help
 openfoam run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 
 # Docker channel
-openfoam docker blockMesh -help
 openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 ```
 

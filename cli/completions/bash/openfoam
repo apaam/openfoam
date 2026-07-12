@@ -1,0 +1,14 @@
+# Bash tab completion for openfoam (installed as share/bash-completion/completions/openfoam).
+_openfoam_cli_dir() {
+  if [[ -n "${OPENFOAM_PACKAGE_DIR:-}" ]]; then
+    printf '%s' "${OPENFOAM_PACKAGE_DIR}"
+    return 0
+  fi
+  local dir py="${OPENFOAM_PYTHON:-python3}"
+  dir="$("$py" -c 'import os, openfoam; print(os.path.dirname(openfoam.__file__))' 2>/dev/null)" || return 1
+  printf '%s' "${dir}"
+}
+
+_openfoam_cli_dir="$(_openfoam_cli_dir)" || return 0
+# shellcheck disable=SC1090
+source "${_openfoam_cli_dir}/completion.bash"

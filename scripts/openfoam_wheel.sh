@@ -37,7 +37,7 @@ esac
 CLI_SRC="${ROOT}/cli"
 STAGING_DIR="${ROOT}/build/stage/wheel"
 BUILD_PY="${BUILD_PY:-python3}"
-NATIVE_PREFIX="${STAGING_DIR}/openfoam/prefix"
+PREFIX_TAR="${STAGING_DIR}/openfoam/openfoam-prefix.tar.gz"
 STAGE_STAMP="${OPENFOAM_STAGE}/.pack-stamp"
 
 if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
@@ -55,15 +55,15 @@ sed_inplace() {
   fi
 }
 
-wheel_has_native_prefix() {
+wheel_has_prefix_tar() {
   local whl="$1"
-  unzip -l "${whl}" 2>/dev/null | grep -q 'openfoam/prefix/etc/bashrc'
+  unzip -l "${whl}" 2>/dev/null | grep -q 'openfoam/openfoam-prefix.tar.gz'
 }
 
 write_native_manifest() {
   cat >"${STAGING_DIR}/MANIFEST.in" <<'EOF'
-graft openfoam/prefix
-recursive-include openfoam *.sh *.bash *.zsh *.py
+include openfoam/openfoam-prefix.tar.gz
+recursive-include openfoam *.sh *.bash *.zsh *_openfoam *.py
 EOF
 }
 
@@ -81,10 +81,16 @@ setuptools.setup(
   package_data={
     "openfoam": [
       "*.sh",
+      "_openfoam",
       "completion.bash",
       "completion.zsh",
+      "openfoam-prefix.tar.gz",
     ],
   },
+  data_files=[
+    ("share/zsh/site-functions", ["openfoam/_openfoam"]),
+    ("share/bash-completion/completions", ["completions/bash/openfoam"]),
+  ],
   entry_points={
     "console_scripts": [
       "openfoam=openfoam.cli:main",
@@ -100,7 +106,7 @@ existing_whl="$(ls -t "${WHEELHOUSE_DIR}"/openfoam-*.whl 2>/dev/null | head -1 |
 if [[ "${INCLUDE_NATIVE}" == "1" && -n "${existing_whl}" && -f "${STAGE_STAMP}" \
   && "${existing_whl}" -nt "${STAGE_STAMP}" ]] \
   && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}" \
-  && wheel_has_native_prefix "${existing_whl}"; then
+  && wheel_has_prefix_tar "${existing_whl}"; then
   printf '[openfoam-wheel] Up to date: %s\n' "${existing_whl}"
   exit 0
 fi
@@ -109,11 +115,13 @@ openfoam_safe_rm "${STAGING_DIR}"
 mkdir -p "${STAGING_DIR}/openfoam"
 
 cp "${CLI_SRC}/openfoam/"*.py "${STAGING_DIR}/openfoam/"
+mkdir -p "${STAGING_DIR}/completions/bash"
+cp "${CLI_SRC}/completions/bash/openfoam" "${STAGING_DIR}/completions/bash/openfoam"
 sed_inplace -E "s/^__version__ = \".*\"/__version__ = \"${PKG_VERSION}\"/" \
   "${STAGING_DIR}/openfoam/__init__.py"
 
-for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
-  shell_bashrc.sh completion.bash completion.zsh rewrite_openfoam_paths.sh; do
+for script in openfoam.sh prefix.sh native.sh dev_tree.sh docker_run.sh shell_prompt.sh \
+  shell_bashrc.sh _openfoam completion.bash completion.zsh rewrite_openfoam_paths.sh; do
   src="${CLI_SRC}/openfoam/${script}"
   [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/docker/rewrite_openfoam_paths.sh"
   cp "${src}" "${STAGING_DIR}/openfoam/${script}"
@@ -123,18 +131,23 @@ done
 if [[ "${INCLUDE_NATIVE}" == "1" ]]; then
   bash "${ROOT}/scripts/prepare_openfoam_pack_tree.sh"
 
-  echo "[openfoam-wheel] Staging native install -> openfoam/prefix/"
-  openfoam_safe_rm "${NATIVE_PREFIX}"
-  mkdir -p "${NATIVE_PREFIX}"
-  openfoam_rsync_install_tree "${OPENFOAM_STAGE}" "${NATIVE_PREFIX}"
+  echo "[openfoam-wheel] Packing openfoam-prefix.tar.gz (full install tree)"
+  PREFIX_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/openfoam-prefix-pack.XXXXXX")"
+  openfoam_rsync_install_tree "${OPENFOAM_STAGE}" "${PREFIX_STAGE}" "" full
+  tar -czf "${PREFIX_TAR}" -C "${PREFIX_STAGE}" .
+  openfoam_safe_rm "${PREFIX_STAGE}"
 
   write_native_manifest
   write_native_setup_py
 else
   cp "${CLI_SRC}/pyproject.toml" "${STAGING_DIR}/"
+  cp "${CLI_SRC}/setup.py" "${STAGING_DIR}/"
+  mkdir -p "${STAGING_DIR}/completions/bash"
+  cp "${CLI_SRC}/completions/bash/openfoam" "${STAGING_DIR}/completions/bash/openfoam"
   sed_inplace -E "s/^version = \".*\"/version = \"${PKG_VERSION}\"/" \
     "${STAGING_DIR}/pyproject.toml"
   sed_inplace '/openfoam-native.tar.gz/d' "${STAGING_DIR}/pyproject.toml"
+  sed_inplace '/openfoam-prefix.tar.gz/d' "${STAGING_DIR}/pyproject.toml"
 fi
 
 rm -f "${WHEELHOUSE_DIR}"/openfoam-*.whl 2>/dev/null || true

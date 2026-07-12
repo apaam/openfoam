@@ -23,6 +23,22 @@ OPENFOAM_INSTALL_INCLUDES=(
   META-INFO
 )
 
+# Runtime-only paths (used when splitting install trees).
+OPENFOAM_RUNTIME_INCLUDES=(
+  etc
+  bin
+  platforms
+  tutorials
+  META-INFO
+)
+
+# Compile tree paths (dev clean / optional split packaging).
+OPENFOAM_DEV_INCLUDES=(
+  src
+  applications
+  wmake
+)
+
 # macOS Finder may drop .DS_Store while large trees are being removed, leaving
 # ENOTEMPTY ("Directory not empty") from rm/rmtree. Move aside first when needed.
 openfoam_safe_rm() {
@@ -54,14 +70,22 @@ openfoam_safe_rm() {
 
 # Sync only whitelisted paths from src/ to dst/ (packaging, cache).
 # Optional third argument: space-separated extra top-level paths (STAGE_EXTRA_INCLUDES).
+# Optional fourth argument: "runtime" | "dev" | "full" (default full).
 openfoam_rsync_install_tree() {
   local src="${1:?source dir}"
   local dst="${2:?dest dir}"
   local extra="${3:-}"
+  local mode="${4:-full}"
   local -a includes=()
   local item name existing found
 
-  includes=("${OPENFOAM_INSTALL_INCLUDES[@]}")
+  if [[ "${mode}" == runtime ]]; then
+    includes=("${OPENFOAM_RUNTIME_INCLUDES[@]}")
+  elif [[ "${mode}" == dev ]]; then
+    includes=("${OPENFOAM_DEV_INCLUDES[@]}")
+  else
+    includes=("${OPENFOAM_INSTALL_INCLUDES[@]}")
+  fi
   for item in ${extra}; do
     includes+=("${item}")
   done
@@ -76,7 +100,8 @@ openfoam_rsync_install_tree() {
     if [[ -d "${src}/${item}" ]]; then
       openfoam_safe_rm "${dst}/${item}"
       mkdir -p "${dst}"
-      (cd "${src}" && tar -cf - "${item}") | (cd "${dst}" && tar -xf -)
+      # lnInclude symlinks are compile-only; they break pip uninstall of the wheel.
+      (cd "${src}" && tar -cf - --exclude='*/lnInclude' "${item}") | (cd "${dst}" && tar -xf -)
     else
       cp -a "${src}/${item}" "${dst}/${item}"
     fi

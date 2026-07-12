@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.4
 # OpenFOAM runtime image: compile on phynexis-build, distribute on phynexis-ubuntu.
 
 ARG DOCKER_BUILD_IMAGE_NAME=phynexis-build
