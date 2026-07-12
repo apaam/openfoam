@@ -13,7 +13,6 @@ concurrency:
 
 env:
   BUILD_JOBS: 2
-  DOCKER_JOBS: 2
   OPENFOAM_BUILD_MODULES: 0
 
 jobs:
@@ -46,36 +45,6 @@ jobs:
 
       - name: Install Python packaging (macOS)
         if: runner.os == 'macOS'
-        run: python3 -m pip install setuptools wheel
+        run: python3 -m pip install --break-system-packages setuptools wheel
 
       - run: make all
-
-  docker:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Fetch openfoam-source (core only)
-        run: |
-          set -euo pipefail
-          git -c submodule.recurse=false submodule sync -- openfoam-source
-          git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
-
-      - name: Install jq (Ubuntu)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Install jq (macOS)
-        if: runner.os == 'macOS'
-        run: brew install jq
-
-      - uses: docker/setup-buildx-action@v3
-
-      - run: make docker-build
