@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       make_target:
-        description: "make target (all or native-dist)"
+        description: "make target (all or dist-native)"
         required: true
         type: string
       upload_dist:
-        description: "Upload build/native-dist artifacts"
+        description: "Upload build/dist-native artifacts"
         required: false
         type: boolean
         default: false
@@ -105,7 +105,7 @@ jobs:
         if: inputs.upload_dist
         uses: actions/upload-artifact@v4
         with:
-          name: native-dist-${{ matrix.os }}
-          path: build/native-dist/*
+          name: dist-native-${{ matrix.os }}
+          path: build/dist-native/*
           if-no-files-found: error
           retention-days: 14

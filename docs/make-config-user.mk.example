@@ -14,18 +14,18 @@ OPENFOAM_VERSION = v2412
 
 # --- Native pack ---
 # BUILD_OPENFOAM_PACK_DIR = build/openfoam-pack
-# NATIVE_DIST_DIR = build/native-dist
+# DIST_NATIVE_DIR = build/dist-native
 # BUILD_CLI_PACK_DIR = build/cli-pack
 # BUILD_CLI_WHEEL_DIR = build/cli-wheel
 # BUILD_CLI_BUILD_DIR = build/cli-build
 
-# --- Docker (from linux native-dist) ---
+# --- Docker (from linux dist-native) ---
 # BUILD_DOCKER_DIR = build/docker
-# DOCKER_DIST_DIR = build/docker-dist
+# DIST_DOCKER_DIR = build/dist-docker
 # DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
 # DOCKER_OPENFOAM_IMAGE_NAME = openfoam
 # DOCKER_UBUNTU_VERSION = 24.04
 # DOCKER_REGISTRY = ghcr.io/myorg
 # DOCKER_ARCH = arm64
 # DOCKER_APT_MIRROR = http://mirrors.aliyun.com/ubuntu/
-# OPENFOAM_NATIVE_DIST = build/native-dist/openfoam-native-2412-linux-x86_64.tar.gz
+# OPENFOAM_NATIVE_DIST = build/dist-native/openfoam-native-2412-linux-x86_64.tar.gz

@@ -2,7 +2,7 @@
 # Docker runtime launcher (openfoam docker).
 #
 # Install: pip install openfoam_cli-*.whl  (make cli-wheel)
-# Native:  tar xzf openfoam-native-*.tar.gz -C <prefix>  (make native-dist)
+# Native:  tar xzf openfoam-native-*.tar.gz -C <prefix>  (make dist-native)
 #   openfoam docker install-image [image.tar.gz]
 #   openfoam docker pull
 #
@@ -77,7 +77,7 @@ find_pack_archive() {
   local name dir
   for name in "$(docker_dist_basename).tar.gz" "$(pack_basename).tar.gz"; do
     for dir in "${SCRIPT_DIR}" \
-      "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
+      "${REPO_ROOT}/${DIST_DOCKER_DIR:-build/dist-docker}" \
       "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
       "$(pwd)"; do
       if [[ -f "${dir}/${name}" ]]; then
@@ -88,7 +88,7 @@ find_pack_archive() {
   done
   for name in "$(docker_dist_basename).tar" "$(pack_basename).tar"; do
     for dir in "${SCRIPT_DIR}" \
-      "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
+      "${REPO_ROOT}/${DIST_DOCKER_DIR:-build/dist-docker}" \
       "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
       "$(pwd)"; do
       if [[ -f "${dir}/${name}" ]]; then
@@ -132,7 +132,7 @@ usage() {
 ${CLI_PREFIX} — run OpenFOAM in Docker
 
 Image admin:
-  install-image [image.tar.gz]      Load offline image archive (from make docker-dist)
+  install-image [image.tar.gz]      Load offline image archive (from make dist-docker)
   uninstall-image                   Remove the runtime Docker image
   pull                              Download the runtime image from a registry
 

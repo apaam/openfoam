@@ -21,7 +21,7 @@ Docker:
   docker run <script> ...           Same as native, in container
   docker shell [dir]                Interactive shell in container
   docker pull                       Download runtime image
-  docker install-image [archive]    Load offline image (make docker-dist)
+  docker install-image [archive]    Load offline image (make dist-docker)
   docker uninstall-image            Remove runtime image
 
 Examples:

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-# OpenFOAM runtime image from linux native-dist (bundled libs).
+# OpenFOAM runtime image from linux dist-native (bundled libs).
 # Build context of-dist must contain openfoam-native.tar.gz.
 
 ARG DOCKER_UBUNTU_IMAGE_NAME=phynexis-ubuntu

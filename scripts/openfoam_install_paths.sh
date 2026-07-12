@@ -2,7 +2,7 @@
 # Shared path lists for OpenFOAM install tree packaging.
 # build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (see docs/make-config-default.mk).
 # then Allwmake adds platforms/ and build/ (wmake objects) there.
-# Packaging outputs live under build/stage/, build/openfoam-pack/, build/native-dist/, etc.
+# Packaging outputs live under build/stage/, build/openfoam-pack/, build/dist-native/, etc.
 # shellcheck shell=bash
 
 # Optional OpenFOAM components (not built by default); omit from source sync.

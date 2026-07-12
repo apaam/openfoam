@@ -21,7 +21,7 @@ jobs:
   build:
     uses: ./.github/workflows/native-build.yml
     with:
-      make_target: native-dist
+      make_target: dist-native
       upload_dist: true
       checkout_ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
@@ -35,23 +35,23 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
-      - name: Download linux native-dist
+      - name: Download linux dist-native
         uses: actions/download-artifact@v4
         with:
-          name: native-dist-ubuntu-latest
-          path: build/native-dist
+          name: dist-native-ubuntu-latest
+          path: build/dist-native
 
-      - name: List native-dist inputs
-        run: ls -la build/native-dist
+      - name: List dist-native inputs
+        run: ls -la build/dist-native
 
-      - name: Build docker-dist
-        run: make docker-dist
+      - name: Build dist-docker
+        run: make dist-docker
 
-      - name: Upload docker-dist
+      - name: Upload dist-docker
         uses: actions/upload-artifact@v4
         with:
-          name: docker-dist
-          path: build/docker-dist/*
+          name: dist-docker
+          path: build/dist-docker/*
           if-no-files-found: error
           retention-days: 14
 
@@ -59,17 +59,17 @@ jobs:
     needs: [build, docker]
     runs-on: ubuntu-latest
     steps:
-      - name: Download native-dist artifacts
+      - name: Download dist-native artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: native-dist-*
+          pattern: dist-native-*
           merge-multiple: true
           path: dist
 
-      - name: Download docker-dist artifact
+      - name: Download dist-docker artifact
         uses: actions/download-artifact@v4
         with:
-          name: docker-dist
+          name: dist-docker
           path: dist
 
       - name: List release files

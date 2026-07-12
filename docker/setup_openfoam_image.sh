@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the openfoam runtime image from a linux native-dist archive.
+# Build the openfoam runtime image from a linux dist-native archive.
 #
 # Usage (env vars from make):
 #   DOCKER_OPENFOAM_IMAGE=openfoam:24.04-arm64 \
@@ -23,7 +23,7 @@ UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
 APT_MIRROR="${DOCKER_APT_MIRROR:-}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 DIST_VERSION="${OPENFOAM_VERSION#v}"
-DIST_DIR="$(openfoam_abs_under_root "${ROOT}" "${NATIVE_DIST_DIR:-build/native-dist}")"
+DIST_DIR="$(openfoam_abs_under_root "${ROOT}" "${DIST_NATIVE_DIR:-build/dist-native}")"
 BUILD_DOCKER_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_DOCKER_DIR:-build/docker}")"
 IMAGE_TAR="${DOCKER_IMAGE_TAR:-${BUILD_DOCKER_DIR}/openfoam-docker-${DIST_VERSION}-linux-${TARGETARCH}.tar.gz}"
 CONTEXT_DIR="${BUILD_DOCKER_DIR}/of-dist-context"
@@ -66,7 +66,7 @@ find_linux_native_archive() {
   while IFS= read -r arch; do
     echo "  openfoam-native-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
   done < <(arch_globs)
-  echo "[setup_openfoam_image] On Linux: make native-dist" >&2
+  echo "[setup_openfoam_image] On Linux: make dist-native" >&2
   echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST=/path/to/openfoam-native-*-linux-*.tar.gz" >&2
   exit 1
 }

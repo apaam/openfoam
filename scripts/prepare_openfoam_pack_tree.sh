@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare install tree for openfoam-pack / native-dist.
+# Prepare install tree for openfoam-pack / dist-native.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
