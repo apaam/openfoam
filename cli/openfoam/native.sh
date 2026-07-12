@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native OpenFOAM launcher (openfoam prefix / dev / run / shell).
+# Native OpenFOAM launcher (openfoam prefix / run / shell).
 
 set -euo pipefail
 
@@ -8,8 +8,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/prefix.sh"
 # shellcheck source=shell_prompt.sh
 source "${SCRIPT_DIR}/shell_prompt.sh"
-# shellcheck source=dev_tree.sh
-source "${SCRIPT_DIR}/dev_tree.sh"
 
 CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-openfoam}"
 
@@ -31,9 +29,7 @@ usage() {
   cat <<EOF
 ${CLI_PREFIX} — native OpenFOAM commands
 
-Developer:
-  prefix                            Print install root (default /opt/openfoam)
-  dev install|clean                 Install/remove OpenFOAM under OPENFOAM_PREFIX
+  prefix [--path]                   Print OPENFOAM_PREFIX (resolved install root)
   completion bash|zsh               Tab completion
 
 Set OPENFOAM_PREFIX to your install root; source <prefix>/etc/bashrc to load the env.
@@ -43,10 +39,9 @@ Run:
   shell [dir]                       Interactive shell (sources etc/bashrc)
 
 Examples:
-  pip install openfoam-*.whl
-  export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
-  openfoam dev install
+  eval "\$(openfoam prefix)"
   source "\$OPENFOAM_PREFIX/etc/bashrc"
+  source "\$(openfoam prefix --path)/etc/bashrc"
   blockMesh -help
   openfoam run ~/case/Allrun
   openfoam shell .
@@ -54,18 +49,30 @@ EOF
 }
 
 cmd_prefix() {
-  local prefix=""
+  local prefix="" bare=false
 
-  if (("$#" > 0)); then
-    echo "Usage: ${CLI_PREFIX} prefix" >&2
-    exit 1
-  fi
+  while (("$#" > 0)); do
+    case "$1" in
+    --path | -p)
+      bare=true
+      shift
+      ;;
+    *)
+      echo "Usage: ${CLI_PREFIX} prefix [--path]" >&2
+      exit 1
+      ;;
+    esac
+  done
 
   prefix="$(resolve_runtime_prefix)"
   if ! prefix_has_bashrc "${prefix}"; then
     prefix_hint_missing_bashrc "${prefix}"
   fi
-  printf '%s\n' "${prefix}"
+  if [[ "${bare}" == true ]]; then
+    printf '%s\n' "${prefix}"
+  else
+    printf 'OPENFOAM_PREFIX=%q\n' "${prefix}"
+  fi
 }
 
 cmd_completion() {
@@ -166,7 +173,6 @@ native_main() {
   shift || true
   case "${cmd}" in
   prefix) cmd_prefix "$@" ;;
-  dev) cmd_dev "$@" ;;
   completion) cmd_completion "$@" ;;
   run) cmd_run "$@" ;;
   shell) cmd_shell "$@" ;;

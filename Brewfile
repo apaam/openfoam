@@ -1,5 +1,4 @@
-# OpenFOAM dependencies
-# Supports both v2112 (C++11) and v2412 (C++14)
+# OpenFOAM build dependencies (version via OPENFOAM_VERSION in make-config-user.mk)
 brew "bash"
 brew "open-mpi"
 brew "libomp"

@@ -1,34 +1,32 @@
 # Copy to make-config-user.mk at the project root (git-ignored) and edit.
 
-# --- Native build ---
+# --- OpenFOAM version & native build ---
+# Switch version: set OPENFOAM_VERSION, checkout matching tag in openfoam-source, then make openfoam.
+OPENFOAM_VERSION = v2412
+
 # BUILD_JOBS = 8
-# OPENFOAM_VERSION = v2412
-# BUILD_WHEEL_DIR = build/wheel
-# BUILD_WHEEL_DIST_DIR = build/wheel-dist
-# BUILD_CPACK_DIR = build/cpack
-# BUILD_CPACK_DIST_DIR = build/cpack-dist
 # OPENFOAM_BUILD = build/host-build
+# OPENFOAM_CLI_BUILD = build/cli
 # OPENFOAM_STAGE = build/stage/host-build
+# OPENFOAM_BUILD_MODULES = 0
+# OPENFOAM_SYSTEM_CHECK = auto
+# OPENFOAM_SKIP_ALLWMAKE = auto
+
+# --- Native pack ---
+# BUILD_OPENFOAM_PACK_DIR = build/openfoam-pack
+# BUILD_CLI_PACK_DIR = build/cli-pack
+# BUILD_CLI_WHEEL_DIR = build/cli-wheel
+
+# --- Docker ---
 # DOCKER_OPENFOAM_BUILD = build/docker-build
 # DOCKER_OPENFOAM_STAGE = build/stage/docker-build
 # BUILD_DOCKER_DIR = build/docker
 # DOCKER_DIST_DIR = build/docker-dist
-# OPENFOAM_SYSTEM_CHECK = auto
-
-# --- Docker image naming ---
 # DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
 # DOCKER_BUILD_IMAGE_NAME = phynexis-build
 # DOCKER_OPENFOAM_IMAGE_NAME = openfoam
 # DOCKER_UBUNTU_VERSION = 24.04
-
-# Registry for docker-push
 # DOCKER_REGISTRY = ghcr.io/myorg
-
-# Target arch: amd64 | arm64 | leave empty for host auto-detect
 # DOCKER_ARCH = arm64
-
-# --- Docker build ---
 # DOCKER_JOBS = 8
-
-# Optional apt mirror
 # DOCKER_APT_MIRROR = http://mirrors.aliyun.com/ubuntu/

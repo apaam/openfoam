@@ -18,17 +18,12 @@ _openfoam() {
   case "${COMP_CWORD}" in
   1)
     mapfile -t COMPREPLY < <(
-      compgen -W "prefix dev run shell docker completion help -h --help" -- "${cur}"
+      compgen -W "prefix run shell docker completion help -h --help" -- "${cur}"
     )
     ;;
   *)
     case "${COMP_WORDS[1]}" in
     prefix | help | -h | --help)
-      ;;
-    dev)
-      if [[ "${COMP_CWORD}" -eq 2 ]]; then
-        mapfile -t COMPREPLY < <(compgen -W "install clean help -h --help" -- "${cur}")
-      fi
       ;;
     completion)
       if [[ "${COMP_CWORD}" -eq 2 ]]; then

@@ -9,9 +9,8 @@ usage() {
   cat <<EOF
 OpenFOAM CLI
 
-Native (wheel / cpack / local build):
-  prefix                            Print install root (default /opt/openfoam)
-  dev install|clean                 Install/remove OpenFOAM under OPENFOAM_PREFIX
+Native:
+  prefix [--path]                   Print OPENFOAM_PREFIX (resolved install root)
   completion bash|zsh               Tab completion
   run <script> [args...]            Run a script in its directory
   shell [dir]                       Interactive shell (sources etc/bashrc)
@@ -28,7 +27,6 @@ Docker:
 Examples:
   pip install openfoam-*.whl
   export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
-  openfoam dev install
   source "\$OPENFOAM_PREFIX/etc/bashrc"
   blockMesh -help
   openfoam run ~/my_case/Allrun

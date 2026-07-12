@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install openfoam CLI.
 # Usage:
-#   install_openfoam_cli.sh <cli_root>              # bundled: CLI inside OpenFOAM prefix (cpack)
+#   install_openfoam_cli.sh <cli_root>              # bundled: CLI inside OpenFOAM prefix (cli-pack)
 #   install_openfoam_cli.sh <cli_root> <prefix>     # separate: CLI root + OpenFOAM WM_PROJECT_DIR
 set -euo pipefail
 
@@ -27,8 +27,8 @@ fi
 
 rm -rf "${SHARE_CLI}"
 mkdir -p "${SHARE_CLI}"
-for script in openfoam.sh prefix.sh native.sh dev_tree.sh docker_run.sh shell_prompt.sh \
-  shell_bashrc.sh _openfoam completion.bash completion.zsh rewrite_openfoam_paths.sh; do
+for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
+  shell_bashrc.sh _openfoam completion.bash completion.zsh rewrite_openfoam_paths.sh manifest.sh; do
   src="${CLI_SRC}/${script}"
   [[ "${script}" == rewrite_openfoam_paths.sh ]] && src="${ROOT}/docker/rewrite_openfoam_paths.sh"
   cp "${src}" "${SHARE_CLI}/${script}"
@@ -44,15 +44,12 @@ export OPENFOAM_PREFIX
 exec bash "${OPENFOAM_PREFIX}/share/openfoam/cli/openfoam.sh" "$@"
 EOF
 else
-  printf '%s\n' "$(cd "${NATIVE_PREFIX}" && pwd)" >"${CLI_ROOT}/.openfoam-prefix"
-  cat >"${CLI_ROOT}/bin/openfoam" <<'EOF'
+  cat >"${CLI_ROOT}/bin/openfoam" <<EOF
 #!/usr/bin/env bash
-CLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -z "${OPENFOAM_PREFIX:-}" ]]; then
-  OPENFOAM_PREFIX="$(<"${CLI_ROOT}/.openfoam-prefix")"
-fi
+CLI_ROOT="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+: "\${OPENFOAM_PREFIX:=${NATIVE_PREFIX}}"
 export OPENFOAM_PREFIX
-exec bash "${CLI_ROOT}/share/openfoam/cli/openfoam.sh" "$@"
+exec bash "\${CLI_ROOT}/share/openfoam/cli/openfoam.sh" "\$@"
 EOF
 fi
 chmod +x "${CLI_ROOT}/bin/openfoam"
@@ -68,7 +65,15 @@ source "\${OPENFOAM_PACKAGE_DIR}/completion.bash"
 EOF
 
 if [[ "${BUNDLED}" == true ]]; then
+  # shellcheck source=../cli/openfoam/manifest.sh
+  source "${ROOT}/cli/openfoam/manifest.sh"
+  write_cli_manifest "${SHARE_CLI}/manifest.json" "pack" 0 \
+    "${OPENFOAM_VERSION#v}"
   echo "[install_openfoam_cli] Bundled CLI -> ${CLI_ROOT}/bin/openfoam"
 else
+  # shellcheck source=../cli/openfoam/manifest.sh
+  source "${ROOT}/cli/openfoam/manifest.sh"
+  write_cli_manifest "${SHARE_CLI}/manifest.json" "dev" 0 \
+    "${OPENFOAM_VERSION#v}"
   echo "[install_openfoam_cli] CLI -> ${CLI_ROOT}/bin/openfoam (prefix=${NATIVE_PREFIX})"
 fi

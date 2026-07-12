@@ -2,7 +2,7 @@
 # Shared path lists for OpenFOAM install tree packaging.
 # build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (see docs/make-config-default.mk).
 # then Allwmake adds platforms/ and build/ (wmake objects) there.
-# Packaging outputs live under build/stage/, build/wheel/, etc.
+# Packaging outputs live under build/stage/, build/openfoam-pack/, etc.
 # shellcheck shell=bash
 
 # Optional OpenFOAM components (not built by default); omit from source sync.
@@ -128,7 +128,8 @@ openfoam_rsync_install_tree() {
   for existing in "${dst}"/*; do
     name="$(basename "${existing}")"
     case "${name}" in
-    .stage-stamp | .dist-stamp | .pack-stamp | .pack-source-prefix | lib | share) continue ;;
+    .stage-stamp | .dist-stamp | .pack-stamp | .pack-source-prefix \
+    | .openfoam-manifest.json | lib | share) continue ;;
     esac
     found=false
     for item in "${includes[@]}"; do
@@ -162,11 +163,16 @@ openfoam_pack_stamp_matches() {
   grep -q "^bundle=${bundle}$" "${stamp}" 2>/dev/null
 }
 
-# Pack install tree into openfoam-prefix.tar.gz from staged prefix (case-sensitive volume).
+# Pack staged install tree into a release .tar.gz (case-sensitive volume on macOS).
 openfoam_pack_prefix_tar() {
   local src="${1:?source stage}"
   local archive="${2:?output .tar.gz}"
   local pack_parent
+
+  if [[ ! -e "${src}/src/OpenFOAM/lnInclude/addToRunTimeSelectionTable.H" ]]; then
+    echo "[openfoam_pack_prefix_tar] Missing lnInclude under ${src}; compile first (make)" >&2
+    exit 1
+  fi
 
   pack_parent="$(dirname "${src}")"
   if [[ "$(uname -s)" == "Darwin" ]] && [[ -d "${pack_parent}" ]] \

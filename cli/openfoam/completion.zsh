@@ -1,4 +1,4 @@
-# Zsh tab completion for the openfoam CLI (manual / dev use).
+# Zsh tab completion for the openfoam CLI.
 # Pip install registers share/zsh/site-functions/_openfoam automatically.
 # Optional:
 #   eval "$(openfoam completion zsh)"

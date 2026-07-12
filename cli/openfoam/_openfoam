@@ -12,18 +12,13 @@ _openfoam() {
   local -a static docker_static
 
   if (( CURRENT == 2 )); then
-    static=(prefix dev run shell docker completion help -h --help)
+    static=(prefix run shell docker completion help -h --help)
     _describe 'openfoam command' static
     return 0
   fi
 
   case ${words[2]} in
   prefix | help | -h | --help)
-    ;;
-  dev)
-    if (( CURRENT == 3 )); then
-      _values 'dev command' install clean help -h --help
-    fi
     ;;
   completion)
     if (( CURRENT == 3 )); then

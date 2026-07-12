@@ -55,11 +55,6 @@ resolve_local_build_prefix() {
 
   [[ "${pkg_dir}" == */share/openfoam/cli ]] || return 1
   cli_root="$(cd "${pkg_dir}/../../.." && pwd)"
-  if [[ -f "${cli_root}/.openfoam-prefix" ]]; then
-    prefix="$(<"${cli_root}/.openfoam-prefix")"
-    normalize_prefix_path "${prefix}"
-    return 0
-  fi
   if [[ -f "${cli_root}/etc/bashrc" ]]; then
     normalize_prefix_path "${cli_root}"
     return 0
@@ -70,13 +65,13 @@ resolve_local_build_prefix() {
 resolve_runtime_prefix() {
   local prefix=""
 
-  if prefix="$(resolve_local_build_prefix "${SCRIPT_DIR}")"; then
-    printf '%s' "${prefix}"
+  if [[ -n "${OPENFOAM_PREFIX:-}" ]]; then
+    normalize_prefix_path "${OPENFOAM_PREFIX}"
     return 0
   fi
 
-  if [[ -n "${OPENFOAM_PREFIX:-}" ]]; then
-    normalize_prefix_path "${OPENFOAM_PREFIX}"
+  if prefix="$(resolve_local_build_prefix "${SCRIPT_DIR}")"; then
+    printf '%s' "${prefix}"
     return 0
   fi
 
@@ -91,7 +86,9 @@ prefix_hint_missing_bashrc() {
   local prefix="$1"
   cat >&2 <<EOF
 Note: ${prefix}/etc/bashrc not found.
-Install OpenFOAM: openfoam dev install
+Pack:    tar xzf openfoam-native-*.tar.gz -C <prefix>
+Local:   make openfoam && source ${OPENFOAM_BUILD:-build/host-build}/etc/bashrc
+Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
 EOF
 }
 
@@ -115,9 +112,8 @@ require_native_prefix() {
     cat >&2 <<EOF
 OpenFOAM install not found at ${prefix}.
 
-Wheel:   pip install openfoam-*.whl && openfoam dev install
-Cpack:   tar xzf openfoam-native-*.tar.gz -C <prefix>
-Local:   make install && source ${OPENFOAM_BUILD:-build/host-build}/etc/bashrc
+Pack:    tar xzf openfoam-native-*.tar.gz -C <prefix>
+Local:   make all && source ${OPENFOAM_BUILD:-build/host-build}/etc/bashrc
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
 EOF
     exit 1

@@ -19,10 +19,10 @@ fi
 FORCE_STAGE="${FORCE_STAGE:-0}"
 
 OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
-CPACK_DIR="${CPACK_DIR:-${ROOT}/${BUILD_CPACK_DIR:-build/cpack}}"
-case "${CPACK_DIR}" in
+PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_OPENFOAM_PACK_DIR:-build/openfoam-pack}}"
+case "${PACK_DIR}" in
 /*) ;;
-*) CPACK_DIR="${ROOT}/${CPACK_DIR}" ;;
+*) PACK_DIR="${ROOT}/${PACK_DIR}" ;;
 esac
 
 version="${OPENFOAM_VERSION:-v2412}"
@@ -31,25 +31,18 @@ os_name="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m)"
 STAGE_STAMP="${OPENFOAM_STAGE}/.pack-stamp"
 
-mkdir -p "${CPACK_DIR}"
-archive="${CPACK_DIR}/openfoam-native-${version}-${os_name}-${arch}.tar.gz"
+mkdir -p "${PACK_DIR}"
+archive="${PACK_DIR}/openfoam-native-${version}-${os_name}-${arch}.tar.gz"
 
 if [[ -f "${archive}" && -f "${STAGE_STAMP}" && "${archive}" -nt "${STAGE_STAMP}" ]] \
   && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}"; then
-  echo "[cpack] Up to date: ${archive}"
+  echo "[openfoam-pack] Up to date: ${archive}"
   ls -la "${archive}"
   exit 0
 fi
 
 FORCE_STAGE="${FORCE_STAGE}" bash "${ROOT}/scripts/prepare_openfoam_pack_tree.sh"
-bash "${ROOT}/scripts/install_openfoam_cli.sh" "${OPENFOAM_STAGE}"
 
-echo "[cpack] Native install + CLI -> ${archive}"
-tar -czf "${archive}" -C "${OPENFOAM_STAGE}" \
-  --exclude='.DS_Store' \
-  --exclude='*/.DS_Store' \
-  --exclude='.stage-stamp' \
-  --exclude='.pack-stamp' \
-  --exclude='.dist-stamp' \
-  .
+echo "[openfoam-pack] Native install -> ${archive} (bundle=${OPENFOAM_BUNDLE_RUNTIME})"
+openfoam_pack_prefix_tar "${OPENFOAM_STAGE}" "${archive}"
 ls -la "${archive}"

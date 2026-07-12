@@ -24,9 +24,9 @@ openfoam = [
   "docker_run.sh",
   "shell_prompt.sh",
   "shell_bashrc.sh",
-  "dev_tree.sh",
+  "manifest.sh",
+  "manifest.json",
   "_openfoam",
   "completion.bash",
   "completion.zsh",
-  "openfoam-prefix.tar.gz",
 ]

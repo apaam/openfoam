@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 from pathlib import Path
 from typing import Optional
@@ -41,9 +42,6 @@ def _local_build_prefix() -> Optional[Path]:
     if not str(pkg_dir).endswith("/share/openfoam/cli"):
         return None
     cli_root = pkg_dir.parent.parent.parent.resolve()
-    marker = cli_root / ".openfoam-prefix"
-    if marker.is_file():
-        return Path(marker.read_text(encoding="utf-8").strip()).resolve()
     bashrc = cli_root / "etc" / "bashrc"
     if bashrc.is_file():
         return cli_root
@@ -52,13 +50,13 @@ def _local_build_prefix() -> Optional[Path]:
 
 def runtime_prefix() -> Path:
     """User-facing install root; does not require etc/bashrc."""
-    local = _local_build_prefix()
-    if local is not None:
-        return local
-
     env = os.environ.get("OPENFOAM_PREFIX")
     if env:
         return Path(env).expanduser().resolve()
+
+    local = _local_build_prefix()
+    if local is not None:
+        return local
 
     return Path(DEFAULT_OPENFOAM_PREFIX)
 
@@ -72,7 +70,8 @@ def native_prefix() -> Path:
     root = runtime_prefix()
     if not (root / "etc" / "bashrc").is_file():
         raise FileNotFoundError(
-            f"OpenFOAM install not found at {root}; run: openfoam dev install"
+            f"OpenFOAM install not found at {root}; "
+            f"extract openfoam-native tar or set OPENFOAM_PREFIX"
         )
 
     _rewrite_installed_prefix(root)
@@ -80,11 +79,21 @@ def native_prefix() -> Path:
     return _PREFIX
 
 
+def format_prefix_output(path: Path, *, bare: bool = False) -> str:
+    text = str(path)
+    if bare:
+        return text
+    return f"OPENFOAM_PREFIX={shlex.quote(text)}"
+
+
 def main() -> None:
-    if "--runtime" in sys.argv[1:]:
-        print(runtime_prefix())
+    args = sys.argv[1:]
+    bare = "--path" in args or "-p" in args
+    if "--runtime" in args:
+        path = runtime_prefix()
     else:
-        print(native_prefix())
+        path = native_prefix()
+    print(format_prefix_output(path, bare=bare))
 
 
 if __name__ == "__main__":

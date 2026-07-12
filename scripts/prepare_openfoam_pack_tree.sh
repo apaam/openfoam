@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare install tree for wheel/cpack (same staging as docker/bake_openfoam.sh).
+# Prepare install tree for openfoam-pack / openfoam-dist (same staging as docker/bake_openfoam.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

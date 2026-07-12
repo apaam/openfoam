@@ -28,7 +28,7 @@ Darwin)
   if ! grep -q 'OPENFOAM_BUNDLED_LIB' "${PREFS}"; then
     cat >>"${PREFS}" <<EOF
 
-# Bundled runtime libraries (wheel/cpack dist)
+# Bundled runtime libraries (openfoam-dist)
 export OPENFOAM_BUNDLED_LIB="${BUNDLED}"
 export DYLD_LIBRARY_PATH="\${OPENFOAM_BUNDLED_LIB}\${DYLD_LIBRARY_PATH:+:\$DYLD_LIBRARY_PATH}"
 EOF
@@ -41,7 +41,7 @@ Linux)
   if ! grep -q 'OPENFOAM_BUNDLED_LIB' "${PREFS}"; then
     cat >>"${PREFS}" <<EOF
 
-# Bundled runtime libraries (wheel/cpack dist)
+# Bundled runtime libraries (openfoam-dist)
 export OPENFOAM_BUNDLED_LIB="${BUNDLED}"
 export LD_LIBRARY_PATH="\${OPENFOAM_BUNDLED_LIB}\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
 EOF

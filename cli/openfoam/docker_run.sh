@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Docker runtime launcher (openfoam docker).
 #
-# Install: pip install openfoam-*.whl  (make cli / make docker-dist)
-# Native:  pip install openfoam-*.whl  (make wheel-dist) or cpack extract
+# Install: pip install openfoam-*.whl  (make cli-wheel)
+# Native:  tar xzf openfoam-native-*.tar.gz -C <prefix>  (make openfoam-dist)
 #   openfoam docker install-image [image.tar.gz]
 #   openfoam docker pull
 #
