@@ -135,6 +135,8 @@ help:
 	@echo "  make cli-pack                tar.gz (-> $(BUILD_CLI_PACK_DIR)/)"
 	@echo ""
 	@echo "Docker (Linux image from linux dist-native):"
+	@echo "  make docker-build-native     build dist-native inside Ubuntu container"
+	@echo "  make docker-shell            interactive shell in Ubuntu container"
 	@echo "  make docker-image            pack linux native dist -> image (+ $(BUILD_DOCKER_DIR)/)"
 	@echo "  make docker-push             push image (set DOCKER_REGISTRY)"
 	@echo "  make docker-setup-base       optional: pull $(DOCKER_UBUNTU_IMAGE)"
@@ -179,6 +181,22 @@ real-clean: clean
 	$(MAKE) sync-submodule
 
 # --- Docker ---
+
+docker-build-native:
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  BUILD_JOBS=$(JOBS) \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  bash docker/build_in_container.sh
+
+docker-shell:
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  BUILD_JOBS=$(JOBS) \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  bash docker/build_in_container.sh shell
 
 docker-setup-base:
 	UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
@@ -233,5 +251,6 @@ docker-prune-images:
 	check-build \
 	openfoam-pack dist-native \
 	cli-wheel cli-pack \
+	docker-build-native docker-shell \
 	docker-setup-base docker-image docker-push dist-docker \
 	docker-prune-images
