@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1.4
+# OpenFOAM Linux build environment (isolated from stock ubuntu / runtime images).
+
+ARG UBUNTU_VERSION=24.04
+ARG TARGETARCH
+
+FROM ubuntu:${UBUNTU_VERSION}
+
+ARG APT_MIRROR=
+ARG TARGETARCH
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive
+
+COPY docker/apt_setup.sh /tmp/apt_setup.sh
+COPY scripts/linux_build_packages.txt /tmp/linux_build_packages.txt
+
+RUN chmod +x /tmp/apt_setup.sh \
+  && APT_MIRROR=${APT_MIRROR} /tmp/apt_setup.sh \
+  && apt-get install -y --no-install-recommends \
+       $(grep -v '^#' /tmp/linux_build_packages.txt | grep -v '^[[:space:]]*$') \
+  && python3 -m pip install --break-system-packages setuptools wheel mpi4py \
+  && rm -rf /var/lib/apt/lists/* /tmp/apt_setup.sh /tmp/linux_build_packages.txt

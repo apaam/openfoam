@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build (or open a shell) inside an Ubuntu container with the repo bind-mounted.
+# Build (or open a shell) inside phynexis-build with the repo bind-mounted.
 #
 # Usage:
 #   bash docker/build_in_container.sh              # make dist-native
@@ -41,7 +41,9 @@ if [[ -z "${PLATFORM}" ]]; then
 fi
 
 UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
-IMAGE="ubuntu:${UBUNTU_VERSION}"
+BUILD_IMAGE_NAME="${DOCKER_BUILD_IMAGE_NAME:-phynexis-build}"
+TARGETARCH="${PLATFORM#linux/}"
+IMAGE="${BUILD_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}"
 APT_MIRROR="${DOCKER_APT_MIRROR:-}"
 BUILD_JOBS="${BUILD_JOBS:-${NUM_JOBS:-4}}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
@@ -55,6 +57,13 @@ printf '==> Ensuring openfoam-source submodule\n'
 git -c submodule.recurse=false submodule sync -- openfoam-source
 git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
 
+printf '==> Ensuring build image %s\n' "${IMAGE}"
+DOCKER_PLATFORM="${PLATFORM}" \
+  DOCKER_UBUNTU_VERSION="${UBUNTU_VERSION}" \
+  DOCKER_BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME}" \
+  DOCKER_APT_MIRROR="${APT_MIRROR}" \
+  bash "${ROOT}/docker/setup_build_image.sh"
+
 run_container() {
   local -a docker_args=(
     run --rm
@@ -65,7 +74,6 @@ run_container() {
     -e "BUILD_JOBS=${BUILD_JOBS}"
     -e "NUM_JOBS=${BUILD_JOBS}"
     -e "OPENFOAM_VERSION=${OPENFOAM_VERSION}"
-    -e "DOCKER_APT_MIRROR=${APT_MIRROR}"
   )
   if [[ "${MODE}" == "shell" ]]; then
     docker_args+=(-it)
@@ -73,35 +81,21 @@ run_container() {
   docker "${docker_args[@]}" "${IMAGE}" "$@"
 }
 
-install_deps='
-set -euo pipefail
-export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
-if [[ -n "${DOCKER_APT_MIRROR:-}" && -f /src/docker/apt_setup.sh ]]; then
-  APT_MIRROR="${DOCKER_APT_MIRROR}" bash /src/docker/apt_setup.sh
-else
-  apt-get update
-fi
-mapfile -t pkgs < <(grep -v "^#" /src/scripts/linux_build_packages.txt | grep -v "^[[:space:]]*$")
-apt-get install -y --no-install-recommends "${pkgs[@]}"
-python3 -m pip install --break-system-packages setuptools wheel mpi4py
-'
-
 if [[ "${MODE}" == "shell" ]]; then
   printf '==> Interactive shell in %s (%s)\n' "${IMAGE}" "${PLATFORM}"
   printf '    Inside: make dist-native   (or make all)\n'
   printf '    Exit:   exit\n'
-  run_container bash -lc "${install_deps}"'exec bash -l'
+  run_container bash -l
   exit 0
 fi
 
 printf '==> Container build: make'
 printf ' %q' "${MAKE_ARGS[@]}"
 printf '  [%s %s, jobs=%s]\n' "${IMAGE}" "${PLATFORM}" "${BUILD_JOBS}"
-# Embed make argv; avoid bash -c $0/$@ quirks.
 make_cmd='make'
 for a in "${MAKE_ARGS[@]}"; do
   make_cmd+=" $(printf '%q' "${a}")"
 done
-run_container bash -lc "${install_deps}${make_cmd}"
+run_container bash -lc "${make_cmd}"
 printf '==> Done. Artifacts are under %s/build/\n' "${ROOT}"
 printf '    Next (host): make dist-docker\n'

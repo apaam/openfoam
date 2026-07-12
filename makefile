@@ -44,6 +44,8 @@ DOCKER_IMAGE_SUFFIX := $(subst linux/,,$(DOCKER_PLATFORM))
 
 DOCKER_UBUNTU_IMAGE = \
   $(DOCKER_UBUNTU_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
+DOCKER_BUILD_IMAGE = \
+  $(DOCKER_BUILD_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_OPENFOAM_IMAGE = \
   $(DOCKER_OPENFOAM_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
 OPENFOAM_DIST_VERSION := $(patsubst v%,%,$(OPENFOAM_VERSION))
@@ -135,8 +137,9 @@ help:
 	@echo "  make cli-pack                tar.gz (-> $(BUILD_CLI_PACK_DIR)/)"
 	@echo ""
 	@echo "Docker (Linux image from linux dist-native):"
-	@echo "  make docker-build-native     build dist-native inside Ubuntu container"
-	@echo "  make docker-shell            interactive shell in Ubuntu container"
+	@echo "  make docker-build-native     build dist-native inside $(DOCKER_BUILD_IMAGE)"
+	@echo "  make docker-shell            interactive shell in $(DOCKER_BUILD_IMAGE)"
+	@echo "  make docker-setup-build      build $(DOCKER_BUILD_IMAGE) (deps baked in)"
 	@echo "  make docker-image            pack linux native dist -> image (+ $(BUILD_DOCKER_DIR)/)"
 	@echo "  make docker-push             push image (set DOCKER_REGISTRY)"
 	@echo "  make docker-setup-base       optional: pull $(DOCKER_UBUNTU_IMAGE)"
@@ -182,9 +185,17 @@ real-clean: clean
 
 # --- Docker ---
 
+docker-setup-build:
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
+	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  bash docker/setup_build_image.sh
+
 docker-build-native:
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
 	  BUILD_JOBS=$(JOBS) \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
@@ -193,6 +204,7 @@ docker-build-native:
 docker-shell:
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
 	  BUILD_JOBS=$(JOBS) \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
@@ -251,6 +263,6 @@ docker-prune-images:
 	check-build \
 	openfoam-pack dist-native \
 	cli-wheel cli-pack \
-	docker-build-native docker-shell \
+	docker-setup-build docker-build-native docker-shell \
 	docker-setup-base docker-image docker-push dist-docker \
 	docker-prune-images

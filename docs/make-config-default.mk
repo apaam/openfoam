@@ -21,6 +21,7 @@ OPENFOAM_BUNDLE_RUNTIME = 0
 
 # --- Docker image (from linux dist-native) ---
 DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
+DOCKER_BUILD_IMAGE_NAME = phynexis-build
 DOCKER_OPENFOAM_IMAGE_NAME = openfoam
 DOCKER_UBUNTU_VERSION = 24.04
 DOCKER_REGISTRY =
