@@ -14,6 +14,7 @@ OPENFOAM_VERSION = v2412
 
 # --- Native pack ---
 # BUILD_OPENFOAM_PACK_DIR = build/openfoam-pack
+# OPENFOAM_DIST_DIR = build/openfoam-dist
 # BUILD_CLI_PACK_DIR = build/cli-pack
 # BUILD_CLI_WHEEL_DIR = build/cli-wheel
 

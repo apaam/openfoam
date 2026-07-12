@@ -9,6 +9,7 @@ OPENFOAM_BUILD = build/openfoam-build
 OPENFOAM_CLI_BUILD = build/cli
 OPENFOAM_STAGE = build/stage/openfoam-build
 BUILD_OPENFOAM_PACK_DIR = build/openfoam-pack
+OPENFOAM_DIST_DIR = build/openfoam-dist
 BUILD_CLI_PACK_DIR = build/cli-pack
 BUILD_CLI_WHEEL_DIR = build/cli-wheel
 BUILD_CLI_WHEEL_MATCH = openfoam-*.whl

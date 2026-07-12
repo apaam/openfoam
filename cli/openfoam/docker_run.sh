@@ -75,27 +75,42 @@ abs_path() {
 
 find_pack_archive() {
   local name dir
-  name="$(pack_basename).tar.gz"
-  for dir in "${SCRIPT_DIR}" \
-    "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
-    "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
-    "$(pwd)"; do
-    if [[ -f "${dir}/${name}" ]]; then
-      abs_path "${dir}/${name}"
-      return 0
-    fi
+  for name in "$(docker_dist_basename).tar.gz" "$(pack_basename).tar.gz"; do
+    for dir in "${SCRIPT_DIR}" \
+      "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
+      "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
+      "$(pwd)"; do
+      if [[ -f "${dir}/${name}" ]]; then
+        abs_path "${dir}/${name}"
+        return 0
+      fi
+    done
   done
-  name="$(pack_basename).tar"
-  for dir in "${SCRIPT_DIR}" \
-    "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
-    "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
-    "$(pwd)"; do
-    if [[ -f "${dir}/${name}" ]]; then
-      abs_path "${dir}/${name}"
-      return 0
-    fi
+  for name in "$(docker_dist_basename).tar" "$(pack_basename).tar"; do
+    for dir in "${SCRIPT_DIR}" \
+      "${REPO_ROOT}/${DOCKER_DIST_DIR:-build/docker-dist}" \
+      "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
+      "$(pwd)"; do
+      if [[ -f "${dir}/${name}" ]]; then
+        abs_path "${dir}/${name}"
+        return 0
+      fi
+    done
   done
   return 1
+}
+
+docker_dist_basename() {
+  local version="${OPENFOAM_VERSION:-v2412}"
+  version="${version#v}"
+  local arch="${DOCKER_ARCH:-}"
+  if [[ -z "${arch}" ]]; then
+    case "$(uname -m)" in
+    arm64 | aarch64) arch="arm64" ;;
+    *) arch="amd64" ;;
+    esac
+  fi
+  printf 'openfoam-docker-%s-linux-%s' "${version}" "${arch}"
 }
 
 pack_basename() {
@@ -144,7 +159,7 @@ cmd_install_image() {
   if [[ -z "${archive}" ]]; then
     if ! archive="$(find_pack_archive)"; then
       echo "Offline image archive not found." >&2
-      echo "Run: openfoam docker install-image <path/to/$(pack_basename).tar.gz>" >&2
+      echo "Run: openfoam docker install-image <path/to/$(docker_dist_basename).tar.gz>" >&2
       exit 1
     fi
   fi

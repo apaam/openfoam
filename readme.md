@@ -55,7 +55,8 @@ openfoam/
 │   ├── cli/              # local CLI (OPENFOAM_CLI_BUILD)
 │   ├── cli-wheel/        # pip wheel output
 │   ├── cli-pack/         # CLI tar.gz
-│   ├── openfoam-pack/    # native openfoam tar.gz
+│   ├── openfoam-pack/    # native openfoam tar.gz (dev pack)
+│   ├── openfoam-dist/    # native release bundle
 │   ├── docker-build/     # WM_PROJECT_DIR (docker; DOCKER_OPENFOAM_BUILD)
 │   ├── stage/            # staging for pack / docker image
 │   ├── docker/           # docker image tar (intermediate)
@@ -79,18 +80,18 @@ openfoam/
 | `make all` | `openfoam` + `cli` + `cli-wheel` |
 | `make install` | pip install CLI wheel |
 | `make openfoam-pack` | tar.gz from existing build (no bundle) |
-| `make openfoam-dist` | `openfoam` + bundled tar.gz (release) |
+| `make openfoam-dist` | Release bundle → `build/openfoam-dist/` |
 | `make cli-wheel` | CLI pip wheel → `build/cli-wheel/` |
 | `make cli-pack` | CLI tar.gz → `build/cli-pack/` |
 | `make docker-build` | Docker compile + runtime image |
-| `make docker-dist` | Export image → `build/docker-dist/` |
+| `make docker-dist` | Release bundle → `build/docker-dist/` |
 | `make deps` | Install dependencies (macOS only) |
 | `make clean` | Remove `build/` |
 | `make real-clean` | `clean` + reset `openfoam-source` |
 
 ## Distribution
 
-OpenFOAM native releases are **tar.gz** (no pip wheel). CLI is distributed via **pip wheel** or optional **cli-pack** tar. Docker ships **image tar** only; use the same host CLI.
+Release bundles (`openfoam-dist`, `docker-dist`) ship OpenFOAM (native tar or image tar), CLI (`openfoam-cli-*.tar.gz` and `openfoam-*.whl`). Intermediate packs: `openfoam-pack`, `cli-pack`, `cli-wheel`.
 
 ### CLI reference
 
@@ -110,14 +111,14 @@ Top-level: `openfoam help`, `openfoam docker help`.
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
 | local dev | `make all` | `build/cli/bin/openfoam` or `make install` |
-| native release | `tar xzf openfoam-native-*.tar.gz -C <prefix>` | `pip install openfoam-*.whl` |
+| native release | `tar xzf openfoam-native-*.tar.gz -C <prefix>` | `pip install openfoam-*.whl` or `tar xzf openfoam-cli-*.tar.gz -C <prefix>` |
 | docker | `openfoam docker install-image` | host `pip install openfoam-*.whl` |
 
 | Make target | Output |
 |-------------|--------|
-| `openfoam-dist` | `build/openfoam-pack/openfoam-native-*.tar.gz` |
+| `openfoam-dist` | `build/openfoam-dist/` — `openfoam-native-*.tar.gz`, `openfoam-cli-*.tar.gz`, `openfoam-*.whl` |
 | `cli-wheel` | `build/cli-wheel/openfoam-*.whl` |
-| `docker-dist` | `build/docker-dist/*.tar.gz` |
+| `docker-dist` | `build/docker-dist/` — `openfoam-docker-*.tar.gz`, `openfoam-cli-*.tar.gz`, `openfoam-*.whl` |
 
 ### Shell setup
 
@@ -129,15 +130,16 @@ source build/openfoam-build/etc/bashrc
 export PATH="build/cli/bin:$PATH"
 
 # native release (openfoam-dist)
-mkdir -p ~/opt/openfoam && tar xzf build/openfoam-pack/openfoam-native-*.tar.gz -C ~/opt/openfoam
+mkdir -p ~/opt/openfoam && tar xzf build/openfoam-dist/openfoam-native-*.tar.gz -C ~/opt/openfoam
 source ~/opt/openfoam/etc/bashrc
 export OPENFOAM_PREFIX=~/opt/openfoam
-pip install build/cli-wheel/openfoam-*.whl
+pip install build/openfoam-dist/openfoam-*.whl
+# or: tar xzf build/openfoam-dist/openfoam-cli-*.tar.gz -C ~/opt/cli && export PATH=~/opt/cli/bin:$PATH
 
 # docker (pip-installed CLI does not auto-find repo build/docker-dist/)
-pip install build/cli-wheel/openfoam-*.whl
-openfoam docker install-image /path/to/openfoam-24.04-amd64.tar.gz
-# or: OPENFOAM_PACK=/path/to/openfoam-24.04-amd64.tar.gz openfoam docker install-image
+pip install build/docker-dist/openfoam-*.whl
+openfoam docker install-image build/docker-dist/openfoam-docker-2412-linux-amd64.tar.gz
+# or: OPENFOAM_PACK=/path/to/openfoam-docker-2412-linux-amd64.tar.gz openfoam docker install-image
 ```
 
 ### Verify
@@ -158,7 +160,7 @@ phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
 phynexis-build:24.04-{arch}   →  docker-setup-build
 build/docker-build/            →  docker-build (DOCKER_OPENFOAM_BUILD)
 openfoam:24.04-{arch}          →  runtime image
-build/docker-dist/             →  exported image tar.gz
+build/docker-dist/             →  release bundle (image + cli-pack + wheel)
 ```
 
 ```bash

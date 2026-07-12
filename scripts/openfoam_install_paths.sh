@@ -2,7 +2,7 @@
 # Shared path lists for OpenFOAM install tree packaging.
 # build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (see docs/make-config-default.mk).
 # then Allwmake adds platforms/ and build/ (wmake objects) there.
-# Packaging outputs live under build/stage/, build/openfoam-pack/, etc.
+# Packaging outputs live under build/stage/, build/openfoam-pack/, build/openfoam-dist/, etc.
 # shellcheck shell=bash
 
 # Optional OpenFOAM components (not built by default); omit from source sync.
@@ -161,6 +161,30 @@ openfoam_pack_stamp_matches() {
   local bundle="${2:?bundle mode}"
   [[ -f "${stamp}" ]] || return 1
   grep -q "^bundle=${bundle}$" "${stamp}" 2>/dev/null
+}
+
+openfoam_dist_version() {
+  local version="${OPENFOAM_VERSION:-v2412}"
+  version="${version#v}"
+  printf '%s' "${version}"
+}
+
+openfoam_docker_image_suffix() {
+  local arch="${DOCKER_ARCH:-}"
+  if [[ -n "${arch}" ]]; then
+    printf '%s' "${arch}"
+    return
+  fi
+  case "$(uname -m)" in
+  arm64 | aarch64) printf '%s' 'arm64' ;;
+  *) printf '%s' 'amd64' ;;
+  esac
+}
+
+openfoam_docker_dist_basename() {
+  printf 'openfoam-docker-%s-linux-%s' \
+    "$(openfoam_dist_version)" \
+    "$(openfoam_docker_image_suffix)"
 }
 
 # Pack staged install tree into a release .tar.gz (case-sensitive volume on macOS).

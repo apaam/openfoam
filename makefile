@@ -50,7 +50,8 @@ DOCKER_BUILD_IMAGE = \
   $(DOCKER_BUILD_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_OPENFOAM_IMAGE = \
   $(DOCKER_OPENFOAM_IMAGE_NAME):$(DOCKER_UBUNTU_VERSION)-$(DOCKER_IMAGE_SUFFIX)
-DOCKER_DIST_BASENAME := $(subst :,-,$(subst /,-,$(DOCKER_OPENFOAM_IMAGE)))
+OPENFOAM_DIST_VERSION := $(patsubst v%,%,$(OPENFOAM_VERSION))
+DOCKER_DIST_BASENAME := openfoam-docker-$(OPENFOAM_DIST_VERSION)-linux-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_BUILD_IMAGE_TAR = $(BUILD_DOCKER_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 DOCKER_DIST_IMAGE = $(DOCKER_DIST_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 
@@ -83,11 +84,14 @@ openfoam-pack: check-build
 	  OPENFOAM_BUNDLE_RUNTIME=0 \
 	  bash scripts/openfoam_pack.sh
 
-openfoam-dist: openfoam
-	@PACK_DIR="$(CURDIR)/$(BUILD_OPENFOAM_PACK_DIR)" \
+openfoam-dist: openfoam cli cli-wheel
+	@PACK_DIR="$(CURDIR)/$(OPENFOAM_DIST_DIR)" \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  OPENFOAM_BUNDLE_RUNTIME=1 \
 	  bash scripts/openfoam_pack.sh
+	@DIST_DIR="$(CURDIR)/$(OPENFOAM_DIST_DIR)" \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  bash scripts/stage_cli_dist.sh
 
 cli-wheel:
 	@OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
@@ -127,7 +131,7 @@ help:
 	@echo ""
 	@echo "Native openfoam pack:"
 	@echo "  make openfoam-pack           tar.gz, no bundle (-> $(BUILD_OPENFOAM_PACK_DIR)/)"
-	@echo "  make openfoam-dist           openfoam + tar.gz, bundled (-> $(BUILD_OPENFOAM_PACK_DIR)/)"
+	@echo "  make openfoam-dist           release bundle: native + cli-pack + wheel (-> $(OPENFOAM_DIST_DIR)/)"
 	@echo ""
 	@echo "CLI pack:"
 	@echo "  make cli-wheel               pip wheel (-> $(BUILD_CLI_WHEEL_DIR)/)"
@@ -135,7 +139,7 @@ help:
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-build            docker compile + image (-> $(DOCKER_OPENFOAM_BUILD)/ + $(BUILD_DOCKER_DIR)/)"
-	@echo "  make docker-dist             docker-build + export image (-> $(DOCKER_DIST_DIR)/)"
+	@echo "  make docker-dist             release bundle: image + cli-pack + wheel (-> $(DOCKER_DIST_DIR)/)"
 	@echo "  make docker-setup-base       pull $(DOCKER_UBUNTU_IMAGE)"
 	@echo "  make docker-setup-build      build $(DOCKER_BUILD_IMAGE)"
 	@echo "  make docker-push             push image (set DOCKER_REGISTRY)"
@@ -229,12 +233,15 @@ docker-push:
 	  docker tag "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker push "$$remote"
 
-docker-dist: docker-build
+docker-dist: docker-build cli cli-wheel
 	@mkdir -p "$(DOCKER_DIST_DIR)"
 	@printf '[docker-dist] Exporting %s -> %s\n' \
 	  "$(DOCKER_BUILD_IMAGE_TAR)" "$(DOCKER_DIST_IMAGE)"
 	@cp "$(DOCKER_BUILD_IMAGE_TAR)" "$(DOCKER_DIST_IMAGE)"
-	@printf '[docker-dist] Done (%s)\n' "$(DOCKER_DIST_IMAGE)"
+	@DIST_DIR="$(CURDIR)/$(DOCKER_DIST_DIR)" \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  bash scripts/stage_cli_dist.sh
+	@printf '[docker-dist] Done (%s)\n' "$(DOCKER_DIST_DIR)/"
 
 docker-prune-images:
 	@docker image prune -f
