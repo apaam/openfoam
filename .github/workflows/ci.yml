@@ -8,11 +8,37 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Same group as Release so a tag push can cancel duplicate main CI.
+  group: openfoam-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run_ci: ${{ steps.decide.outputs.run_ci }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - id: decide
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" != "push" ]]; then
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch origin --tags --force 2>/dev/null || true
+          if git tag --points-at HEAD | grep -qE '^v'; then
+            echo "Version tag points at this commit; skipping CI (Release owns it)."
+            echo "run_ci=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+          fi
+
   native:
+    needs: gate
+    if: needs.gate.outputs.run_ci == 'true'
     uses: ./.github/workflows/native-build.yml
     with:
       make_target: all
