@@ -89,7 +89,7 @@ openfoam/
 | `make openfoam` | Compile OpenFOAM → `$(BUILD_ROOT)/openfoam-build/` |
 | `make cli` | Install CLI locally → `$(BUILD_ROOT)/bin/` |
 | `make all` | `openfoam` + `cli` + `cli-wheel` |
-| `make install` | pip install CLI wheel |
+| `make all-install` | `all` + pip install CLI wheel |
 | `make openfoam-pack` | tar.gz from existing build (no bundle) |
 | `make dist-native` | Host native release → `$(BUILD_ROOT)/dist-native/` |
 | `make cli-wheel` | CLI pip wheel → `$(BUILD_ROOT)/cli-wheel/` |
@@ -125,7 +125,7 @@ Top-level: `openfoam help`, `openfoam docker help`.
 
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
-| local dev | `make all` | `$(BUILD_ROOT)/bin/openfoam` or `make install` |
+| local dev | `make all` | `$(BUILD_ROOT)/bin/openfoam` or `make all-install` |
 | macOS / Linux native | `tar xzf openfoam-native-*.tar.gz -C <prefix>` (`make dist-native`) | `pip install openfoam_cli-*.whl` or `tar xzf openfoam-cli-*.tar.gz` |
 | Docker (Linux image only) | `openfoam docker install-image` (`make dist-docker` on Linux / CI; `make docker-dist-docker` on macOS) | host `pip install openfoam_cli-*.whl` |
 

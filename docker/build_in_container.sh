@@ -68,4 +68,4 @@ docker run --rm -it \
   -e "OPENFOAM_VERSION=${OPENFOAM_VERSION}" \
   -e "CONTAINER_BUILD=1" \
   "${IMAGE}" \
-  bash -l
+  bash -lc 'export OPENFOAM_SHELL=1 OPENFOAM_SHELL_TAG=docker-shell && exec bash --rcfile /src/cli/openfoam/shell_bashrc.sh -i'

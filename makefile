@@ -133,7 +133,7 @@ cli-pack: cli
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  bash scripts/cli_pack.sh
 
-install:
+all-install: all
 	@wheel=$$(ls -t "$(BUILD_CLI_WHEEL_DIR)"/$(BUILD_CLI_WHEEL_MATCH) 2>/dev/null | head -1); \
 	if [ -z "$$wheel" ]; then \
 	  printf 'Wheel not found under %s; run make cli-wheel first\n' \
@@ -155,8 +155,7 @@ help:
 	@echo "  make openfoam                compile openfoam (-> $(OPENFOAM_BUILD)/)"
 	@echo "  make cli                     install cli locally (-> $(OPENFOAM_CLI_BUILD)/bin/)"
 	@echo "  make all                     openfoam + cli + cli-wheel"
-	@echo "  make install                 pip install CLI wheel"
-	@echo "  make all install             all + pip install CLI"
+	@echo "  make all-install             all + pip install CLI wheel"
 	@echo ""
 	@echo "Dist:"
 	@echo "  make openfoam-pack           tar.gz, no bundle (-> $(BUILD_OPENFOAM_PACK_DIR)/)"
@@ -354,7 +353,7 @@ docker-push: docker-host-guard
 docker-prune-images:
 	@docker image prune -f
 
-.PHONY: help openfoam cli all install get-jobs deps sync-submodule clean clean-all real-clean \
+.PHONY: help openfoam cli all all-install get-jobs deps sync-submodule clean clean-all real-clean \
 	check-build \
 	openfoam-pack dist-native \
 	cli-wheel cli-pack \

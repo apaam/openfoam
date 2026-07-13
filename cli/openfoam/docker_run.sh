@@ -251,29 +251,40 @@ docker_run_openfoam() {
 cmd_shell() {
   local work_dir="${1:-.}"
   require_docker
-  local platform inner common wrapper_host wrapper_container
+  local platform inner common pkg_src pkg_host pkg_container wrapper_container
   platform="$(platform_args)"
   common="$(docker_common_args)"
   work_dir="$(abs_path "${work_dir}")"
-  wrapper_host="$(openfoam_shell_bashrc_path)/shell_bashrc.sh"
-  wrapper_container="/etc/openfoam_shell_bashrc.sh"
   if [[ ! -d "${work_dir}" ]]; then
     echo "Directory not found: ${work_dir}" >&2
     exit 1
   fi
+  # Copy CLI shell files to /tmp so Docker Desktop can mount them (site-packages
+  # under /opt/homebrew is not shared by default on macOS).
+  pkg_src="$(openfoam_shell_bashrc_path)"
+  pkg_host="$(mktemp -d "/tmp/openfoam-docker-shell.XXXXXX")"
+  # Expand path now: EXIT trap runs after locals are gone (set -u would fail).
+  trap "rm -rf $(printf '%q' "${pkg_host}")" EXIT
+  cp "${pkg_src}/shell_bashrc.sh" "${pkg_host}/"
+  if [[ -f "${pkg_src}/completion.bash" ]]; then
+    cp "${pkg_src}/completion.bash" "${pkg_host}/"
+  fi
+  pkg_container="/etc/openfoam_cli"
+  wrapper_container="${pkg_container}/shell_bashrc.sh"
   inner="$(openfoam_interactive_shell_cmd "openfoam:docker" "${OPENFOAM_BASHRC}" \
-    "${wrapper_container}")"
+    "${wrapper_container}" "${pkg_container}")"
+  # Do not exec: keep trap so pkg_host is removed after the container exits.
   if [[ -n "${platform}" ]]; then
     # shellcheck disable=SC2086
-    exec docker run ${platform} --rm -it ${common} \
+    docker run ${platform} --rm -it ${common} \
       -v "${work_dir}:/work" -w /work \
-      -v "${wrapper_host}:${wrapper_container}:ro" \
+      -v "${pkg_host}:${pkg_container}:ro" \
       "${OPENFOAM_IMAGE}" bash -lc "${inner}"
   else
     # shellcheck disable=SC2086
-    exec docker run --rm -it ${common} \
+    docker run --rm -it ${common} \
       -v "${work_dir}:/work" -w /work \
-      -v "${wrapper_host}:${wrapper_container}:ro" \
+      -v "${pkg_host}:${pkg_container}:ro" \
       "${OPENFOAM_IMAGE}" bash -lc "${inner}"
   fi
 }
