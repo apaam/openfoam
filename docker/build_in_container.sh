@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Interactive shell in phynexis-build. Repo is bind-mounted; make uses
-# CONTAINER_BUILD=1 so outputs go under build/docker/ (isolated from host build/).
+# CONTAINER_BUILD=1 so BUILD_ROOT=docker-build (isolated from host build/).
 #
 #   make docker-shell
 #   # inside: make dist-native && make dist-docker
@@ -8,6 +8,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
+
+# shellcheck disable=SC1091
+source "${ROOT}/scripts/openfoam_build_paths.sh"
+CONTAINER_BUILD=1 openfoam_load_build_paths "${ROOT}"
 
 PLATFORM="${DOCKER_PLATFORM:-}"
 if [[ -z "${PLATFORM}" ]]; then
@@ -42,7 +46,7 @@ DOCKER_PLATFORM="${PLATFORM}" \
   DOCKER_APT_MIRROR="${APT_MIRROR}" \
   bash "${ROOT}/docker/setup_build_image.sh"
 
-mkdir -p "${ROOT}/build/docker"
+mkdir -p "${ROOT}/${BUILD_ROOT}"
 
 docker_sock_args=()
 if [[ -S /var/run/docker.sock ]]; then
@@ -52,8 +56,8 @@ else
   echo "[build_in_container]          make dist-docker inside this shell will fail." >&2
 fi
 
-printf '==> Shell in %s (%s); tree=build/docker/ (CONTAINER_BUILD=1)\n' \
-  "${IMAGE}" "${PLATFORM}"
+printf '==> Shell in %s (%s); BUILD_ROOT=%s/ (CONTAINER_BUILD=1)\n' \
+  "${IMAGE}" "${PLATFORM}" "${BUILD_ROOT}"
 printf '    Example: make dist-native && make dist-docker\n'
 
 docker run --rm -it \

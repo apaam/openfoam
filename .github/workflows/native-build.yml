@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       upload_dist:
-        description: "Upload build/dist-native artifacts"
+        description: "Upload build/dist-native artifacts (CI uses default BUILD_ROOT=build)"
         required: false
         type: boolean
         default: false

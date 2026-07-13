@@ -11,7 +11,7 @@ openfoam_load_build_paths "${ROOT}"
 
 CLI_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_CLI_BUILD}")"
 OPENFOAM_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_BUILD}")"
-PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_CLI_PACK_DIR:-build/cli-pack}}"
+PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_CLI_PACK_DIR:-${BUILD_ROOT}/cli-pack}}"
 case "${PACK_DIR}" in
 /*) ;;
 *) PACK_DIR="${ROOT}/${PACK_DIR}" ;;

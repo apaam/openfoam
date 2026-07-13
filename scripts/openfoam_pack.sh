@@ -19,7 +19,7 @@ fi
 FORCE_STAGE="${FORCE_STAGE:-0}"
 
 OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
-PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_OPENFOAM_PACK_DIR:-build/openfoam-pack}}"
+PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_OPENFOAM_PACK_DIR:-${BUILD_ROOT}/openfoam-pack}}"
 case "${PACK_DIR}" in
 /*) ;;
 *) PACK_DIR="${ROOT}/${PACK_DIR}" ;;

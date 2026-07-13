@@ -1,27 +1,37 @@
 # Copy to make-config-user.mk at the project root (git-ignored) and edit.
+#
+# Path model: BUILD_ROOT (build tree) vs OPENFOAM_PREFIX (runtime install; CLI env).
+# Prefer BUILD_ROOT / DOCKER_BUILD_ROOT overrides; keep other paths as $(BUILD_ROOT)/...
+# so CONTAINER_BUILD=1 (docker-shell) remaps the whole tree. make clean → rm $(BUILD_ROOT).
+# Custom BUILD_ROOT names should be added to .gitignore.
 
 # --- OpenFOAM version & native build ---
 # Switch version: set OPENFOAM_VERSION, checkout matching tag in openfoam-source, then make openfoam.
 OPENFOAM_VERSION = v2412
 
 # BUILD_JOBS = 8
-# OPENFOAM_BUILD = build/openfoam-build
-# OPENFOAM_CLI_BUILD = build
-# OPENFOAM_STAGE = build/stage/openfoam-build
+# BUILD_ROOT = build
+# DOCKER_BUILD_ROOT = docker-build
+# OPENFOAM_BUILD = $(BUILD_ROOT)/openfoam-build
+# OPENFOAM_CLI_BUILD = $(BUILD_ROOT)
+# OPENFOAM_STAGE = $(BUILD_ROOT)/stage/openfoam-build
 # OPENFOAM_BUILD_MODULES = 0
 # OPENFOAM_SYSTEM_CHECK = auto
 # OPENFOAM_SKIP_ALLWMAKE = auto
+# OPENFOAM_BUNDLE_RUNTIME = 0
 
 # --- Native pack ---
-# BUILD_OPENFOAM_PACK_DIR = build/openfoam-pack
-# DIST_NATIVE_DIR = build/dist-native
-# BUILD_CLI_PACK_DIR = build/cli-pack
-# BUILD_CLI_WHEEL_DIR = build/cli-wheel
-# BUILD_CLI_BUILD_DIR = build/cli-build
+# BUILD_OPENFOAM_PACK_DIR = $(BUILD_ROOT)/openfoam-pack
+# DIST_NATIVE_DIR = $(BUILD_ROOT)/dist-native
+# BUILD_CLI_PACK_DIR = $(BUILD_ROOT)/cli-pack
+# BUILD_CLI_WHEEL_DIR = $(BUILD_ROOT)/cli-wheel
+# BUILD_CLI_BUILD_DIR = $(BUILD_ROOT)/cli-build
+# BUILD_CLI_WHEEL_STAGE_DIR = $(BUILD_ROOT)/stage/cli-wheel
+# BUILD_CLI_WHEEL_MATCH = openfoam_cli-*.whl
 
 # --- Docker ---
-# BUILD_DOCKER_DIR = build/docker
-# DIST_DOCKER_DIR = build/dist-docker
+# BUILD_DOCKER_DIR = $(BUILD_ROOT)/docker
+# DIST_DOCKER_DIR = $(BUILD_ROOT)/dist-docker
 # DOCKER_UBUNTU_IMAGE_NAME = phynexis-ubuntu
 # DOCKER_BUILD_IMAGE_NAME = phynexis-build
 # DOCKER_OPENFOAM_IMAGE_NAME = openfoam
@@ -29,4 +39,4 @@ OPENFOAM_VERSION = v2412
 # DOCKER_REGISTRY = ghcr.io/myorg
 # DOCKER_ARCH = arm64
 # DOCKER_APT_MIRROR = http://mirrors.aliyun.com/ubuntu/
-# OPENFOAM_NATIVE_DIST = build/dist-native/openfoam-native-2412-linux-x86_64.tar.gz
+# OPENFOAM_NATIVE_DIST = $(BUILD_ROOT)/dist-native/openfoam-native-2412-linux-x86_64.tar.gz

@@ -81,8 +81,10 @@ find_pack_archive() {
   local name dir
   for name in "$(docker_dist_basename).tar.gz" "$(pack_basename).tar.gz"; do
     for dir in "${SCRIPT_DIR}" \
-      "${REPO_ROOT}/${DIST_DOCKER_DIR:-build/dist-docker}" \
-      "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
+      "${REPO_ROOT}/${DIST_DOCKER_DIR:-${BUILD_ROOT:-build}/dist-docker}" \
+      "${REPO_ROOT}/${BUILD_DOCKER_DIR:-${BUILD_ROOT:-build}/docker}" \
+      "${REPO_ROOT}/${DOCKER_BUILD_ROOT:-docker-build}/dist-docker" \
+      "${REPO_ROOT}/${DOCKER_BUILD_ROOT:-docker-build}/docker" \
       "$(pwd)"; do
       if [[ -f "${dir}/${name}" ]]; then
         abs_path "${dir}/${name}"
@@ -92,8 +94,10 @@ find_pack_archive() {
   done
   for name in "$(docker_dist_basename).tar" "$(pack_basename).tar"; do
     for dir in "${SCRIPT_DIR}" \
-      "${REPO_ROOT}/${DIST_DOCKER_DIR:-build/dist-docker}" \
-      "${REPO_ROOT}/${BUILD_DOCKER_DIR:-build/docker}" \
+      "${REPO_ROOT}/${DIST_DOCKER_DIR:-${BUILD_ROOT:-build}/dist-docker}" \
+      "${REPO_ROOT}/${BUILD_DOCKER_DIR:-${BUILD_ROOT:-build}/docker}" \
+      "${REPO_ROOT}/${DOCKER_BUILD_ROOT:-docker-build}/dist-docker" \
+      "${REPO_ROOT}/${DOCKER_BUILD_ROOT:-docker-build}/docker" \
       "$(pwd)"; do
       if [[ -f "${dir}/${name}" ]]; then
         abs_path "${dir}/${name}"

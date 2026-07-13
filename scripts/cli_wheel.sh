@@ -9,20 +9,20 @@ source "${ROOT}/scripts/openfoam_install_paths.sh"
 
 openfoam_load_build_paths "${ROOT}"
 
-WHEEL_DIR="${WHEEL_OUT:-${BUILD_CLI_WHEEL_DIR:-build/cli-wheel}}"
+WHEEL_DIR="${WHEEL_OUT:-${BUILD_CLI_WHEEL_DIR:-${BUILD_ROOT}/cli-wheel}}"
 case "${WHEEL_DIR}" in
 /*) ;;
 *) WHEEL_DIR="${ROOT}/${WHEEL_DIR}" ;;
 esac
 
-CLI_BUILD_DIR="${BUILD_CLI_BUILD_DIR:-build/cli-build}"
+CLI_BUILD_DIR="${BUILD_CLI_BUILD_DIR:-${BUILD_ROOT}/cli-build}"
 case "${CLI_BUILD_DIR}" in
 /*) ;;
 *) CLI_BUILD_DIR="${ROOT}/${CLI_BUILD_DIR}" ;;
 esac
 
 CLI_SRC="${ROOT}/cli"
-STAGING_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_CLI_WHEEL_STAGE_DIR:-build/stage/cli-wheel}")"
+STAGING_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_CLI_WHEEL_STAGE_DIR:-${BUILD_ROOT}/stage/cli-wheel}")"
 BUILD_PY="${BUILD_PY:-python3}"
 PKG_VERSION="${OPENFOAM_VERSION:-v2412}"
 PKG_VERSION="${PKG_VERSION#v}"

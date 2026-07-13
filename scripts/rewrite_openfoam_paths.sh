@@ -32,10 +32,11 @@ rewrite_tree() {
 
 rewrite_tree "${OLD_PREFIX}" "${NEW_PREFIX}"
 
-# Extra prefixes referenced in etc/ (avoid sourcing bashrc; it may exit non-zero).
+# Extra absolute prefixes still pointing at the old install leaf (any BUILD_ROOT).
+old_leaf="$(basename "${OLD_PREFIX}")"
 while IFS= read -r from_path; do
   rewrite_tree "${from_path}" "${NEW_PREFIX}"
-done < <(grep -rhoE '/build/openfoam[^"'\''[:space:];]*' "${STAGE}/etc" 2>/dev/null \
+done < <(grep -rhoE "/[^\"'[:space:];]*/${old_leaf}[^\"'[:space:];]*" "${STAGE}/etc" 2>/dev/null \
   | grep -v "^${NEW_PREFIX}" \
   | sort -u)
 

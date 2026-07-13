@@ -1,6 +1,7 @@
 .vscode/
 local/
 build/
+docker-build/
 make-config-user.mk
 
 # Python
