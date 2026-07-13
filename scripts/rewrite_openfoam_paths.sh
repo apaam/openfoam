@@ -35,9 +35,10 @@ rewrite_tree "${OLD_PREFIX}" "${NEW_PREFIX}"
 # Extra absolute prefixes still pointing at the old install leaf (any BUILD_ROOT).
 old_leaf="$(basename "${OLD_PREFIX}")"
 while IFS= read -r from_path; do
+  [[ -n "${from_path}" ]] || continue
   rewrite_tree "${from_path}" "${NEW_PREFIX}"
 done < <(grep -rhoE "/[^\"'[:space:];]*/${old_leaf}[^\"'[:space:];]*" "${STAGE}/etc" 2>/dev/null \
   | grep -v "^${NEW_PREFIX}" \
-  | sort -u)
+  | sort -u || true)
 
 echo "[rewrite_openfoam_paths] ${OLD_PREFIX} -> ${NEW_PREFIX} under ${STAGE}/etc"

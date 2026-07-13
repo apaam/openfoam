@@ -281,11 +281,15 @@ docker-push:
 	  docker push "$$remote"
 
 dist-docker: docker-image
-	@mkdir -p "$(DIST_DOCKER_DIR)"
-	@printf '[dist-docker] Exporting %s -> %s\n' \
-	  "$(DOCKER_IMAGE_TAR)" "$(DIST_DOCKER_IMAGE)"
-	@cp "$(DOCKER_IMAGE_TAR)" "$(DIST_DOCKER_IMAGE)"
-	@if ls "$(DIST_NATIVE_DIR)"/$(BUILD_CLI_WHEEL_MATCH) >/dev/null 2>&1; then \
+	@if [ ! -f "$(DOCKER_IMAGE_TAR)" ]; then \
+	  printf '[dist-docker] Skipped (no linux image; see docker-image message)\n'; \
+	  exit 0; \
+	fi; \
+	mkdir -p "$(DIST_DOCKER_DIR)"; \
+	printf '[dist-docker] Exporting %s -> %s\n' \
+	  "$(DOCKER_IMAGE_TAR)" "$(DIST_DOCKER_IMAGE)"; \
+	cp "$(DOCKER_IMAGE_TAR)" "$(DIST_DOCKER_IMAGE)"; \
+	if ls "$(DIST_NATIVE_DIR)"/$(BUILD_CLI_WHEEL_MATCH) >/dev/null 2>&1; then \
 	  cp "$(DIST_NATIVE_DIR)"/$(BUILD_CLI_WHEEL_MATCH) "$(DIST_DOCKER_DIR)/"; \
 	  cp "$(DIST_NATIVE_DIR)"/openfoam-cli-*.tar.gz "$(DIST_DOCKER_DIR)/"; \
 	  printf '[dist-docker] Reused CLI from %s\n' "$(DIST_NATIVE_DIR)"; \
@@ -294,8 +298,8 @@ dist-docker: docker-image
 	  DIST_DIR="$(CURDIR)/$(DIST_DOCKER_DIR)" \
 	    OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	    bash scripts/stage_cli_dist.sh; \
-	fi
-	@printf '[dist-docker] Done (%s)\n' "$(DIST_DOCKER_DIR)/"
+	fi; \
+	printf '[dist-docker] Done (%s)\n' "$(DIST_DOCKER_DIR)/"
 
 docker-prune-images:
 	@docker image prune -f

@@ -53,7 +53,7 @@ find_linux_native_archive() {
     esac
     if [[ ! -f "${candidate}" ]]; then
       echo "[setup_openfoam_image] OPENFOAM_NATIVE_DIST not found: ${candidate}" >&2
-      exit 1
+      return 1
     fi
     base="$(basename "${candidate}")"
     case "${base}" in
@@ -61,12 +61,12 @@ find_linux_native_archive() {
       echo "[setup_openfoam_image] Docker images are Linux-only; refusing darwin archive:" >&2
       echo "  ${base}" >&2
       echo "[setup_openfoam_image] On macOS install with: make dist-native" >&2
-      exit 1
+      return 1
       ;;
     *linux*) ;;
     *)
       echo "[setup_openfoam_image] Expected a linux native archive name (*-linux-*), got: ${base}" >&2
-      exit 1
+      return 1
       ;;
     esac
     printf '%s' "${candidate}"
@@ -96,11 +96,8 @@ find_linux_native_archive() {
     for a in "${darwin_archives[@]}"; do
       echo "  $(basename "${a}")" >&2
     done
-    echo "[setup_openfoam_image] macOS: make docker-shell, then make dist-native && make dist-docker" >&2
   fi
-  echo "[setup_openfoam_image] Linux: make dist-native && make dist-docker" >&2
-  echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz from CI/release" >&2
-  exit 1
+  return 1
 }
 
 verify() {
@@ -118,7 +115,16 @@ prune_dangling() {
   docker rmi ${ids} >/dev/null 2>&1 || true
 }
 
-ARCHIVE="$(find_linux_native_archive)"
+ARCHIVE=""
+if ! ARCHIVE="$(find_linux_native_archive)"; then
+  if [[ -n "${OPENFOAM_NATIVE_DIST:-}" ]]; then
+    exit 1
+  fi
+  echo "[setup_openfoam_image] Skipping (no linux native archive; docker image is optional)." >&2
+  echo "[setup_openfoam_image] Build one with: make dist-native  (Linux host or make docker-shell)" >&2
+  echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz" >&2
+  exit 0
+fi
 printf '==> Packaging %s -> image %s\n' "${ARCHIVE}" "${IMAGE}"
 
 UBUNTU_VERSION="${UBUNTU_VERSION}" \
