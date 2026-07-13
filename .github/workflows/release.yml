@@ -69,6 +69,7 @@ jobs:
 
   publish:
     needs: [build, docker]
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Download dist-native artifacts
@@ -79,6 +80,8 @@ jobs:
           path: dist
 
       - name: Download docker images
+        if: needs.docker.result == 'success' || needs.docker.result == 'failure'
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: dist-docker-*
@@ -100,8 +103,17 @@ jobs:
               seen[$base]=1
             fi
           done
+          native=(dist/openfoam-native-*)
+          if ((${#native[@]} == 0)); then
+            echo "No dist-native release assets under dist/" >&2
+            ls -la dist 2>/dev/null || true
+            exit 1
+          fi
           echo "==> Release assets"
           ls -la dist
+          if [[ "${{ needs.docker.result }}" != "success" ]]; then
+            echo "::warning::Docker job did not succeed; publishing native assets only."
+          fi
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -110,7 +122,7 @@ jobs:
           name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: dist/*
           generate_release_notes: true
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
           draft: false
           body: |
             ## Install
