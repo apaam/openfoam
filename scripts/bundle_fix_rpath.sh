@@ -269,7 +269,7 @@ is_openmpi_runtime_soname_linux() {
   libmca_*.so* | libmca_common_*.so* | libompitrace.so* | \
   libpmix.so* | libhwloc.so* | libevent*.so* | libfabric.so* | \
   libibverbs.so* | libpsm2.so* | libpsm_infinipath.so* | libucx.so* | \
-  libmunge.so*)
+  libmunge.so* | libnl-3.so* | libnl-route-3.so*)
     return 0
     ;;
   esac

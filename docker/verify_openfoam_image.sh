@@ -35,14 +35,29 @@ if ! docker run --rm "${IMAGE}" bash -lc '
     done < <(ldd "${bin}" 2>/dev/null | grep "not found" || true)
   done
   if command -v mpirun >/dev/null 2>&1; then
-    mpirun --version >/dev/null 2>&1 || {
-      echo "Missing or broken bundled mpirun" >&2
+    # Relocated Debian OpenMPI needs MCA path (wrappers/prefs). --version is the
+    # cheap signal; full mpirun -np also needs sshd for plm_rsh and is not
+    # checked here.
+    if ! mpirun_out="$(mpirun --version 2>&1)"; then
+      echo "Missing or broken bundled mpirun (--version)" >&2
+      echo "${mpirun_out}" >&2
       missing=1
-    }
-    mca_dir="/opt/openfoam/lib/bundled/openmpi/lib/openmpi3"
-    if [[ ! -d "${mca_dir}" ]] || [[ -z "$(find "${mca_dir}" -name "mca_*.so" -print -quit 2>/dev/null)" ]]; then
-      echo "Missing OpenMPI MCA plugins under ${mca_dir}" >&2
+    fi
+    mca_file="$(
+      find /opt/openfoam/lib/bundled/openmpi \
+        \( -name "mca_*.so" -o -name "mca_*.dylib" \) -type f 2>/dev/null \
+        | head -1 || true
+    )"
+    if [[ -z "${mca_file}" ]]; then
+      echo "Missing OpenMPI MCA plugins under /opt/openfoam/lib/bundled/openmpi" >&2
       missing=1
+    fi
+    if find /opt/openfoam/lib/bundled/openmpi -name "mca_pmix*" -type f 2>/dev/null \
+      | grep -q .; then
+      if ! ls /opt/openfoam/lib/bundled/libpmix.so* >/dev/null 2>&1; then
+        echo "Missing bundled libpmix (required by OpenMPI MCA pmix)" >&2
+        missing=1
+      fi
     fi
   fi
   exit "${missing}"
