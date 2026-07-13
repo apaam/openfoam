@@ -140,7 +140,7 @@ usage() {
 ${CLI_PREFIX} — run OpenFOAM in Docker
 
 Image admin:
-  install-image [image.tar.gz]      Load offline image archive (from make dist-docker)
+  install-image [image.tar.gz]      Load offline image archive (make dist-docker / docker-dist-docker)
   uninstall-image                   Remove the runtime Docker image
   pull                              Download the runtime image from a registry
 

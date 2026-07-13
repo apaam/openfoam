@@ -117,13 +117,9 @@ prune_dangling() {
 
 ARCHIVE=""
 if ! ARCHIVE="$(find_linux_native_archive)"; then
-  if [[ -n "${OPENFOAM_NATIVE_DIST:-}" ]]; then
-    exit 1
-  fi
-  echo "[setup_openfoam_image] Skipping (no linux native archive; docker image is optional)." >&2
-  echo "[setup_openfoam_image] Build one with: make dist-native  (Linux host or make docker-shell)" >&2
+  echo "[setup_openfoam_image] Build one with: make dist-native (Linux) or make docker-dist-native" >&2
   echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz" >&2
-  exit 0
+  exit 1
 fi
 printf '==> Packaging %s -> image %s\n' "${ARCHIVE}" "${IMAGE}"
 

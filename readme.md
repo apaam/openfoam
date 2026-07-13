@@ -70,7 +70,7 @@ openfoam/
 │   ├── dist-native/      # host native release bundle
 │   ├── dist-docker/      # host docker release bundle
 │   ├── stage/            # staging for pack
-│   └── docker/           # host docker-image intermediates
+│   └── docker/           # image build intermediates
 ├── docker-build/         # DOCKER_BUILD_ROOT (mirrors build/ under docker-shell)
 ├── cli/                  # openfoam CLI sources
 ├── docker/               # Docker image build scripts
@@ -94,10 +94,11 @@ openfoam/
 | `make dist-native` | Host native release → `$(BUILD_ROOT)/dist-native/` |
 | `make cli-wheel` | CLI pip wheel → `$(BUILD_ROOT)/cli-wheel/` |
 | `make cli-pack` | CLI tar.gz → `$(BUILD_ROOT)/cli-pack/` |
-| `make docker-image` | Pack linux `dist-native` → Linux runtime image |
-| `make dist-docker` | Image + CLI → `$(BUILD_ROOT)/dist-docker/` |
+| `make dist-docker` | Linux host: pack host linux native → `build/dist-docker/` (macOS: use `docker-dist-docker`) |
+| `make docker-dist-native` | Container build → `docker-build/dist-native/` |
+| `make docker-dist-docker` | Container build + image + CLI → `docker-build/dist-docker/` |
 | `make docker-shell` | Interactive build container (`BUILD_ROOT=docker-build`) |
-| `make docker-setup-base` | Optional: pull Ubuntu base (also done by `docker-image`) |
+| `make docker-setup-base` | Optional: pull Ubuntu base |
 | `make deps` | Install dependencies (macOS only) |
 | `make clean` | Remove current `$(BUILD_ROOT)/` |
 | `make clean-all` | Remove host and docker-shell trees (`HOST_BUILD_ROOT` + `DOCKER_BUILD_ROOT`) |
@@ -126,12 +127,14 @@ Top-level: `openfoam help`, `openfoam docker help`.
 |---------|------------------|-------------|
 | local dev | `make all` | `$(BUILD_ROOT)/bin/openfoam` or `make install` |
 | macOS / Linux native | `tar xzf openfoam-native-*.tar.gz -C <prefix>` (`make dist-native`) | `pip install openfoam_cli-*.whl` or `tar xzf openfoam-cli-*.tar.gz` |
-| Docker (Linux image only) | `openfoam docker install-image` (`make dist-docker` on Linux / CI) | host `pip install openfoam_cli-*.whl` |
+| Docker (Linux image only) | `openfoam docker install-image` (`make dist-docker` on Linux / CI; `make docker-dist-docker` on macOS) | host `pip install openfoam_cli-*.whl` |
 
-| Make target | Output (default `BUILD_ROOT=build`) |
+| Make target | Output |
 |-------------|--------|
 | `dist-native` | `build/dist-native/` — host `openfoam-native-*.tar.gz`, CLI wheel/pack |
-| `dist-docker` | `build/dist-docker/` — Linux `openfoam-docker-*-linux-{amd64,arm64}.tar.gz` + CLI |
+| `dist-docker` | `build/dist-docker/` — Linux host image + CLI |
+| `docker-dist-native` | `docker-build/dist-native/` — container linux native |
+| `docker-dist-docker` | `docker-build/dist-docker/` — container image + CLI |
 | `cli-wheel` | `build/cli-wheel/openfoam_cli-*.whl` |
 
 ### Shell setup
@@ -172,15 +175,15 @@ openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
 
 Docker (Linux image only; Docker Desktop on macOS/Windows still runs Linux containers). macOS users who want a native install use `make dist-native`; there is no macOS Docker image.
 
-`dist-docker` packs the current tree's linux `openfoam-native-*-linux-*.tar.gz` (`DIST_NATIVE_DIR`) into a runtime image. Release builds **amd64** and **arm64** images from matching Linux artifacts. `make docker-shell` sets `CONTAINER_BUILD=1` so `BUILD_ROOT` becomes `DOCKER_BUILD_ROOT` (`docker-build/`).
+`dist-docker` (Linux host) packs `build/dist-native/openfoam-native-*-linux-*.tar.gz` into a runtime image under `build/dist-docker/`. On macOS use `docker-dist-docker` (compiles in container → `docker-build/`). Release builds **amd64** and **arm64** images from matching Linux artifacts. `docker-*` targets must run on the host (not inside `docker-shell`).
 
 ```
 phynexis-build:24.04-{arch}   →  docker-setup-build / docker-shell
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
-openfoam-native-*-linux-*.tar.gz  →  docker-image
+openfoam-native-*-linux-*.tar.gz  →  dist-docker / docker-dist-docker
 openfoam:24.04-{arch}          →  runtime image
-build/dist-docker/             →  host release bundle (BUILD_ROOT=build)
-docker-build/dist-docker/      →  docker-shell release bundle (BUILD_ROOT=docker-build)
+build/dist-docker/             →  host release (make dist-docker)
+docker-build/dist-docker/      →  container release (make docker-dist-docker)
 ```
 
 ```bash
@@ -189,11 +192,8 @@ make dist-native
 make dist-docker
 make docker-push
 
-# macOS / containerized Linux build
-make docker-shell
-# inside:
-make dist-native
-make dist-docker
+# macOS / isolated Linux build on any host
+make docker-dist-docker
 ```
 
 Path variables: `BUILD_ROOT` / `DOCKER_BUILD_ROOT` / derived paths in `docs/make-config-default.mk`; override in `make-config-user.mk`. Runtime install: `OPENFOAM_PREFIX`.

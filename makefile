@@ -82,9 +82,9 @@ DOCKER_OPENFOAM_IMAGE = \
 OPENFOAM_DIST_VERSION := $(patsubst v%,%,$(OPENFOAM_VERSION))
 DOCKER_DIST_BASENAME := openfoam-docker-$(OPENFOAM_DIST_VERSION)-linux-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_IMAGE_TAR = $(BUILD_DOCKER_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
-DIST_DOCKER_IMAGE = $(DIST_DOCKER_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 
-.NOTPARALLEL: openfoam-pack dist-native cli-wheel cli-pack docker-image dist-docker
+.NOTPARALLEL: openfoam-pack dist-native cli-wheel cli-pack \
+	_docker-pack-image dist-docker docker-dist-native docker-dist-docker
 
 # =============================================================================
 # Build
@@ -161,19 +161,17 @@ help:
 	@echo "Dist:"
 	@echo "  make openfoam-pack           tar.gz, no bundle (-> $(BUILD_OPENFOAM_PACK_DIR)/)"
 	@echo "  make dist-native             host native + cli-pack + wheel (-> $(DIST_NATIVE_DIR)/)"
-	@echo "  make dist-docker             image + cli (-> $(DIST_DOCKER_DIR)/)"
+	@echo "  make dist-docker             Linux host: native -> image + cli (-> $(HOST_BUILD_ROOT)/dist-docker/)"
 	@echo ""
 	@echo "CLI pack:"
 	@echo "  make cli-wheel               pip wheel (-> $(BUILD_CLI_WHEEL_DIR)/)"
 	@echo "  make cli-pack                tar.gz (-> $(BUILD_CLI_PACK_DIR)/)"
 	@echo ""
-	@echo "Docker (Linux image; docker-shell uses BUILD_ROOT=$(DOCKER_BUILD_ROOT)/):"
-	@echo "  make docker-shell            interactive $(DOCKER_BUILD_IMAGE) (CONTAINER_BUILD=1)"
-	@echo "  make docker-setup-build      build $(DOCKER_BUILD_IMAGE) (deps baked in)"
-	@echo "  make docker-image            pack linux native dist -> image (+ $(BUILD_DOCKER_DIR)/)"
-	@echo "  make docker-push             push image (set DOCKER_REGISTRY)"
-	@echo "  make docker-setup-base       optional: pull $(DOCKER_UBUNTU_IMAGE)"
-	@echo "  make docker-prune-images     docker image prune -f"
+	@echo "Docker (host only; refuse inside docker-shell):"
+	@echo "  make docker-shell            interactive $(DOCKER_BUILD_IMAGE) (-> $(DOCKER_BUILD_ROOT)/)"
+	@echo "  make docker-dist-native      container build + native tar (-> $(DOCKER_BUILD_ROOT)/)"
+	@echo "  make docker-dist-docker      container build + image + cli (-> $(DOCKER_BUILD_ROOT)/dist-docker/)"
+	@echo "  make docker-setup-base / docker-setup-build / docker-push / docker-prune-images"
 	@echo ""
 	@echo "Other:"
 	@echo "  make deps                    Homebrew dependencies (macOS)"
@@ -235,14 +233,22 @@ real-clean: clean
 
 # --- Docker ---
 
-docker-setup-build:
+docker-host-guard:
+	@if [ -f /.dockerenv ] || [ "$(CURDIR)" = "/src" ]; then \
+	  printf 'Refuse: docker-* must run on the host, not inside docker-shell.\n' \
+	    >&2; \
+	  exit 1; \
+	fi
+
+docker-setup-build: docker-host-guard
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  FORCE=$(FORCE) \
 	  bash docker/setup_build_image.sh
 
-docker-shell:
+docker-shell: docker-host-guard
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
@@ -251,12 +257,13 @@ docker-shell:
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  bash docker/build_in_container.sh
 
-docker-setup-base:
+docker-setup-base: docker-host-guard
 	UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
 	DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
 	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup_base_image.sh
 
-docker-image:
+# Internal: pack linux native under current BUILD_ROOT -> image (+ BUILD_DOCKER_DIR/).
+_docker-pack-image: docker-host-guard
 	@DOCKER_OPENFOAM_IMAGE=$(DOCKER_OPENFOAM_IMAGE) \
 	  DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
@@ -269,37 +276,80 @@ docker-image:
 	  OPENFOAM_NATIVE_DIST="$(OPENFOAM_NATIVE_DIST)" \
 	  bash docker/setup_openfoam_image.sh
 
-docker-push:
+# Internal: export image tar + CLI into $(1)/dist-docker/ from $(1)/{docker,dist-native}.
+# $(2) is CONTAINER_BUILD for optional CLI rebuild (empty = host).
+define _dist-docker-export
+img_tar="$(1)/docker/$(DOCKER_DIST_BASENAME).tar.gz"; \
+if [ ! -f "$$img_tar" ]; then \
+  printf '[dist-docker] Missing %s (need linux native under %s/dist-native/)\n' \
+    "$$img_tar" "$(1)" >&2; \
+  exit 1; \
+fi; \
+mkdir -p "$(1)/dist-docker"; \
+printf '[dist-docker] Exporting %s -> %s/dist-docker/\n' \
+  "$$img_tar" "$(1)"; \
+cp "$$img_tar" "$(1)/dist-docker/$(DOCKER_DIST_BASENAME).tar.gz"; \
+if ls "$(1)/dist-native"/$(BUILD_CLI_WHEEL_MATCH) >/dev/null 2>&1; then \
+  cp "$(1)/dist-native"/$(BUILD_CLI_WHEEL_MATCH) "$(1)/dist-docker/"; \
+  cp "$(1)/dist-native"/openfoam-cli-*.tar.gz "$(1)/dist-docker/"; \
+  printf '[dist-docker] Reused CLI from %s/dist-native\n' "$(1)"; \
+else \
+  $(MAKE) CONTAINER_BUILD=$(2) BUILD_ROOT=$(1) cli cli-wheel; \
+  DIST_DIR="$(CURDIR)/$(1)/dist-docker" \
+    OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+    bash scripts/stage_cli_dist.sh; \
+fi; \
+printf '[dist-docker] Done (%s/dist-docker/)\n' "$(1)"
+endef
+
+# Host linux build/ -> runtime image + cli tar (no docker-build/).
+# Always uses HOST_BUILD_ROOT even if CONTAINER_BUILD=1 is set in the environment.
+# On macOS: skip (exit 0) — use docker-dist-docker instead.
+dist-docker:
+ifeq ($(shell uname -s),Darwin)
+	@printf 'dist-docker packs host linux native into a Linux image.\n' >&2
+	@printf 'On macOS use: make docker-dist-docker\n' >&2
+else
+	@$(MAKE) docker-host-guard
+	@$(MAKE) CONTAINER_BUILD= BUILD_ROOT=$(HOST_BUILD_ROOT) _docker-pack-image
+	@$(call _dist-docker-export,$(HOST_BUILD_ROOT),)
+endif
+
+# Internal: compile + dist-native into docker-build/ (used by docker-dist-*).
+_docker-compile: docker-host-guard
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
+	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
+	  BUILD_JOBS=$(JOBS) \
+	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  FORCE=$(FORCE) \
+	  bash docker/compile_openfoam.sh
+
+# Host convenience: container tree -> native dist.
+docker-dist-native: _docker-compile
+	@printf '[docker-dist-native] Done (%s/dist-native/)\n' "$(DOCKER_BUILD_ROOT)"
+
+# Host convenience: container tree -> image + cli + tar.
+docker-dist-docker: _docker-compile
+	@$(MAKE) CONTAINER_BUILD=1 _docker-pack-image
+	@$(call _dist-docker-export,$(DOCKER_BUILD_ROOT),1)
+
+docker-push: docker-host-guard
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
 	  printf 'DOCKER_REGISTRY is empty; set it in make-config-user.mk\n' \
 	    >&2; exit 1; \
 	fi
+	@docker image inspect "$(DOCKER_OPENFOAM_IMAGE)" >/dev/null 2>&1 || { \
+	  printf 'Missing %s; run make docker-dist-docker (or dist-docker) first\n' \
+	    "$(DOCKER_OPENFOAM_IMAGE)" >&2; \
+	  exit 1; \
+	}
 	@remote="$(DOCKER_REGISTRY)/$(DOCKER_OPENFOAM_IMAGE)"; \
 	  printf '[docker-push] Tagging %s -> %s\n' \
 	    "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker tag "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker push "$$remote"
-
-dist-docker: docker-image
-	@if [ ! -f "$(DOCKER_IMAGE_TAR)" ]; then \
-	  printf '[dist-docker] Skipped (no linux image; see docker-image message)\n'; \
-	  exit 0; \
-	fi; \
-	mkdir -p "$(DIST_DOCKER_DIR)"; \
-	printf '[dist-docker] Exporting %s -> %s\n' \
-	  "$(DOCKER_IMAGE_TAR)" "$(DIST_DOCKER_IMAGE)"; \
-	cp "$(DOCKER_IMAGE_TAR)" "$(DIST_DOCKER_IMAGE)"; \
-	if ls "$(DIST_NATIVE_DIR)"/$(BUILD_CLI_WHEEL_MATCH) >/dev/null 2>&1; then \
-	  cp "$(DIST_NATIVE_DIR)"/$(BUILD_CLI_WHEEL_MATCH) "$(DIST_DOCKER_DIR)/"; \
-	  cp "$(DIST_NATIVE_DIR)"/openfoam-cli-*.tar.gz "$(DIST_DOCKER_DIR)/"; \
-	  printf '[dist-docker] Reused CLI from %s\n' "$(DIST_NATIVE_DIR)"; \
-	else \
-	  $(MAKE) CONTAINER_BUILD=$(CONTAINER_BUILD) cli cli-wheel; \
-	  DIST_DIR="$(CURDIR)/$(DIST_DOCKER_DIR)" \
-	    OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	    bash scripts/stage_cli_dist.sh; \
-	fi; \
-	printf '[dist-docker] Done (%s)\n' "$(DIST_DOCKER_DIR)/"
 
 docker-prune-images:
 	@docker image prune -f
@@ -308,6 +358,7 @@ docker-prune-images:
 	check-build \
 	openfoam-pack dist-native \
 	cli-wheel cli-pack \
-	docker-setup-build docker-shell \
-	docker-setup-base docker-image docker-push dist-docker \
+	docker-host-guard docker-setup-build docker-shell \
+	docker-setup-base _docker-pack-image docker-push \
+	_docker-compile docker-dist-native docker-dist-docker dist-docker \
 	docker-prune-images
