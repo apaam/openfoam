@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Point runtime library search at bundled libs; drop build-machine Homebrew paths.
+# Clean build-machine prefs for portable packs. Does not patch etc/bashrc.
+#
+# Bundled third-party libs live under lib/bundled and are found via rpath.
+# OpenMPI OPAL/MCA env is set by lib/bundled/mpi-bin wrappers (openfoam_mpi_env.sh).
+# Optional PATH to mpi-bin belongs in CLI / outer product bashrc, not OpenFOAM bashrc.
 set -euo pipefail
 
 STAGE="${1:?stage prefix required}"
 PREFS="${STAGE}/etc/prefs.sh"
 BASHRC="${STAGE}/etc/bashrc"
-BUNDLED='${WM_PROJECT_DIR}/lib/bundled'
+PREFS_SYS_OPENMPI="${STAGE}/etc/config.sh/prefs.sys-openmpi"
 MARKER='# Bundled runtime libraries (dist-native)'
+MPI_MARKER='# Bundled OpenMPI relocation (dist-native)'
 
 if [[ ! -f "${BASHRC}" ]]; then
   echo "[rewrite_openfoam_prefs] Missing ${BASHRC}" >&2
@@ -37,137 +42,42 @@ if [[ -f "${PREFS}" ]]; then
       "${PREFS}"
     ;;
   esac
+  # Remove legacy bundled hint if present.
+  if grep -qF "${MARKER}" "${PREFS}"; then
+    awk -v marker="${MARKER}" '
+      $0 == marker { skip=1; next }
+      skip && /^export OPENFOAM_BUNDLED_LIB=/ { skip=0; next }
+      skip { next }
+      { print }
+    ' "${PREFS}" >"${PREFS}.tmp"
+    mv "${PREFS}.tmp" "${PREFS}"
+  fi
 fi
 
-# config.sh/setup rebuilds DYLD/LD from FOAM_LD_LIBRARY_PATH and would wipe a
-# prefs-only export. Re-apply bundled path at the end of bashrc (after setup).
-if ! grep -qF "${MARKER}" "${BASHRC}"; then
-  cat >>"${BASHRC}" <<EOF
+# Strip legacy dist-native patches previously appended to bashrc.
+strip_bashrc_marker_block() {
+  local marker="$1"
+  if ! grep -qF "${marker}" "${BASHRC}"; then
+    return 0
+  fi
+  # Delete from marker through the closing "fi" of that block (blank line before next section ok).
+  awk -v marker="${marker}" '
+    $0 == marker { skip=1; next }
+    skip && /^fi$/ { skip=0; next }
+    skip { next }
+    { print }
+  ' "${BASHRC}" >"${BASHRC}.tmp"
+  mv "${BASHRC}.tmp" "${BASHRC}"
+  echo "[rewrite_openfoam_prefs] Removed legacy bashrc block: ${marker}"
+}
 
-${MARKER}
-if [ -d "${BUNDLED}" ]
-then
-    export OPENFOAM_BUNDLED_LIB="${BUNDLED}"
-    export FOAM_LD_LIBRARY_PATH="\${OPENFOAM_BUNDLED_LIB}\${FOAM_LD_LIBRARY_PATH:+:\$FOAM_LD_LIBRARY_PATH}"
-    # Drop user-site libs from portable installs.
-    if [ -n "\${FOAM_USER_LIBBIN:-}" ]
-    then
-        FOAM_LD_LIBRARY_PATH="\$(echo "\$FOAM_LD_LIBRARY_PATH" | tr ':' '\\n' | { grep -vFx "\$FOAM_USER_LIBBIN" || true; } | paste -sd: -)"
-        export FOAM_LD_LIBRARY_PATH
-        unset FOAM_USER_LIBBIN
-    fi
-    case "\$(uname -s)" in
-    Darwin)
-        export DYLD_LIBRARY_PATH="\${OPENFOAM_BUNDLED_LIB}\${DYLD_LIBRARY_PATH:+:\$DYLD_LIBRARY_PATH}"
-        if [ -n "\${DYLD_LIBRARY_PATH:-}" ] && [ -n "\${HOME:-}" ]
-        then
-            DYLD_LIBRARY_PATH="\$(echo "\$DYLD_LIBRARY_PATH" | tr ':' '\\n' | { grep -v "^\$HOME/OpenFOAM/" || true; } | paste -sd: -)"
-            export DYLD_LIBRARY_PATH
-        fi
-        export FOAM_DYLD_LIBRARY_PATH="\$DYLD_LIBRARY_PATH"
-        ;;
-    *)
-        export LD_LIBRARY_PATH="\${OPENFOAM_BUNDLED_LIB}\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
-        ;;
-    esac
-    if [ -d "\${OPENFOAM_BUNDLED_LIB}/mpi-bin" ]
-    then
-        export PATH="\${OPENFOAM_BUNDLED_LIB}/mpi-bin\${PATH:+:\$PATH}"
-    elif [ -d "\${OPENFOAM_BUNDLED_LIB}/bin" ]
-    then
-        export PATH="\${OPENFOAM_BUNDLED_LIB}/bin\${PATH:+:\$PATH}"
-    fi
-fi
-EOF
+strip_bashrc_marker_block "${MARKER}"
+strip_bashrc_marker_block "${MPI_MARKER}"
+
+# Remove generated prefs that hard-wired bundled OpenMPI into SYSTEMOPENMPI discovery.
+if [[ -f "${PREFS_SYS_OPENMPI}" ]] && grep -qF 'rewrite_openfoam_prefs.sh' "${PREFS_SYS_OPENMPI}"; then
+  rm -f "${PREFS_SYS_OPENMPI}"
+  echo "[rewrite_openfoam_prefs] Removed ${PREFS_SYS_OPENMPI}"
 fi
 
-# Debian/Ubuntu OpenMPI hardcodes absolute MCA/datadir paths. Relocated
-# launchers also get mpi-bin wrappers; keep env here for non-wrapper callers.
-MPI_MARKER='# Bundled OpenMPI relocation (dist-native)'
-if ! grep -qF "${MPI_MARKER}" "${BASHRC}"; then
-  cat >>"${BASHRC}" <<EOF
-
-${MPI_MARKER}
-if [ -d "${BUNDLED}" ]
-then
-    : "\${OPENFOAM_BUNDLED_LIB:=${BUNDLED}}"
-    if [ -z "\${OPAL_PREFIX:-}" ]
-    then
-        export OPAL_PREFIX="\${OPENFOAM_BUNDLED_LIB}"
-    fi
-    if [ -z "\${OPAL_LIBDIR:-}" ]
-    then
-        export OPAL_LIBDIR="\${OPENFOAM_BUNDLED_LIB}"
-    fi
-    if [ -d "\${OPENFOAM_BUNDLED_LIB}/share/openmpi" ]
-    then
-        if [ -z "\${OPAL_DATADIR:-}" ]
-        then
-            export OPAL_DATADIR="\${OPENFOAM_BUNDLED_LIB}/share"
-        fi
-        if [ -z "\${OPAL_PKGDATADIR:-}" ]
-        then
-            export OPAL_PKGDATADIR="\${OPENFOAM_BUNDLED_LIB}/share/openmpi"
-        fi
-    fi
-    if [ -z "\${OMPI_MCA_mca_base_component_path:-}" ]
-    then
-        _ompi_mca_file="\$(find "\${OPENFOAM_BUNDLED_LIB}/openmpi" \\
-            \\( -name 'mca_*.so' -o -name 'mca_*.dylib' \\) -type f 2>/dev/null | head -1)"
-        if [ -n "\${_ompi_mca_file}" ]
-        then
-            export OMPI_MCA_mca_base_component_path="\$(dirname "\${_ompi_mca_file}")"
-        fi
-        unset _ompi_mca_file
-    fi
-    if [ -z "\${OMPI_MCA_reachable:-}" ]
-    then
-        export OMPI_MCA_reachable=^netlink
-    fi
-    if [ -z "\${OMPI_MCA_btl_base_warn_component_unused:-}" ]
-    then
-        export OMPI_MCA_btl_base_warn_component_unused=0
-    fi
-fi
-EOF
-fi
-
-# Keep prefs marker for visibility (optional early hint; setup may overwrite DYLD).
-if [[ -f "${PREFS}" ]] && ! grep -qF "${MARKER}" "${PREFS}"; then
-  cat >>"${PREFS}" <<EOF
-
-${MARKER}
-export OPENFOAM_BUNDLED_LIB="${BUNDLED}"
-EOF
-fi
-
-# Point SYSTEMOPENMPI at bundled prefix before discovery (avoids
-# "could not determine prefix for system-openmpi" on portable installs).
-PREFS_SYS_OPENMPI="${STAGE}/etc/config.sh/prefs.sys-openmpi"
-if [[ -d "${STAGE}/lib/bundled" ]]; then
-  mkdir -p "$(dirname "${PREFS_SYS_OPENMPI}")"
-  {
-    echo '# Generated by rewrite_openfoam_prefs.sh for dist-native / Docker.'
-    echo "export MPI_ARCH_PATH=\"${BUNDLED}\""
-    echo "export OPAL_PREFIX=\"${BUNDLED}\""
-    echo "export OPAL_LIBDIR=\"${BUNDLED}\""
-    mca_file="$(
-      find "${STAGE}/lib/bundled/openmpi" \
-        \( -name 'mca_*.so' -o -name 'mca_*.dylib' \) -type f 2>/dev/null \
-        | head -1 || true
-    )"
-    if [[ -n "${mca_file}" ]]; then
-      mca_rel="${mca_file#"${STAGE}/lib/bundled/"}"
-      echo "export OMPI_MCA_mca_base_component_path=\"${BUNDLED}/$(dirname "${mca_rel}")\""
-    fi
-    if [[ -d "${STAGE}/lib/bundled/share/openmpi" ]]; then
-      echo "export OPAL_DATADIR=\"${BUNDLED}/share\""
-      echo "export OPAL_PKGDATADIR=\"${BUNDLED}/share/openmpi\""
-    fi
-    echo 'export OMPI_MCA_reachable="${OMPI_MCA_reachable:-^netlink}"'
-    echo 'export OMPI_MCA_btl_base_warn_component_unused="${OMPI_MCA_btl_base_warn_component_unused:-0}"'
-  } >"${PREFS_SYS_OPENMPI}"
-  echo "[rewrite_openfoam_prefs] Wrote ${PREFS_SYS_OPENMPI}"
-fi
-
-echo "[rewrite_openfoam_prefs] Updated ${BASHRC} (and prefs if present)"
+echo "[rewrite_openfoam_prefs] Cleaned prefs; etc/bashrc left without dist-native patches"

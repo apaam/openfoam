@@ -7,7 +7,8 @@
 #   openfoam docker pull
 #
 # Usage:
-#   openfoam docker run ~/my_case/Allrun
+#   openfoam docker run blockMesh
+#   openfoam docker run -np 4 icoFoam -parallel
 #   openfoam docker shell .
 
 set -euo pipefail
@@ -46,7 +47,6 @@ default_openfoam_image() {
 }
 
 OPENFOAM_IMAGE="${OPENFOAM_IMAGE:-$(default_openfoam_image)}"
-OPENFOAM_BASHRC="${OPENFOAM_BASHRC:-/opt/openfoam/etc/bashrc}"
 CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-openfoam docker}"
 
 platform_args() {
@@ -125,9 +125,13 @@ pack_basename() {
   printf '%s' "${OPENFOAM_IMAGE}" | tr '/:' '-'
 }
 
-openfoam_shell_cmd() {
-  local inner="$1"
-  printf 'source %q && %s' "${OPENFOAM_BASHRC}" "${inner}"
+# Non-interactive bash does not load ~/.bashrc; source it for parity with docker shell.
+docker_run_bashrc() {
+  local work_dir="$1"
+  shift
+  local inner
+  inner="$(printf 'source "${HOME}/.bashrc" && '; printf '%q ' "$@")"
+  docker_run_raw "${work_dir}" bash -c "${inner}"
 }
 
 docker_common_args() {
@@ -145,7 +149,7 @@ Image admin:
   pull                              Download the runtime image from a registry
 
 Run:
-  run <script> [args...]            Run a script in its directory
+  run [-np <N>] <command> [args...] Run a command in the current directory (container)
   shell [dir]                       Interactive shell (default: current directory)
 
 Environment:
@@ -154,7 +158,9 @@ Environment:
 
 Examples:
   openfoam docker pull
-  openfoam docker run ~/case/Allrun
+  openfoam docker run blockMesh
+  openfoam docker run -np 4 icoFoam -parallel
+  openfoam docker run ./Allrun
   openfoam docker shell .
 
 Case inputs and outputs stay on your machine.
@@ -240,14 +246,6 @@ docker_run_raw() {
   fi
 }
 
-docker_run_openfoam() {
-  local work_dir inner
-  work_dir="$1"
-  shift
-  inner="$(openfoam_shell_cmd "$(printf '%q ' "$@")")"
-  docker_run_raw "${work_dir}" bash -lc "${inner}"
-}
-
 cmd_shell() {
   local work_dir="${1:-.}"
   require_docker
@@ -271,7 +269,8 @@ cmd_shell() {
   fi
   pkg_container="/etc/openfoam_cli"
   wrapper_container="${pkg_container}/shell_bashrc.sh"
-  inner="$(openfoam_interactive_shell_cmd "openfoam:docker" "${OPENFOAM_BASHRC}" \
+  # Env comes from /root/.bashrc via shell_bashrc.sh (same as phynexis-v0).
+  inner="$(openfoam_interactive_shell_cmd "openfoam:docker" \
     "${wrapper_container}" "${pkg_container}")"
   # Do not exec: keep trap so pkg_host is removed after the container exits.
   if [[ -n "${platform}" ]]; then
@@ -290,45 +289,63 @@ cmd_shell() {
 }
 
 resolve_run_target() {
-  RUN_WORK_DIR=""
+  RUN_WORK_DIR="$(pwd)"
   RUN_CMD=()
+  local np=""
 
   if (("$#" == 0)); then
-    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
+    echo "Usage: ${CLI_PREFIX} run [-np <N>] <command> [args...]" >&2
     exit 1
   fi
 
-  local first="$1"
-  if [[ -f "${first}" ]]; then
-    first="$(abs_path "${first}")"
-    RUN_WORK_DIR="$(dirname "${first}")"
-    RUN_CMD=("./$(basename "${first}")")
-    shift
-    if (("$#" > 0)); then
-      RUN_CMD+=("$@")
+  while (("$#" > 0)); do
+    case "$1" in
+    -np | --np)
+      if (("$#" < 2)); then
+        echo "Missing value for $1" >&2
+        exit 1
+      fi
+      np="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      break
+      ;;
+    *)
+      break
+      ;;
+    esac
+  done
+
+  if (("$#" == 0)); then
+    echo "Usage: ${CLI_PREFIX} run [-np <N>] <command> [args...]" >&2
+    exit 1
+  fi
+
+  if [[ -n "${np}" ]]; then
+    if [[ ! "${np}" =~ ^[1-9][0-9]*$ ]]; then
+      echo "Invalid -np value: ${np}" >&2
+      exit 1
     fi
-  elif [[ -d "${first}" ]]; then
-    echo "Pass a script file, e.g. ${CLI_PREFIX} run ${first}/Allrun" >&2
-    echo "Or: ${CLI_PREFIX} shell ${first}" >&2
-    exit 1
+    RUN_CMD=(mpirun -np "${np}" "$@")
   else
-    echo "Not a script: ${first}" >&2
-    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
-    echo "Use: ${CLI_PREFIX} shell, then run OpenFOAM commands directly." >&2
-    exit 1
+    RUN_CMD=("$@")
   fi
 }
 
 cmd_run() {
   resolve_run_target "$@"
-  docker_run_openfoam "${RUN_WORK_DIR}" "${RUN_CMD[@]}"
+  docker_run_bashrc "${RUN_WORK_DIR}" "${RUN_CMD[@]}"
 }
 
 unknown_cmd() {
   local cmd="$1"
   echo "Unknown command: ${cmd}" >&2
   echo "Run: ${CLI_PREFIX} help" >&2
-  echo "Use: ${CLI_PREFIX} shell, then run OpenFOAM commands directly." >&2
   exit 1
 }
 

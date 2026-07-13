@@ -116,12 +116,12 @@ Top-level: `openfoam help`, `openfoam docker help`.
 |---------|---------|
 | `prefix` | Print install root (`OPENFOAM_PREFIX` or default `/opt/openfoam`) |
 | `completion bash\|zsh` | Tab completion |
-| `run <script> [args]` | Run Allrun or another script in its directory |
+| `run [-np N] <cmd> [args]` | Run a command in the current directory |
 | `shell [dir]` | Interactive shell with OpenFOAM environment |
 | `docker pull` | Pull runtime image |
 | `docker install-image [tar]` | Load offline image (`make dist-docker`); pass path when CLI is pip-installed |
 | `docker uninstall-image` | Remove runtime image |
-| `docker run …` / `docker shell …` | Run scripts or shell inside container |
+| `docker run …` / `docker shell …` | Same commands inside container (`/root/.bashrc`) |
 
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
@@ -167,8 +167,9 @@ eval "$(openfoam prefix)"
 source "$OPENFOAM_PREFIX/etc/bashrc"
 # or: source "$(openfoam prefix --path)/etc/bashrc"
 blockMesh -help
-openfoam run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
-openfoam docker run $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily/Allrun
+(cd "$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily" && openfoam run ./Allrun)
+(cd "$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily" && openfoam docker run ./Allrun)
+# openfoam run -np 4 icoFoam -parallel
 ```
 
 ## Docker

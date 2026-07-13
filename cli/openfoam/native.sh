@@ -22,7 +22,7 @@ abs_path() {
 
 openfoam_shell_cmd() {
   local inner="$1"
-  printf 'source %q && %s' "${OPENFOAM_BASHRC}" "${inner}"
+  openfoam_source_bashrc_cmd "${OPENFOAM_BASHRC}" "${inner}"
 }
 
 usage() {
@@ -35,15 +35,16 @@ ${CLI_PREFIX} — native OpenFOAM commands
 Set OPENFOAM_PREFIX to your install root; source <prefix>/etc/bashrc to load the env.
 
 Run:
-  run <script> [args...]            Run a script in its directory
+  run [-np <N>] <command> [args...] Run a command in the current directory
   shell [dir]                       Interactive shell (sources etc/bashrc)
 
 Examples:
   eval "\$(openfoam prefix)"
   source "\$OPENFOAM_PREFIX/etc/bashrc"
-  source "\$(openfoam prefix --path)/etc/bashrc"
   blockMesh -help
-  openfoam run ~/case/Allrun
+  openfoam run blockMesh
+  openfoam run -np 4 icoFoam -parallel
+  openfoam run ./Allrun
   openfoam shell .
 EOF
 }
@@ -98,7 +99,7 @@ cmd_completion() {
   esac
 }
 
-native_run() {
+native_run_in_dir() {
   require_native_prefix
   local work_dir="$1"
   shift
@@ -121,50 +122,68 @@ cmd_shell() {
     exit 1
   fi
   local inner
-  inner="$(openfoam_interactive_shell_cmd "openfoam" "${OPENFOAM_BASHRC}")"
+  inner="$(openfoam_shell_cmd "$(openfoam_interactive_shell_cmd "openfoam")")"
   (cd "${work_dir}" && exec bash -lc "${inner}")
 }
 
 resolve_run_target() {
-  RUN_WORK_DIR=""
+  RUN_WORK_DIR="$(pwd)"
   RUN_CMD=()
+  local np=""
 
   if (("$#" == 0)); then
-    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
+    echo "Usage: ${CLI_PREFIX} run [-np <N>] <command> [args...]" >&2
     exit 1
   fi
 
-  local first="$1"
-  if [[ -f "${first}" ]]; then
-    first="$(abs_path "${first}")"
-    RUN_WORK_DIR="$(dirname "${first}")"
-    RUN_CMD=("./$(basename "${first}")")
-    shift
-    if (("$#" > 0)); then
-      RUN_CMD+=("$@")
+  while (("$#" > 0)); do
+    case "$1" in
+    -np | --np)
+      if (("$#" < 2)); then
+        echo "Missing value for $1" >&2
+        exit 1
+      fi
+      np="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      break
+      ;;
+    *)
+      break
+      ;;
+    esac
+  done
+
+  if (("$#" == 0)); then
+    echo "Usage: ${CLI_PREFIX} run [-np <N>] <command> [args...]" >&2
+    exit 1
+  fi
+
+  if [[ -n "${np}" ]]; then
+    if [[ ! "${np}" =~ ^[1-9][0-9]*$ ]]; then
+      echo "Invalid -np value: ${np}" >&2
+      exit 1
     fi
-  elif [[ -d "${first}" ]]; then
-    echo "Pass a script file, e.g. ${CLI_PREFIX} run ${first}/Allrun" >&2
-    echo "Or: ${CLI_PREFIX} shell ${first}" >&2
-    exit 1
+    RUN_CMD=(mpirun -np "${np}" "$@")
   else
-    echo "Not a script: ${first}" >&2
-    echo "Usage: ${CLI_PREFIX} run <script> [args...]" >&2
-    echo "Source etc/bashrc and run OpenFOAM commands directly." >&2
-    exit 1
+    RUN_CMD=("$@")
   fi
 }
 
 cmd_run() {
   resolve_run_target "$@"
-  native_run "${RUN_WORK_DIR}" "${RUN_CMD[@]}"
+  native_run_in_dir "${RUN_WORK_DIR}" "${RUN_CMD[@]}"
 }
 
 unknown_cmd() {
   local cmd="$1"
   echo "Unknown command: ${cmd}" >&2
   echo "Run: ${CLI_PREFIX} help" >&2
-  echo "Source etc/bashrc and run OpenFOAM commands directly." >&2
   exit 1
 }
 

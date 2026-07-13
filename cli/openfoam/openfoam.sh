@@ -12,13 +12,13 @@ OpenFOAM CLI
 Native:
   prefix [--path]                   Print OPENFOAM_PREFIX (resolved install root)
   completion bash|zsh               Tab completion
-  run <script> [args...]            Run a script in its directory
+  run [-np <N>] <command> [args...] Run a command in the current directory
   shell [dir]                       Interactive shell (sources etc/bashrc)
 
 Set OPENFOAM_PREFIX to your install root; source <prefix>/etc/bashrc
 
 Docker:
-  docker run <script> ...           Same as native, in container
+  docker run [-np <N>] <command>... Same as native, in container (loads /root/.bashrc)
   docker shell [dir]                Interactive shell in container
   docker pull                       Download runtime image
   docker install-image [archive]    Load offline image (make dist-docker / docker-dist-docker)
@@ -29,8 +29,9 @@ Examples:
   export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
   source "\$OPENFOAM_PREFIX/etc/bashrc"
   blockMesh -help
-  openfoam run ~/my_case/Allrun
-  openfoam docker run ~/my_case/Allrun
+  openfoam run blockMesh
+  openfoam run -np 4 icoFoam -parallel
+  openfoam docker run ./Allrun
 
 See also: openfoam docker help
 EOF

@@ -13,18 +13,23 @@ if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! docker run --rm "${IMAGE}" bash -lc \
-  'source /opt/openfoam/etc/bashrc && command -v blockMesh >/dev/null'; then
+# Entrypoint loads /root/.bashrc (OF + bundled mpi-bin PATH).
+if ! docker run --rm "${IMAGE}" bash -c 'test -f /root/.bashrc'; then
+  echo "Missing /root/.bashrc" >&2
   exit 1
 fi
 
-if ! docker run --rm "${IMAGE}" bash -lc \
-  'source /opt/openfoam/etc/bashrc && blockMesh -help >/dev/null'; then
+if ! docker run --rm "${IMAGE}" bash -c 'command -v blockMesh >/dev/null'; then
+  echo "blockMesh not on PATH after entrypoint / root.bashrc" >&2
   exit 1
 fi
 
-if ! docker run --rm "${IMAGE}" bash -lc '
-  source /opt/openfoam/etc/bashrc
+if ! docker run --rm "${IMAGE}" blockMesh -help >/dev/null; then
+  echo "blockMesh -help failed" >&2
+  exit 1
+fi
+
+if ! docker run --rm "${IMAGE}" bash -c '
   missing=0
   for cmd in blockMesh; do
     bin="$(command -v "${cmd}" 2>/dev/null || true)"
@@ -35,9 +40,6 @@ if ! docker run --rm "${IMAGE}" bash -lc '
     done < <(ldd "${bin}" 2>/dev/null | grep "not found" || true)
   done
   if command -v mpirun >/dev/null 2>&1; then
-    # Relocated Debian OpenMPI needs MCA path (wrappers/prefs). --version is the
-    # cheap signal; full mpirun -np also needs sshd for plm_rsh and is not
-    # checked here.
     if ! mpirun_out="$(mpirun --version 2>&1)"; then
       echo "Missing or broken bundled mpirun (--version)" >&2
       echo "${mpirun_out}" >&2
@@ -59,6 +61,18 @@ if ! docker run --rm "${IMAGE}" bash -lc '
         missing=1
       fi
     fi
+  elif [[ -d /opt/openfoam/lib/bundled ]]; then
+    echo "mpirun not on PATH (root.bashrc should prepend lib/bundled/mpi-bin)" >&2
+    missing=1
+  fi
+  if grep -qF "Bundled runtime libraries (dist-native)" /opt/openfoam/etc/bashrc \
+    || grep -qF "Bundled OpenMPI relocation (dist-native)" /opt/openfoam/etc/bashrc; then
+    echo "etc/bashrc still contains dist-native bundled patches" >&2
+    missing=1
+  fi
+  if ! grep -qF "/opt/openfoam/etc/bashrc" /root/.bashrc; then
+    echo "/root/.bashrc does not source OpenFOAM etc/bashrc" >&2
+    missing=1
   fi
   exit "${missing}"
 '; then

@@ -9,9 +9,13 @@ FROM ${DOCKER_UBUNTU_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}
 
 ARG APT_MIRROR=
 
+# Runtime PATH / bundled mpi-bin come from /root/.bashrc (and entrypoint),
+# not from ENV here. Do not patch OpenFOAM etc/bashrc.
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    OPENFOAM_PREFIX=/opt/openfoam \
+    HOME=/root
 
 COPY docker/apt_setup.sh /usr/local/bin/apt_setup.sh
 COPY scripts/rewrite_openfoam_paths.sh /usr/local/bin/rewrite_openfoam_paths.sh
@@ -39,3 +43,10 @@ RUN mkdir -p /opt/openfoam \
      fi \
   && printf '%s\n' /opt/openfoam > /opt/openfoam/.pack-source-prefix \
   && test -f /opt/openfoam/etc/bashrc
+
+COPY docker/root.bashrc /root/.bashrc
+COPY docker/entrypoint.sh /usr/local/bin/openfoam-entrypoint
+RUN chmod +x /usr/local/bin/openfoam-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/openfoam-entrypoint"]
+CMD ["bash"]
