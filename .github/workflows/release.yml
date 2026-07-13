@@ -57,7 +57,8 @@ jobs:
         run: ls -la build/dist-native
 
       - name: Build dist-docker (${{ matrix.arch }})
-        run: DOCKER_ARCH=${{ matrix.arch }} make dist-docker
+        # Pass as make arg (not env): makefile `=` assignments override the environment.
+        run: make DOCKER_ARCH=${{ matrix.arch }} dist-docker
 
       - name: Upload docker image (${{ matrix.arch }})
         uses: actions/upload-artifact@v4

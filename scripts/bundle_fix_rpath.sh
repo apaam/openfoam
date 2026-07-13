@@ -279,9 +279,11 @@ is_openmpi_runtime_soname_linux() {
 is_ignored_system_dep_linux() {
   local dep="$1"
   local name
+  # Ubuntu/Debian usrmerge: ldd often reports /lib/<triplet>/libmpi.so.*
+  # (same inode as /usr/lib/...). OpenMPI must still be bundled for portable
+  # dist-native / Docker images that do not install system MPI.
   case "${dep}" in
-  /lib/* | /lib32/* | /lib64/*) return 0 ;;
-  /usr/lib/* | /usr/lib32/* | /usr/lib64/*)
+  /lib/* | /lib32/* | /lib64/* | /usr/lib/* | /usr/lib32/* | /usr/lib64/*)
     name="$(basename "${dep}")"
     if is_openmpi_runtime_soname_linux "${name}"; then
       return 1

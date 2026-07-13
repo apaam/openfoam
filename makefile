@@ -58,7 +58,7 @@ export FORCE := $(FORCE)
 DOCKER_HOST_ARCH := $(shell uname -m)
 ifeq ($(DOCKER_HOST_ARCH),x86_64)
   DOCKER_DEFAULT_PLATFORM := linux/amd64
-else ifeq ($(DOCKER_HOST_ARCH),arm64)
+else ifneq ($(filter arm64 aarch64,$(DOCKER_HOST_ARCH)),)
   DOCKER_DEFAULT_PLATFORM := linux/arm64
 else
   DOCKER_DEFAULT_PLATFORM := linux/amd64

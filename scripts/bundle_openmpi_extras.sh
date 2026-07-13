@@ -70,4 +70,13 @@ if [[ -n "${MPI_BIN_DIR}" && -d "${MPI_BIN_DIR}" ]]; then
   fi
 fi
 
+# Standard-ish prefix so etc/config.sh/mpi (SYSTEMOPENMPI) can resolve
+# MPI_ARCH_PATH/bin and MPI_ARCH_PATH/lib without a system OpenMPI install.
+if [[ -d "${RUNTIME_DIR}/mpi-bin" ]] && [[ ! -e "${RUNTIME_DIR}/bin" ]]; then
+  ln -sfn mpi-bin "${RUNTIME_DIR}/bin"
+fi
+if [[ ! -e "${RUNTIME_DIR}/lib" ]]; then
+  ln -sfn . "${RUNTIME_DIR}/lib"
+fi
+
 echo "[bundle_openmpi_extras] Done"

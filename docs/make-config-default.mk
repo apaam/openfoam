@@ -40,5 +40,6 @@ DOCKER_BUILD_IMAGE_NAME = phynexis-build
 DOCKER_OPENFOAM_IMAGE_NAME = openfoam
 DOCKER_UBUNTU_VERSION = 24.04
 DOCKER_REGISTRY =
-DOCKER_ARCH =
+# DOCKER_ARCH: leave unset so CI/env (DOCKER_ARCH=arm64) is not wiped by an empty =.
+# Override in make-config-user.mk or on the command line when needed.
 DOCKER_APT_MIRROR =
