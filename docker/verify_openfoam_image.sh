@@ -14,7 +14,9 @@ if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
 fi
 
 # Entrypoint loads /root/.bashrc (OF + bundled mpi-bin PATH).
-if ! docker run --rm "${IMAGE}" bash -c 'test -f /root/.bashrc'; then
+# Bypass entrypoint for the existence check so a sourcing failure is not
+# misreported as a missing file.
+if ! docker run --rm --entrypoint test "${IMAGE}" -f /root/.bashrc; then
   echo "Missing /root/.bashrc" >&2
   exit 1
 fi

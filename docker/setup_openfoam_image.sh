@@ -104,15 +104,17 @@ verify() {
   bash "${ROOT}/docker/verify_openfoam_image.sh" "${IMAGE}"
 }
 
-prune_dangling() {
-  local ids
-  ids="$(docker images --filter "dangling=true" -q || true)"
-  if [[ -z "${ids}" ]]; then
+# Remove only the image this rebuild untagged (not every dangling image).
+remove_replaced_image() {
+  local old_id="${1:-}"
+  local new_id=""
+  [[ -n "${old_id}" ]] || return 0
+  new_id="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
+  if [[ -z "${new_id}" || "${old_id}" == "${new_id}" ]]; then
     return 0
   fi
-  printf '==> Removing dangling image(s)\n'
-  # shellcheck disable=SC2086
-  docker rmi ${ids} >/dev/null 2>&1 || true
+  printf '==> Removing previous %s (%s)\n' "${IMAGE}" "${old_id#"sha256:"}"
+  docker rmi "${old_id}" >/dev/null 2>&1 || true
 }
 
 ARCHIVE=""
@@ -131,6 +133,8 @@ UBUNTU_VERSION="${UBUNTU_VERSION}" \
 mkdir -p "${CONTEXT_DIR}"
 cp "${ARCHIVE}" "${CONTEXT_DIR}/openfoam-native.tar.gz"
 
+PREV_IMAGE_ID="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
+
 DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
   --build-context "of-dist=${CONTEXT_DIR}" \
   -f "${DOCKERFILE}" \
@@ -142,8 +146,19 @@ DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
   --load \
   "${ROOT}"
 
-verify
-prune_dangling
+if ! verify; then
+  if [[ -n "${PREV_IMAGE_ID}" ]]; then
+    cat >&2 <<EOF
+[setup_openfoam_image] Verify failed; previous image kept as dangling.
+  Restore: docker tag ${PREV_IMAGE_ID} ${IMAGE}
+  Remove:  docker rmi ${PREV_IMAGE_ID}
+EOF
+  fi
+  exit 1
+fi
+
+# Only after a successful verify: drop the untagged previous image.
+remove_replaced_image "${PREV_IMAGE_ID}"
 
 mkdir -p "$(dirname "${IMAGE_TAR}")"
 printf '==> Saving %s -> %s\n' "${IMAGE}" "${IMAGE_TAR}"
