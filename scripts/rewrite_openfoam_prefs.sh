@@ -70,6 +70,10 @@ then
         export LD_LIBRARY_PATH="\${OPENFOAM_BUNDLED_LIB}\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
         ;;
     esac
+    if [ -d "\${OPENFOAM_BUNDLED_LIB}/mpi-bin" ]
+    then
+        export PATH="\${OPENFOAM_BUNDLED_LIB}/mpi-bin\${PATH:+:\$PATH}"
+    fi
 fi
 EOF
 fi

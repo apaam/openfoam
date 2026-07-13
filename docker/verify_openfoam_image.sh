@@ -18,6 +18,11 @@ if ! docker run --rm "${IMAGE}" bash -lc \
   exit 1
 fi
 
+if ! docker run --rm "${IMAGE}" bash -lc \
+  'source /opt/openfoam/etc/bashrc && blockMesh -help >/dev/null'; then
+  exit 1
+fi
+
 if ! docker run --rm "${IMAGE}" bash -lc '
   source /opt/openfoam/etc/bashrc
   missing=0
@@ -29,6 +34,17 @@ if ! docker run --rm "${IMAGE}" bash -lc '
       missing=1
     done < <(ldd "${bin}" 2>/dev/null | grep "not found" || true)
   done
+  if command -v mpirun >/dev/null 2>&1; then
+    mpirun --version >/dev/null 2>&1 || {
+      echo "Missing or broken bundled mpirun" >&2
+      missing=1
+    }
+    mca_dir="/opt/openfoam/lib/bundled/openmpi/lib/openmpi3"
+    if [[ ! -d "${mca_dir}" ]] || [[ -z "$(find "${mca_dir}" -name "mca_*.so" -print -quit 2>/dev/null)" ]]; then
+      echo "Missing OpenMPI MCA plugins under ${mca_dir}" >&2
+      missing=1
+    fi
+  fi
   exit "${missing}"
 '; then
   exit 1

@@ -110,6 +110,10 @@ set -eu
 SEARCH_PATHS="$(collect_search_paths)"
 export FIX_RPATH_SEARCH_PATHS="${SEARCH_PATHS}"
 
+# shellcheck disable=SC1091
+source "${ROOT}/scripts/bundle_openmpi_discover.sh"
+openmpi_discover_extras_paths "${STAGE}"
+
 targets=()
 while IFS= read -r path; do
   [[ -n "${path}" ]] || continue
@@ -147,5 +151,10 @@ if ((failures > 0)); then
 fi
 
 rm -f "${STAGE}"/.bundle-log-*.txt
+
+if [[ "${platform}" == "Linux" || "${platform}" == "Darwin" ]]; then
+  bash "${ROOT}/scripts/bundle_openmpi_extras.sh" "${STAGE}"
+fi
+
 date -u +%Y-%m-%dT%H:%M:%SZ > "${RUNTIME_DIR}/.bundle-stamp"
 echo "[bundle_openfoam_runtime] Done"

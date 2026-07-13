@@ -262,10 +262,32 @@ copy_linux_dep() {
   fi
 }
 
+is_openmpi_runtime_soname_linux() {
+  local name="$1"
+  case "${name}" in
+  libmpi.so* | libmpi_*.so* | libopen-*.so* | liboshmem.so* | \
+  libmca_*.so* | libmca_common_*.so* | libompitrace.so* | \
+  libpmix.so* | libhwloc.so* | libevent*.so* | libfabric.so* | \
+  libibverbs.so* | libpsm2.so* | libpsm_infinipath.so* | libucx.so* | \
+  libmunge.so*)
+    return 0
+    ;;
+  esac
+  return 1
+}
+
 is_ignored_system_dep_linux() {
   local dep="$1"
+  local name
   case "${dep}" in
-  /lib/* | /lib32/* | /lib64/* | /usr/lib/* | /usr/lib32/* | /usr/lib64/*) return 0 ;;
+  /lib/* | /lib32/* | /lib64/*) return 0 ;;
+  /usr/lib/* | /usr/lib32/* | /usr/lib64/*)
+    name="$(basename "${dep}")"
+    if is_openmpi_runtime_soname_linux "${name}"; then
+      return 1
+    fi
+    return 0
+    ;;
   esac
   return 1
 }
