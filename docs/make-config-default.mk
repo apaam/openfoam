@@ -2,33 +2,38 @@
 # Override in make-config-user.mk at the project root (git-ignored).
 #
 # Path model:
-#   BUILD_ROOT       — active build tree (compile / pack / make clean)
-#   DOCKER_BUILD_ROOT — used when CONTAINER_BUILD=1 (docker-shell)
-#   OPENFOAM_PREFIX  — runtime install root (CLI; default /opt/openfoam; not set here)
+#   BUILD_ROOT / DOCKER_BUILD_ROOT — build trees (components + pack/wheel/dist)
+#   INSTALL_PREFIX / DOCKER_INSTALL_PREFIX — make install destinations
+#   Components live under openfoam-build/ and cli-build/
 #
 # Prefer changing BUILD_ROOT / DOCKER_BUILD_ROOT; keep derived paths as $(BUILD_ROOT)/...
-# so docker-shell remapping stays consistent. make clean only removes $(BUILD_ROOT).
 
-# --- Native build (make openfoam / cli / all) ---
+# --- Native build ---
 BUILD_JOBS = 4
 BUILD_PY = python3
 OPENFOAM_VERSION = v2412
 
 BUILD_ROOT = build
 DOCKER_BUILD_ROOT = docker-build
+INSTALL_PREFIX = install
+DOCKER_INSTALL_PREFIX = docker-install
+
+# install: 1 = enable, 0 = skip that artifact
+INSTALL_PACK = 1
+INSTALL_WHEEL = 1
 
 OPENFOAM_BUILD = $(BUILD_ROOT)/openfoam-build
-OPENFOAM_CLI_BUILD = $(BUILD_ROOT)
-OPENFOAM_STAGE = $(BUILD_ROOT)/stage/openfoam-build
-BUILD_OPENFOAM_PACK_DIR = $(BUILD_ROOT)/openfoam-pack
+OPENFOAM_CLI_BUILD = $(BUILD_ROOT)/cli-build
+# Product pack staging (etc/ + openfoam/ + embedded CLI); not a copy of openfoam-build/.
+OPENFOAM_STAGE = $(BUILD_ROOT)/stage/pack
+BUILD_PACK_DIR = $(BUILD_ROOT)/pack
+BUILD_WHEEL_DIR = $(BUILD_ROOT)/wheel
 DIST_NATIVE_DIR = $(BUILD_ROOT)/dist-native
 DIST_DOCKER_DIR = $(BUILD_ROOT)/dist-docker
 BUILD_DOCKER_DIR = $(BUILD_ROOT)/docker
-BUILD_CLI_PACK_DIR = $(BUILD_ROOT)/cli-pack
-BUILD_CLI_WHEEL_DIR = $(BUILD_ROOT)/cli-wheel
-BUILD_CLI_BUILD_DIR = $(BUILD_ROOT)/cli-build
-BUILD_CLI_WHEEL_STAGE_DIR = $(BUILD_ROOT)/stage/cli-wheel
-BUILD_CLI_WHEEL_MATCH = openfoam_cli-*.whl
+BUILD_WHEEL_STAGE_DIR = $(BUILD_ROOT)/stage/cli-wheel
+BUILD_WHEEL_TMP_DIR = $(BUILD_ROOT)/stage/wheel-build
+BUILD_WHEEL_MATCH = openfoam_cli-*.whl
 OPENFOAM_BUILD_MODULES = 0
 OPENFOAM_SYSTEM_CHECK = auto
 OPENFOAM_SKIP_ALLWMAKE = auto
@@ -40,6 +45,5 @@ DOCKER_BUILD_IMAGE_NAME = phynexis-build
 DOCKER_OPENFOAM_IMAGE_NAME = openfoam
 DOCKER_UBUNTU_VERSION = 24.04
 DOCKER_REGISTRY =
-# DOCKER_ARCH: leave unset so CI/env (DOCKER_ARCH=arm64) is not wiped by an empty =.
-# Override in make-config-user.mk or on the command line when needed.
+# DOCKER_ARCH: leave unset so CI/env can set it without an empty override wiping it.
 DOCKER_APT_MIRROR =

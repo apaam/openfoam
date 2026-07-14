@@ -13,16 +13,24 @@ if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
   exit 1
 fi
 
-# Entrypoint loads /root/.bashrc (OF + bundled mpi-bin PATH).
-# Bypass entrypoint for the existence check so a sourcing failure is not
-# misreported as a missing file.
+# Entrypoint loads /root/.bashrc → product etc/bashrc → openfoam/etc/bashrc.
 if ! docker run --rm --entrypoint test "${IMAGE}" -f /root/.bashrc; then
   echo "Missing /root/.bashrc" >&2
   exit 1
 fi
 
-if ! docker run --rm "${IMAGE}" bash -c 'command -v blockMesh >/dev/null'; then
-  echo "blockMesh not on PATH after entrypoint / root.bashrc" >&2
+if ! docker run --rm --entrypoint test "${IMAGE}" -f /opt/openfoam/openfoam/etc/bashrc; then
+  echo "Missing /opt/openfoam/openfoam/etc/bashrc (upstream)" >&2
+  exit 1
+fi
+
+if ! docker run --rm --entrypoint bash "${IMAGE}" -c '
+  set +u
+  set --
+  source /opt/openfoam/etc/bashrc
+  command -v blockMesh >/dev/null
+'; then
+  echo "blockMesh not on PATH after source /opt/openfoam/etc/bashrc" >&2
   exit 1
 fi
 
@@ -48,32 +56,31 @@ if ! docker run --rm "${IMAGE}" bash -c '
       missing=1
     fi
     mca_file="$(
-      find /opt/openfoam/lib/bundled/openmpi \
+      find /opt/openfoam/openfoam/lib/openmpi \
         \( -name "mca_*.so" -o -name "mca_*.dylib" \) -type f 2>/dev/null \
         | head -1 || true
     )"
     if [[ -z "${mca_file}" ]]; then
-      echo "Missing OpenMPI MCA plugins under /opt/openfoam/lib/bundled/openmpi" >&2
+      echo "Missing OpenMPI MCA plugins under /opt/openfoam/openfoam/lib/openmpi" >&2
       missing=1
     fi
-    if find /opt/openfoam/lib/bundled/openmpi -name "mca_pmix*" -type f 2>/dev/null \
+    if find /opt/openfoam/openfoam/lib/openmpi -name "mca_pmix*" -type f 2>/dev/null \
       | grep -q .; then
-      if ! ls /opt/openfoam/lib/bundled/libpmix.so* >/dev/null 2>&1; then
+      if ! ls /opt/openfoam/openfoam/lib/libpmix.so* >/dev/null 2>&1; then
         echo "Missing bundled libpmix (required by OpenMPI MCA pmix)" >&2
         missing=1
       fi
     fi
-  elif [[ -d /opt/openfoam/lib/bundled ]]; then
-    echo "mpirun not on PATH (root.bashrc should prepend lib/bundled/mpi-bin)" >&2
+  elif [[ -f /opt/openfoam/openfoam/lib/.bundle-stamp ]]; then
+    echo "mpirun not on PATH after source etc/bashrc" >&2
     missing=1
   fi
-  if grep -qF "Bundled runtime libraries (dist-native)" /opt/openfoam/etc/bashrc \
-    || grep -qF "Bundled OpenMPI relocation (dist-native)" /opt/openfoam/etc/bashrc; then
-    echo "etc/bashrc still contains dist-native bundled patches" >&2
+  if ! grep -qF "openfoam/etc/bashrc" /opt/openfoam/etc/bashrc; then
+    echo "etc/bashrc does not source openfoam/etc/bashrc" >&2
     missing=1
   fi
   if ! grep -qF "/opt/openfoam/etc/bashrc" /root/.bashrc; then
-    echo "/root/.bashrc does not source OpenFOAM etc/bashrc" >&2
+    echo "/root/.bashrc does not source product etc/bashrc" >&2
     missing=1
   fi
   exit "${missing}"

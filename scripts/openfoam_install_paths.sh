@@ -2,7 +2,7 @@
 # Shared path lists for OpenFOAM install tree packaging.
 # build_openfoam.sh copies openfoam-source/ into OPENFOAM_BUILD (see docs/make-config-default.mk).
 # then Allwmake adds platforms/ and build/ (wmake objects) there.
-# Packaging outputs live under $(BUILD_ROOT)/stage/, openfoam-pack/, dist-native/, etc.
+# Packaging: $(BUILD_ROOT)/pack/, wheel/, dist-native/, stage/, etc.
 # shellcheck shell=bash
 
 # Optional OpenFOAM components (not built by default); omit from source sync.
@@ -87,13 +87,12 @@ openfoam_rsync_install_tree() {
       return 1
     fi
     if [[ -d "${src}/${item}" ]]; then
-      openfoam_safe_rm "${dst}/${item}"
-      mkdir -p "${dst}"
-      # lnInclude symlinks are required for wmake; keep them in prefix tar.
-      (cd "${src}" && tar -cf - \
+      # rsync avoids GNU tar extract races on Docker Desktop bind mounts.
+      mkdir -p "${dst}/${item}"
+      rsync -a --delete \
         --exclude='.DS_Store' \
         --exclude='*/.DS_Store' \
-        "${item}") | (cd "${dst}" && tar -xf -)
+        "${src}/${item}/" "${dst}/${item}/"
     else
       cp -a "${src}/${item}" "${dst}/${item}"
     fi
@@ -144,8 +143,8 @@ openfoam_pack_prefix_tar() {
   local archive="${2:?output .tar.gz}"
   local pack_parent
 
-  if [[ ! -e "${src}/src/OpenFOAM/lnInclude/addToRunTimeSelectionTable.H" ]]; then
-    echo "[openfoam_pack_prefix_tar] Missing lnInclude under ${src}; compile first (make)" >&2
+  if [[ ! -e "${src}/openfoam/src/OpenFOAM/lnInclude/addToRunTimeSelectionTable.H" ]]; then
+    echo "[openfoam_pack_prefix_tar] Missing lnInclude under ${src}/openfoam; compile first (make)" >&2
     exit 1
   fi
 

@@ -1,24 +1,24 @@
 -include docs/make-config-default.mk
 -include make-config-user.mk
 
-# Host tree before CONTAINER_BUILD remapping (for clean-all).
+# Host trees before CONTAINER_BUILD remapping.
 HOST_BUILD_ROOT := $(BUILD_ROOT)
+HOST_INSTALL_PREFIX := $(INSTALL_PREFIX)
 
-# docker-shell sets CONTAINER_BUILD=1: BUILD_ROOT → DOCKER_BUILD_ROOT.
-# Re-derive paths so literal user overrides still land under the container tree.
+# docker-shell: BUILD_ROOT → DOCKER_BUILD_ROOT; re-derive paths.
 ifeq ($(CONTAINER_BUILD),1)
   BUILD_ROOT := $(DOCKER_BUILD_ROOT)
+  INSTALL_PREFIX := $(DOCKER_INSTALL_PREFIX)
   OPENFOAM_BUILD := $(BUILD_ROOT)/openfoam-build
-  OPENFOAM_CLI_BUILD := $(BUILD_ROOT)
-  OPENFOAM_STAGE := $(BUILD_ROOT)/stage/openfoam-build
-  BUILD_OPENFOAM_PACK_DIR := $(BUILD_ROOT)/openfoam-pack
+  OPENFOAM_CLI_BUILD := $(BUILD_ROOT)/cli-build
+  OPENFOAM_STAGE := $(BUILD_ROOT)/stage/pack
+  BUILD_PACK_DIR := $(BUILD_ROOT)/pack
+  BUILD_WHEEL_DIR := $(BUILD_ROOT)/wheel
   DIST_NATIVE_DIR := $(BUILD_ROOT)/dist-native
   DIST_DOCKER_DIR := $(BUILD_ROOT)/dist-docker
   BUILD_DOCKER_DIR := $(BUILD_ROOT)/docker
-  BUILD_CLI_PACK_DIR := $(BUILD_ROOT)/cli-pack
-  BUILD_CLI_WHEEL_DIR := $(BUILD_ROOT)/cli-wheel
-  BUILD_CLI_BUILD_DIR := $(BUILD_ROOT)/cli-build
-  BUILD_CLI_WHEEL_STAGE_DIR := $(BUILD_ROOT)/stage/cli-wheel
+  BUILD_WHEEL_STAGE_DIR := $(BUILD_ROOT)/stage/cli-wheel
+  BUILD_WHEEL_TMP_DIR := $(BUILD_ROOT)/stage/wheel-build
 endif
 
 JOBS := $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS)))
@@ -40,18 +40,22 @@ export DOCKER_BUILD_ROOT := $(DOCKER_BUILD_ROOT)
 export OPENFOAM_BUILD := $(OPENFOAM_BUILD)
 export OPENFOAM_STAGE := $(OPENFOAM_STAGE)
 export OPENFOAM_CLI_BUILD := $(OPENFOAM_CLI_BUILD)
-export BUILD_OPENFOAM_PACK_DIR := $(BUILD_OPENFOAM_PACK_DIR)
+export BUILD_PACK_DIR := $(BUILD_PACK_DIR)
+export BUILD_WHEEL_DIR := $(BUILD_WHEEL_DIR)
 export DIST_NATIVE_DIR := $(DIST_NATIVE_DIR)
 export DIST_DOCKER_DIR := $(DIST_DOCKER_DIR)
 export BUILD_DOCKER_DIR := $(BUILD_DOCKER_DIR)
-export BUILD_CLI_PACK_DIR := $(BUILD_CLI_PACK_DIR)
-export BUILD_CLI_WHEEL_DIR := $(BUILD_CLI_WHEEL_DIR)
-export BUILD_CLI_BUILD_DIR := $(BUILD_CLI_BUILD_DIR)
-export BUILD_CLI_WHEEL_STAGE_DIR := $(BUILD_CLI_WHEEL_STAGE_DIR)
+export BUILD_WHEEL_STAGE_DIR := $(BUILD_WHEEL_STAGE_DIR)
+export BUILD_WHEEL_TMP_DIR := $(BUILD_WHEEL_TMP_DIR)
+export BUILD_WHEEL_MATCH := $(BUILD_WHEEL_MATCH)
 export OPENFOAM_BUILD_MODULES := $(OPENFOAM_BUILD_MODULES)
 export OPENFOAM_SYSTEM_CHECK := $(OPENFOAM_SYSTEM_CHECK)
 export OPENFOAM_SKIP_ALLWMAKE := $(OPENFOAM_SKIP_ALLWMAKE)
 export FORCE := $(FORCE)
+export INSTALL_PREFIX := $(INSTALL_PREFIX)
+export DOCKER_INSTALL_PREFIX := $(DOCKER_INSTALL_PREFIX)
+export INSTALL_PACK := $(INSTALL_PACK)
+export INSTALL_WHEEL := $(INSTALL_WHEEL)
 
 .DEFAULT_GOAL := help
 
@@ -83,8 +87,9 @@ OPENFOAM_DIST_VERSION := $(patsubst v%,%,$(OPENFOAM_VERSION))
 DOCKER_DIST_BASENAME := openfoam-docker-$(OPENFOAM_DIST_VERSION)-linux-$(DOCKER_IMAGE_SUFFIX)
 DOCKER_IMAGE_TAR = $(BUILD_DOCKER_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 
-.NOTPARALLEL: openfoam-pack dist-native cli-wheel cli-pack \
-	_docker-pack-image dist-docker docker-dist-native docker-dist-docker
+.NOTPARALLEL: pack wheel dist-native \
+	_docker-pack-image dist-docker docker-dist-native docker-dist-docker \
+	install all-install
 
 # =============================================================================
 # Build
@@ -95,25 +100,49 @@ openfoam: get-jobs sync-submodule
 
 cli:
 	@OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  bash scripts/install_openfoam_cli.sh "$(CURDIR)/$(OPENFOAM_CLI_BUILD)" "$(CURDIR)/$(OPENFOAM_BUILD)"
+	  bash scripts/install_openfoam_cli.sh \
+	    "$(CURDIR)/$(OPENFOAM_CLI_BUILD)" "$(CURDIR)/$(OPENFOAM_BUILD)"
 
-all: openfoam cli cli-wheel
+all: openfoam cli
 
 check-build:
 	@test -f $(OPENFOAM_BUILD)/etc/bashrc || \
 	  { echo "Missing $(OPENFOAM_BUILD)/etc/bashrc; run make openfoam first" >&2; exit 1; }
 
 # =============================================================================
-# Pack / dist (native openfoam + cli)
+# Package (peer forms: pack | wheel)
 # =============================================================================
 
-openfoam-pack: check-build
-	@PACK_DIR="$(CURDIR)/$(BUILD_OPENFOAM_PACK_DIR)" \
+pack: all
+	@PACK_DIR="$(CURDIR)/$(BUILD_PACK_DIR)" \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  OPENFOAM_BUNDLE_RUNTIME=0 \
 	  bash scripts/openfoam_pack.sh
 
-dist-native: openfoam cli cli-wheel
+wheel: cli
+	@OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+	  BUILD_PY=$(BUILD_PY) \
+	  WHEEL_OUT="$(CURDIR)/$(BUILD_WHEEL_DIR)" \
+	  bash scripts/cli_wheel.sh
+
+# =============================================================================
+# Install
+# =============================================================================
+
+install:
+	@INSTALL_PREFIX="$(INSTALL_PREFIX)" \
+	  INSTALL_PACK="$(INSTALL_PACK)" \
+	  INSTALL_WHEEL="$(INSTALL_WHEEL)" \
+	  BUILD_PY=$(BUILD_PY) \
+	  bash scripts/install_openfoam_prefix.sh
+
+all-install: all pack wheel install
+
+# =============================================================================
+# Dist
+# =============================================================================
+
+dist-native: all wheel
 	@PACK_DIR="$(CURDIR)/$(DIST_NATIVE_DIR)" \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  OPENFOAM_BUNDLE_RUNTIME=1 \
@@ -121,25 +150,6 @@ dist-native: openfoam cli cli-wheel
 	@DIST_DIR="$(CURDIR)/$(DIST_NATIVE_DIR)" \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  bash scripts/stage_cli_dist.sh
-
-cli-wheel:
-	@OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  BUILD_PY=$(BUILD_PY) \
-	  WHEEL_OUT="$(CURDIR)/$(BUILD_CLI_WHEEL_DIR)" \
-	  bash scripts/cli_wheel.sh
-
-cli-pack: cli
-	@PACK_DIR="$(CURDIR)/$(BUILD_CLI_PACK_DIR)" \
-	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  bash scripts/cli_pack.sh
-
-all-install: all
-	@wheel=$$(ls -t "$(BUILD_CLI_WHEEL_DIR)"/$(BUILD_CLI_WHEEL_MATCH) 2>/dev/null | head -1); \
-	if [ -z "$$wheel" ]; then \
-	  printf 'Wheel not found under %s; run make cli-wheel first\n' \
-	    "$(BUILD_CLI_WHEEL_DIR)" >&2; exit 1; fi; \
-	printf '[install] %s\n' "$$wheel"; \
-	$(BUILD_PY) -m pip install --force-reinstall "$$wheel"
 
 deps:
 	brew bundle -f
@@ -150,85 +160,100 @@ get-jobs:
 help:
 	@echo "OpenFOAM build system ($(OPENFOAM_VERSION), jobs=$(JOBS))"
 	@echo ""
-	@echo "Top-level:"
-	@echo "  make                         show this help"
-	@echo "  make openfoam                compile openfoam (-> $(OPENFOAM_BUILD)/)"
-	@echo "  make cli                     install cli locally (-> $(OPENFOAM_CLI_BUILD)/bin/)"
-	@echo "  make all                     openfoam + cli + cli-wheel"
-	@echo "  make all-install             all + pip install CLI wheel"
+	@echo "Build:"
+	@echo "  make openfoam                -> $(OPENFOAM_BUILD)/"
+	@echo "  make cli                     -> $(OPENFOAM_CLI_BUILD)/"
+	@echo "  make all                     openfoam + cli"
+	@echo ""
+	@echo "Package:"
+	@echo "  make pack                    one tar (OF+CLI) -> $(BUILD_PACK_DIR)/"
+	@echo "  make wheel                   one whl -> $(BUILD_WHEEL_DIR)/"
+	@echo ""
+	@echo "Install:"
+	@echo "  make install                 pack -> $(HOST_INSTALL_PREFIX)/ + pip wheel"
+	@echo "  make all-install             all + pack + wheel + install"
+	@echo "                               (INSTALL_PACK / INSTALL_WHEEL in make-config-user.mk)"
 	@echo ""
 	@echo "Dist:"
-	@echo "  make openfoam-pack           tar.gz, no bundle (-> $(BUILD_OPENFOAM_PACK_DIR)/)"
-	@echo "  make dist-native             host native + cli-pack + wheel (-> $(DIST_NATIVE_DIR)/)"
-	@echo "  make dist-docker             Linux host: native -> image + cli (-> $(HOST_BUILD_ROOT)/dist-docker/)"
+	@echo "  make dist-native             bundled tar + whl -> $(DIST_NATIVE_DIR)/"
+	@echo "  make dist-docker             Linux: image + host CLI pack/whl -> $(HOST_BUILD_ROOT)/dist-docker/"
 	@echo ""
-	@echo "CLI pack:"
-	@echo "  make cli-wheel               pip wheel (-> $(BUILD_CLI_WHEEL_DIR)/)"
-	@echo "  make cli-pack                tar.gz (-> $(BUILD_CLI_PACK_DIR)/)"
-	@echo ""
-	@echo "Docker (host only; refuse inside docker-shell):"
-	@echo "  make docker-shell            interactive $(DOCKER_BUILD_IMAGE) (-> $(DOCKER_BUILD_ROOT)/)"
-	@echo "  make docker-dist-native      container build + native tar (-> $(DOCKER_BUILD_ROOT)/)"
-	@echo "  make docker-dist-docker      container build + image + cli (-> $(DOCKER_BUILD_ROOT)/dist-docker/)"
+	@echo "Docker (host only):"
+	@echo "  make docker-shell            -> $(DOCKER_BUILD_ROOT)/"
+	@echo "  make docker-dist-native      container dist-native -> $(DOCKER_BUILD_ROOT)/"
+	@echo "  make docker-dist-docker      image + host CLI -> $(DOCKER_BUILD_ROOT)/dist-docker/"
 	@echo "  make docker-setup-base / docker-setup-build / docker-push / docker-prune-images"
 	@echo ""
-	@echo "Other:"
-	@echo "  make deps                    Homebrew dependencies (macOS)"
-	@echo "  FORCE=1 make openfoam        re-run Allwmake even if source unchanged"
-	@echo "  Version: set OPENFOAM_VERSION in make-config-user.mk (default $(OPENFOAM_VERSION))"
-	@echo ""
 	@echo "Clean:"
-	@echo "  make clean                   remove $(BUILD_ROOT)/"
-	@echo "  make clean-all               remove $(HOST_BUILD_ROOT)/ and $(DOCKER_BUILD_ROOT)/"
-	@echo "  make real-clean              clean + reset openfoam-source"
+	@echo "  make clean-build             remove $(HOST_BUILD_ROOT)/"
+	@echo "  make clean-docker-build      remove $(DOCKER_BUILD_ROOT)/"
+	@echo "  make clean-install           remove $(HOST_INSTALL_PREFIX)/"
+	@echo "  make clean-docker-install    remove $(DOCKER_INSTALL_PREFIX)/"
+	@echo "  make clean-submodules        reset openfoam-source"
 	@echo ""
 	@echo "After make all:"
 	@echo "  source $(OPENFOAM_BUILD)/etc/bashrc"
 	@echo "  export PATH=\"$(CURDIR)/$(OPENFOAM_CLI_BUILD)/bin:\$$PATH\""
 	@echo ""
-	@echo "Config: BUILD_ROOT=$(BUILD_ROOT) (docker-shell: $(DOCKER_BUILD_ROOT));"
-	@echo "        docs/make-config-default.mk, make-config-user.mk"
-	@echo "Runtime: OPENFOAM_PREFIX (CLI; default /opt/openfoam)"
+	@echo "After make all-install:"
+	@echo "  export OPENFOAM_PREFIX=$(CURDIR)/$(HOST_INSTALL_PREFIX)"
+	@echo "  source \"\$$OPENFOAM_PREFIX/etc/bashrc\""
+	@echo ""
+	@echo "Config: BUILD_ROOT=$(BUILD_ROOT) INSTALL_PREFIX=$(HOST_INSTALL_PREFIX)"
+	@echo "        docker: $(DOCKER_BUILD_ROOT) / $(DOCKER_INSTALL_PREFIX)"
 
 # --- Clean / submodule ---
 
-clean:
-	@case "$(BUILD_ROOT)" in \
+clean-build:
+	@case "$(HOST_BUILD_ROOT)" in \
 	  ""|"."|".."|"/"|*..*) \
-	    echo "Refusing to clean BUILD_ROOT='$(BUILD_ROOT)'" >&2; exit 1 ;; \
+	    echo "Refusing to clean HOST_BUILD_ROOT='$(HOST_BUILD_ROOT)'" >&2; \
+	    exit 1 ;; \
 	esac; \
-	rm -rf -- "$(BUILD_ROOT)"
+	rm -rf -- "$(HOST_BUILD_ROOT)" 2>/dev/null || true; \
+	rm -rf -- "$(HOST_BUILD_ROOT)"
 
-# Wipe host and docker-shell trees (independent of CONTAINER_BUILD).
-clean-all:
-	@for d in "$(HOST_BUILD_ROOT)" "$(DOCKER_BUILD_ROOT)"; do \
-	  case "$$d" in \
-	    ""|"."|".."|"/"|*..*) \
-	      echo "Refusing to clean '$$d'" >&2; exit 1 ;; \
-	  esac; \
-	done; \
-	rm -rf -- "$(HOST_BUILD_ROOT)"; \
-	if [ "$(HOST_BUILD_ROOT)" != "$(DOCKER_BUILD_ROOT)" ]; then \
-	  rm -rf -- "$(DOCKER_BUILD_ROOT)"; \
-	fi
+clean-docker-build:
+	@case "$(DOCKER_BUILD_ROOT)" in \
+	  ""|"."|".."|"/"|*..*) \
+	    echo "Refusing to clean DOCKER_BUILD_ROOT='$(DOCKER_BUILD_ROOT)'" >&2; \
+	    exit 1 ;; \
+	esac; \
+	rm -rf -- "$(DOCKER_BUILD_ROOT)" 2>/dev/null || true; \
+	rm -rf -- "$(DOCKER_BUILD_ROOT)"
 
-sync-submodule:
-	git -c submodule.recurse=false submodule sync -- openfoam-source
-	git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
+clean-install:
+	@case "$(HOST_INSTALL_PREFIX)" in \
+	  ""|"."|".."|"/"|*..*) \
+	    echo "Refusing to clean HOST_INSTALL_PREFIX='$(HOST_INSTALL_PREFIX)'" >&2; \
+	    exit 1 ;; \
+	esac; \
+	rm -rf -- "$(HOST_INSTALL_PREFIX)" 2>/dev/null || true; \
+	rm -rf -- "$(HOST_INSTALL_PREFIX)"
 
-real-clean: clean
+clean-docker-install:
+	@case "$(DOCKER_INSTALL_PREFIX)" in \
+	  ""|"."|".."|"/"|*..*) \
+	    echo "Refusing to clean DOCKER_INSTALL_PREFIX='$(DOCKER_INSTALL_PREFIX)'" >&2; \
+	    exit 1 ;; \
+	esac; \
+	rm -rf -- "$(DOCKER_INSTALL_PREFIX)" 2>/dev/null || true; \
+	rm -rf -- "$(DOCKER_INSTALL_PREFIX)"
+
+clean-submodules:
 	@if [ -d openfoam-source ]; then \
 	  chflags -R nouchg openfoam-source 2>/dev/null; \
 	  chmod -R u+w openfoam-source 2>/dev/null; \
-	  find openfoam-source -name .DS_Store -delete 2>/dev/null; \
-	  rm -rf openfoam-source || { \
-	    find openfoam-source -mindepth 1 -delete 2>/dev/null; \
-	    rm -rf openfoam-source; \
-	  }; \
+	  rm -rf openfoam-source 2>/dev/null || true; \
+	  rm -rf openfoam-source; \
 	fi
 	@test ! -d openfoam-source
 	git checkout openfoam-source
 	$(MAKE) sync-submodule
+
+sync-submodule:
+	git -c submodule.recurse=false submodule sync -- openfoam-source
+	git -c submodule.recurse=false submodule update --init --depth 1 -- openfoam-source
 
 # --- Docker ---
 
@@ -261,7 +286,6 @@ docker-setup-base: docker-host-guard
 	DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
 	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup_base_image.sh
 
-# Internal: pack linux native under current BUILD_ROOT -> image (+ BUILD_DOCKER_DIR/).
 _docker-pack-image: docker-host-guard
 	@DOCKER_OPENFOAM_IMAGE=$(DOCKER_OPENFOAM_IMAGE) \
 	  DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
@@ -275,8 +299,8 @@ _docker-pack-image: docker-host-guard
 	  OPENFOAM_NATIVE_DIST="$(OPENFOAM_NATIVE_DIST)" \
 	  bash docker/setup_openfoam_image.sh
 
-# Internal: export image tar + CLI into $(1)/dist-docker/ from $(1)/{docker,dist-native}.
-# $(2) is CONTAINER_BUILD for optional CLI rebuild (empty = host).
+# Export image + host CLI pack + wheel into $(1)/dist-docker/.
+# $(2) is CONTAINER_BUILD when rebuilding CLI from that tree.
 define _dist-docker-export
 img_tar="$(1)/docker/$(DOCKER_DIST_BASENAME).tar.gz"; \
 if [ ! -f "$$img_tar" ]; then \
@@ -288,22 +312,14 @@ mkdir -p "$(1)/dist-docker"; \
 printf '[dist-docker] Exporting %s -> %s/dist-docker/\n' \
   "$$img_tar" "$(1)"; \
 cp "$$img_tar" "$(1)/dist-docker/$(DOCKER_DIST_BASENAME).tar.gz"; \
-if ls "$(1)/dist-native"/$(BUILD_CLI_WHEEL_MATCH) >/dev/null 2>&1; then \
-  cp "$(1)/dist-native"/$(BUILD_CLI_WHEEL_MATCH) "$(1)/dist-docker/"; \
-  cp "$(1)/dist-native"/openfoam-cli-*.tar.gz "$(1)/dist-docker/"; \
-  printf '[dist-docker] Reused CLI from %s/dist-native\n' "$(1)"; \
-else \
-  $(MAKE) CONTAINER_BUILD=$(2) BUILD_ROOT=$(1) cli cli-wheel; \
-  DIST_DIR="$(CURDIR)/$(1)/dist-docker" \
-    OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-    bash scripts/stage_cli_dist.sh; \
-fi; \
+$(MAKE) CONTAINER_BUILD=$(2) BUILD_ROOT=$(1) cli wheel; \
+DIST_DIR="$(CURDIR)/$(1)/dist-docker" \
+  HOST_CLI_PACK=1 \
+  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
+  bash scripts/stage_cli_dist.sh; \
 printf '[dist-docker] Done (%s/dist-docker/)\n' "$(1)"
 endef
 
-# Host linux build/ -> runtime image + cli tar (no docker-build/).
-# Always uses HOST_BUILD_ROOT even if CONTAINER_BUILD=1 is set in the environment.
-# On macOS: skip (exit 0) — use docker-dist-docker instead.
 dist-docker:
 ifeq ($(shell uname -s),Darwin)
 	@printf 'dist-docker packs host linux native into a Linux image.\n' >&2
@@ -314,7 +330,6 @@ else
 	@$(call _dist-docker-export,$(HOST_BUILD_ROOT),)
 endif
 
-# Internal: compile + dist-native into docker-build/ (used by docker-dist-*).
 _docker-compile: docker-host-guard
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
@@ -325,11 +340,9 @@ _docker-compile: docker-host-guard
 	  FORCE=$(FORCE) \
 	  bash docker/compile_openfoam.sh
 
-# Host convenience: container tree -> native dist.
 docker-dist-native: _docker-compile
 	@printf '[docker-dist-native] Done (%s/dist-native/)\n' "$(DOCKER_BUILD_ROOT)"
 
-# Host convenience: container tree -> image + cli + tar.
 docker-dist-docker: _docker-compile
 	@$(MAKE) CONTAINER_BUILD=1 _docker-pack-image
 	@$(call _dist-docker-export,$(DOCKER_BUILD_ROOT),1)
@@ -353,11 +366,12 @@ docker-push: docker-host-guard
 docker-prune-images:
 	@docker image prune -f
 
-.PHONY: help openfoam cli all all-install get-jobs deps sync-submodule clean clean-all real-clean \
-	check-build \
-	openfoam-pack dist-native \
-	cli-wheel cli-pack \
+.PHONY: help openfoam cli all pack wheel install all-install \
+	get-jobs deps sync-submodule \
+	clean-build clean-docker-build clean-install clean-docker-install \
+	clean-submodules check-build \
+	dist-native dist-docker \
 	docker-host-guard docker-setup-build docker-shell \
 	docker-setup-base _docker-pack-image docker-push \
-	_docker-compile docker-dist-native docker-dist-docker dist-docker \
+	_docker-compile docker-dist-native docker-dist-docker \
 	docker-prune-images

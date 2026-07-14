@@ -2,6 +2,8 @@
 local/
 build/
 docker-build/
+install/
+docker-install/
 make-config-user.mk
 
 # Python

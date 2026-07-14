@@ -17,6 +17,16 @@ def _package_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+def _has_bashrc(root: Path) -> bool:
+    product = root / "etc" / "bashrc"
+    upstream = root / "openfoam" / "etc" / "bashrc"
+    if product.is_file() and upstream.is_file():
+        return True
+    if product.is_file() and not (root / "openfoam").is_dir():
+        return True
+    return False
+
+
 def _rewrite_installed_prefix(installed: Path) -> None:
     marker = installed / ".pack-source-prefix"
     rewritten = installed / _REWRITE_MARKER
@@ -30,8 +40,10 @@ def _rewrite_installed_prefix(installed: Path) -> None:
             if script.is_file():
                 import subprocess
 
+                of_tree = installed / "openfoam"
+                target = of_tree if (of_tree / "etc" / "bashrc").is_file() else installed
                 subprocess.run(
-                    ["bash", str(script), str(installed), old_prefix, new_prefix],
+                    ["bash", str(script), str(target), old_prefix, new_prefix],
                     check=True,
                 )
     rewritten.write_text(str(installed.resolve()), encoding="utf-8")
@@ -42,8 +54,7 @@ def _local_build_prefix() -> Optional[Path]:
     if not str(pkg_dir).endswith("/share/openfoam/cli"):
         return None
     cli_root = pkg_dir.parent.parent.parent.resolve()
-    bashrc = cli_root / "etc" / "bashrc"
-    if bashrc.is_file():
+    if (cli_root / "etc" / "bashrc").is_file():
         return cli_root
     return None
 
@@ -68,7 +79,7 @@ def native_prefix() -> Path:
         return _PREFIX
 
     root = runtime_prefix()
-    if not (root / "etc" / "bashrc").is_file():
+    if not _has_bashrc(root):
         raise FileNotFoundError(
             f"OpenFOAM install not found at {root}; "
             f"extract openfoam-native tar or set OPENFOAM_PREFIX"

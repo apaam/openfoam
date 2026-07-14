@@ -61,16 +61,22 @@ Derived outputs use `$(BUILD_ROOT)/…` (e.g. `openfoam-build`, `dist-native`). 
 openfoam/
 ├── openfoam-source/      # OpenFOAM source (git submodule)
 ├── build/                # default BUILD_ROOT (host)
-│   ├── bin/              # local CLI (OPENFOAM_CLI_BUILD)
-│   ├── share/            # local CLI data + completions
-│   ├── openfoam-build/   # WM_PROJECT_DIR (OPENFOAM_BUILD)
-│   ├── cli-wheel/        # pip wheel output
-│   ├── cli-pack/         # CLI tar.gz
-│   ├── openfoam-pack/    # native openfoam tar.gz (dev pack)
-│   ├── dist-native/      # host native release bundle
-│   ├── dist-docker/      # host docker release bundle
-│   ├── stage/            # staging for pack
+│   ├── openfoam-build/   # WM_PROJECT_DIR (make openfoam)
+│   ├── cli-build/        # local CLI (make cli)
+│   ├── pack/             # one tar: product root (etc/ + openfoam/ + CLI)
+│   ├── wheel/            # one whl (make wheel)
+│   ├── dist-native/      # bundled tar + whl
+│   ├── dist-docker/      # image + host CLI pack/whl
+│   ├── stage/
+│   │   ├── pack/         # product pack tree (etc/ + openfoam/ + CLI)
+│   │   ├── cli-wheel/    # wheel pyproject staging
+│   │   └── wheel-build/  # setuptools build-base
 │   └── docker/           # image build intermediates
+├── install/              # INSTALL_PREFIX (make install / all-install)
+│   ├── etc/bashrc        # product wrapper → source openfoam/etc/bashrc
+│   ├── openfoam/         # upstream OpenFOAM tree
+│   ├── bin/              # embedded CLI
+│   └── share/
 ├── docker-build/         # DOCKER_BUILD_ROOT (mirrors build/ under docker-shell)
 ├── cli/                  # openfoam CLI sources
 ├── docker/               # Docker image build scripts
@@ -87,26 +93,26 @@ openfoam/
 |--------|-------------|
 | `make help` | List main targets (default) |
 | `make openfoam` | Compile OpenFOAM → `$(BUILD_ROOT)/openfoam-build/` |
-| `make cli` | Install CLI locally → `$(BUILD_ROOT)/bin/` |
-| `make all` | `openfoam` + `cli` + `cli-wheel` |
-| `make all-install` | `all` + pip install CLI wheel |
-| `make openfoam-pack` | tar.gz from existing build (no bundle) |
-| `make dist-native` | Host native release → `$(BUILD_ROOT)/dist-native/` |
-| `make cli-wheel` | CLI pip wheel → `$(BUILD_ROOT)/cli-wheel/` |
-| `make cli-pack` | CLI tar.gz → `$(BUILD_ROOT)/cli-pack/` |
-| `make dist-docker` | Linux host: pack host linux native → `build/dist-docker/` (macOS: use `docker-dist-docker`) |
+| `make cli` | Install CLI locally → `$(BUILD_ROOT)/cli-build/` |
+| `make all` | `openfoam` + `cli` |
+| `make pack` | One tar (OF+CLI) → `$(BUILD_ROOT)/pack/` |
+| `make wheel` | CLI pip wheel → `$(BUILD_ROOT)/wheel/` |
+| `make install` | Unpack pack → `INSTALL_PREFIX` + pip wheel |
+| `make all-install` | `all` + `pack` + `wheel` + `install` (`INSTALL_PACK` / `INSTALL_WHEEL` in user.mk) |
+| `make dist-native` | Bundled tar + whl → `$(BUILD_ROOT)/dist-native/` |
+| `make dist-docker` | Linux: image + host CLI pack/whl → `build/dist-docker/` (macOS: use `docker-dist-docker`) |
 | `make docker-dist-native` | Container build → `docker-build/dist-native/` |
-| `make docker-dist-docker` | Container build + image + CLI → `docker-build/dist-docker/` |
+| `make docker-dist-docker` | Container build + image + host CLI → `docker-build/dist-docker/` |
 | `make docker-shell` | Interactive build container (`BUILD_ROOT=docker-build`) |
 | `make docker-setup-base` | Optional: pull Ubuntu base |
 | `make deps` | Install dependencies (macOS only) |
-| `make clean` | Remove current `$(BUILD_ROOT)/` |
-| `make clean-all` | Remove host and docker-shell trees (`HOST_BUILD_ROOT` + `DOCKER_BUILD_ROOT`) |
-| `make real-clean` | `clean` + reset `openfoam-source` |
+| `make clean-build` | Remove current `$(BUILD_ROOT)/` |
+| `make clean-install` | Remove `INSTALL_PREFIX` |
+| `make real-clean` | `clean-build` + reset `openfoam-source` |
 
 ## Distribution
 
-Release bundles: `dist-native` (per-host native tar + CLI), `dist-docker` (Linux Docker image + CLI; no macOS image). Intermediate packs: `openfoam-pack`, `cli-pack`, `cli-wheel`.
+Release bundles: `dist-native` (bundled OF+CLI tar + wheel), `dist-docker` (Linux Docker image + host CLI pack/whl). Dev intermediates: `pack`, `wheel`.
 
 ### CLI reference
 
@@ -125,17 +131,17 @@ Top-level: `openfoam help`, `openfoam docker help`.
 
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
-| local dev | `make all` | `$(BUILD_ROOT)/bin/openfoam` or `make all-install` |
-| macOS / Linux native | `tar xzf openfoam-native-*.tar.gz -C <prefix>` (`make dist-native`) | `pip install openfoam_cli-*.whl` or `tar xzf openfoam-cli-*.tar.gz` |
+| local dev | `make all` | `$(BUILD_ROOT)/cli-build/bin/openfoam` or `make all-install` |
+| macOS / Linux native | `tar xzf openfoam-native-*.tar.gz -C <prefix>` (`make dist-native`) | `pip install openfoam_cli-*.whl` |
 | Docker (Linux image only) | `openfoam docker install-image` (`make dist-docker` on Linux / CI; `make docker-dist-docker` on macOS) | host `pip install openfoam_cli-*.whl` |
 
 | Make target | Output |
 |-------------|--------|
-| `dist-native` | `build/dist-native/` — host `openfoam-native-*.tar.gz`, CLI wheel/pack |
-| `dist-docker` | `build/dist-docker/` — Linux host image + CLI |
+| `pack` / `wheel` | `build/pack/` one tar; `build/wheel/` one whl |
+| `dist-native` | `build/dist-native/` — `openfoam-native-*.tar.gz` + `openfoam_cli-*.whl` |
+| `dist-docker` | `build/dist-docker/` — Linux image + host CLI pack/whl |
 | `docker-dist-native` | `docker-build/dist-native/` — container linux native |
-| `docker-dist-docker` | `docker-build/dist-docker/` — container image + CLI |
-| `cli-wheel` | `build/cli-wheel/openfoam_cli-*.whl` |
+| `docker-dist-docker` | `docker-build/dist-docker/` — container image + host CLI |
 
 ### Shell setup
 
@@ -144,14 +150,13 @@ Load OpenFOAM the native way: `source <prefix>/etc/bashrc`.
 ```bash
 # local dev (BUILD_ROOT=build)
 source build/openfoam-build/etc/bashrc
-export PATH="build/bin:$PATH"
+export PATH="build/cli-build/bin:$PATH"
 
 # native release (dist-native)
 mkdir -p ~/opt/openfoam && tar xzf build/dist-native/openfoam-native-*.tar.gz -C ~/opt/openfoam
 source ~/opt/openfoam/etc/bashrc
 export OPENFOAM_PREFIX=~/opt/openfoam
 pip install build/dist-native/openfoam_cli-*.whl
-# or: tar xzf build/dist-native/openfoam-cli-*.tar.gz -C ~/opt/cli && export PATH=~/opt/cli/bin:$PATH
 
 # docker (pip-installed CLI does not auto-find repo dist-docker/)
 pip install build/dist-docker/openfoam_cli-*.whl
@@ -207,7 +212,7 @@ After `make all`:
 
 ```bash
 source build/openfoam-build/etc/bashrc
-export PATH="build/bin:$PATH"
+export PATH="build/cli-build/bin:$PATH"
 wmake
 ```
 

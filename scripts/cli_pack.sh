@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Host CLI specialty: pack openfoam-cli-*.tar.gz from OPENFOAM_CLI_BUILD into PACK_DIR.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +12,7 @@ openfoam_load_build_paths "${ROOT}"
 
 CLI_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_CLI_BUILD}")"
 OPENFOAM_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_BUILD}")"
-PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_CLI_PACK_DIR:-${BUILD_ROOT}/cli-pack}}"
+PACK_DIR="${PACK_DIR:-${ROOT}/${DIST_DOCKER_DIR}}"
 case "${PACK_DIR}" in
 /*) ;;
 *) PACK_DIR="${ROOT}/${PACK_DIR}" ;;
@@ -34,15 +35,14 @@ fi
 # shellcheck source=../cli/openfoam/manifest.sh
 source "${ROOT}/cli/openfoam/manifest.sh"
 write_cli_manifest "${CLI_BUILD}/share/openfoam/cli/manifest.json" "pack" 0 "${version}"
-stamp="${CLI_BUILD}/share/openfoam/cli/manifest.json"
 
 if [[ -f "${archive}" && -f "${stamp}" && "${archive}" -nt "${stamp}" ]]; then
-  echo "[cli-pack] Up to date: ${archive}"
+  echo "[cli_pack] Up to date: ${archive}"
   ls -la "${archive}"
   exit 0
 fi
 
-echo "[cli-pack] CLI -> ${archive}"
+echo "[cli_pack] Host CLI -> ${archive}"
 mkdir -p "$(dirname "${archive}")"
 tar -czf "${archive}" -C "${CLI_BUILD}" \
   --exclude='.DS_Store' \

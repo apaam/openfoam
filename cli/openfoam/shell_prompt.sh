@@ -4,24 +4,12 @@ openfoam_shell_bashrc_path() {
   cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
 }
 
-# After sourcing OpenFOAM etc/bashrc: expose bundled mpi-bin on PATH only.
-# Libs use rpath; OPAL/MCA come from mpi-bin wrappers — do not patch OF bashrc.
-openfoam_activate_bundled_snippet() {
-  cat <<'EOF'
-if [ -n "${WM_PROJECT_DIR:-}" ] && [ -d "${WM_PROJECT_DIR}/lib/bundled/mpi-bin" ]; then
-  case ":${PATH}:" in
-  *":${WM_PROJECT_DIR}/lib/bundled/mpi-bin:"*) ;;
-  *) export PATH="${WM_PROJECT_DIR}/lib/bundled/mpi-bin${PATH:+:$PATH}" ;;
-  esac
-fi
-EOF
-}
-
+# Packaged installs wire bundled MPI via etc/config.sh/prefs.sys-openmpi;
+# sourcing etc/bashrc is enough (no extra PATH/LD snippet).
 openfoam_source_bashrc_cmd() {
   local bashrc="$1"
   local inner="$2"
-  printf 'source %q && %s && %s' \
-    "${bashrc}" "$(openfoam_activate_bundled_snippet)" "${inner}"
+  printf 'source %q && %s' "${bashrc}" "${inner}"
 }
 
 # Interactive shell: rely on --rcfile (shell_bashrc.sh → ~/.bashrc in Docker).

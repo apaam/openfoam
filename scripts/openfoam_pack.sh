@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Build one openfoam-native-*.tar.gz (OF tree + embedded CLI) into PACK_DIR.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +20,7 @@ fi
 FORCE_STAGE="${FORCE_STAGE:-0}"
 
 OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
-PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_OPENFOAM_PACK_DIR:-${BUILD_ROOT}/openfoam-pack}}"
+PACK_DIR="${PACK_DIR:-${ROOT}/${BUILD_PACK_DIR}}"
 case "${PACK_DIR}" in
 /*) ;;
 *) PACK_DIR="${ROOT}/${PACK_DIR}" ;;
@@ -35,14 +36,19 @@ mkdir -p "${PACK_DIR}"
 archive="${PACK_DIR}/openfoam-native-${version}-${os_name}-${arch}.tar.gz"
 
 if [[ -f "${archive}" && -f "${STAGE_STAMP}" && "${archive}" -nt "${STAGE_STAMP}" ]] \
-  && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}"; then
-  echo "[openfoam-pack] Up to date: ${archive}"
+  && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}" \
+  && [[ -f "${OPENFOAM_STAGE}/etc/bashrc" ]] \
+  && [[ -f "${OPENFOAM_STAGE}/openfoam/etc/bashrc" ]] \
+  && [[ -x "${OPENFOAM_STAGE}/bin/openfoam" ]] \
+  && [[ ! -d "${OPENFOAM_STAGE}/platforms" ]] \
+  && [[ ! -d "${OPENFOAM_STAGE}/etc/config.sh" ]]; then
+  echo "[pack] Up to date: ${archive}"
   ls -la "${archive}"
   exit 0
 fi
 
 FORCE_STAGE="${FORCE_STAGE}" bash "${ROOT}/scripts/prepare_openfoam_pack_tree.sh"
 
-echo "[openfoam-pack] Native install -> ${archive} (bundle=${OPENFOAM_BUNDLE_RUNTIME})"
+echo "[pack] -> ${archive} (bundle=${OPENFOAM_BUNDLE_RUNTIME})"
 openfoam_pack_prefix_tar "${OPENFOAM_STAGE}" "${archive}"
 ls -la "${archive}"

@@ -212,6 +212,10 @@ compile_openfoam() {
     echo "[build_openfoam] Skipping foamSystemCheck (OPENFOAM_SYSTEM_CHECK=${OPENFOAM_SYSTEM_CHECK})"
   fi
 
+  # Parent `make -jN` sets MAKEFLAGS with a jobserver that nested wmake cannot
+  # inherit (recipe has no '+'). Drop it so Allwmake -j "${NUM_JOBS}" is honored.
+  unset MAKEFLAGS MFLAGS
+
   local allwmake_status=0
   if [[ "${incremental}" == true ]]; then
     echo "[build_openfoam] Incremental Allwmake (-s only)"

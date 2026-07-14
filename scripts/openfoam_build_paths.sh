@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
 # Build path helpers (tracked defaults: docs/make-config-default.mk).
 # openfoam_load_build_paths: load config, apply CONTAINER_BUILD remap, then defaults.
-#
-# BUILD_ROOT — active build tree; DOCKER_BUILD_ROOT when CONTAINER_BUILD=1.
-# OPENFOAM_PREFIX — runtime install (CLI); not managed here.
 
 openfoam_apply_build_path_defaults() {
   : "${BUILD_ROOT:=build}"
   : "${DOCKER_BUILD_ROOT:=docker-build}"
+  : "${INSTALL_PREFIX:=install}"
+  : "${DOCKER_INSTALL_PREFIX:=docker-install}"
+  : "${INSTALL_PACK:=1}"
+  : "${INSTALL_WHEEL:=1}"
   : "${OPENFOAM_BUILD:=${BUILD_ROOT}/openfoam-build}"
-  : "${OPENFOAM_STAGE:=${BUILD_ROOT}/stage/openfoam-build}"
-  : "${OPENFOAM_CLI_BUILD:=${BUILD_ROOT}}"
-  : "${BUILD_OPENFOAM_PACK_DIR:=${BUILD_ROOT}/openfoam-pack}"
+  : "${OPENFOAM_CLI_BUILD:=${BUILD_ROOT}/cli-build}"
+  # Product pack staging (etc/ + openfoam/ + CLI), not openfoam-build mirror.
+  : "${OPENFOAM_STAGE:=${BUILD_ROOT}/stage/pack}"
+  : "${BUILD_PACK_DIR:=${BUILD_ROOT}/pack}"
+  : "${BUILD_WHEEL_DIR:=${BUILD_ROOT}/wheel}"
   : "${DIST_NATIVE_DIR:=${BUILD_ROOT}/dist-native}"
   : "${DIST_DOCKER_DIR:=${BUILD_ROOT}/dist-docker}"
   : "${BUILD_DOCKER_DIR:=${BUILD_ROOT}/docker}"
-  : "${BUILD_CLI_PACK_DIR:=${BUILD_ROOT}/cli-pack}"
-  : "${BUILD_CLI_WHEEL_DIR:=${BUILD_ROOT}/cli-wheel}"
-  : "${BUILD_CLI_BUILD_DIR:=${BUILD_ROOT}/cli-build}"
-  : "${BUILD_CLI_WHEEL_STAGE_DIR:=${BUILD_ROOT}/stage/cli-wheel}"
+  : "${BUILD_WHEEL_STAGE_DIR:=${BUILD_ROOT}/stage/cli-wheel}"
+  : "${BUILD_WHEEL_TMP_DIR:=${BUILD_ROOT}/stage/wheel-build}"
+  : "${BUILD_WHEEL_MATCH:=openfoam_cli-*.whl}"
 }
 
-# Match makefile CONTAINER_BUILD=1 remapping (docker-shell isolated tree).
 openfoam_apply_container_build_paths() {
   case "${CONTAINER_BUILD:-}" in
   1) ;;
@@ -29,18 +30,19 @@ openfoam_apply_container_build_paths() {
   esac
 
   : "${DOCKER_BUILD_ROOT:=docker-build}"
+  : "${DOCKER_INSTALL_PREFIX:=docker-install}"
   export BUILD_ROOT="${DOCKER_BUILD_ROOT}"
+  export INSTALL_PREFIX="${DOCKER_INSTALL_PREFIX}"
   export OPENFOAM_BUILD="${BUILD_ROOT}/openfoam-build"
-  export OPENFOAM_CLI_BUILD="${BUILD_ROOT}"
-  export OPENFOAM_STAGE="${BUILD_ROOT}/stage/openfoam-build"
-  export BUILD_OPENFOAM_PACK_DIR="${BUILD_ROOT}/openfoam-pack"
+  export OPENFOAM_CLI_BUILD="${BUILD_ROOT}/cli-build"
+  export OPENFOAM_STAGE="${BUILD_ROOT}/stage/pack"
+  export BUILD_PACK_DIR="${BUILD_ROOT}/pack"
+  export BUILD_WHEEL_DIR="${BUILD_ROOT}/wheel"
   export DIST_NATIVE_DIR="${BUILD_ROOT}/dist-native"
   export DIST_DOCKER_DIR="${BUILD_ROOT}/dist-docker"
   export BUILD_DOCKER_DIR="${BUILD_ROOT}/docker"
-  export BUILD_CLI_PACK_DIR="${BUILD_ROOT}/cli-pack"
-  export BUILD_CLI_WHEEL_DIR="${BUILD_ROOT}/cli-wheel"
-  export BUILD_CLI_BUILD_DIR="${BUILD_ROOT}/cli-build"
-  export BUILD_CLI_WHEEL_STAGE_DIR="${BUILD_ROOT}/stage/cli-wheel"
+  export BUILD_WHEEL_STAGE_DIR="${BUILD_ROOT}/stage/cli-wheel"
+  export BUILD_WHEEL_TMP_DIR="${BUILD_ROOT}/stage/wheel-build"
 }
 
 openfoam_abs_under_root() {

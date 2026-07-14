@@ -32,7 +32,7 @@ rewrite_installed_prefix() {
   local prefix="$1"
   local marker="${prefix}/.pack-source-prefix"
   local rewritten="${prefix}/${REWRITE_MARKER}"
-  local script old new
+  local script old new of_tree
 
   [[ -d "${prefix}" ]] || return 0
   [[ -f "${rewritten}" ]] && return 0
@@ -41,8 +41,13 @@ rewrite_installed_prefix() {
     if [[ -n "${script:-}" ]]; then
       old="$(<"${marker}")"
       new="$(cd "${prefix}" && pwd)"
+      of_tree="${prefix}/openfoam"
       if [[ -n "${old}" && "${old}" != "${new}" ]]; then
-        bash "${script}" "${prefix}" "${old}" "${new}"
+        if [[ -f "${of_tree}/etc/bashrc" ]]; then
+          bash "${script}" "${of_tree}" "${old}" "${new}"
+        else
+          bash "${script}" "${prefix}" "${old}" "${new}"
+        fi
       fi
     fi
   fi
@@ -51,10 +56,11 @@ rewrite_installed_prefix() {
 
 resolve_local_build_prefix() {
   local pkg_dir="$1"
-  local cli_root prefix
+  local cli_root
 
   [[ "${pkg_dir}" == */share/openfoam/cli ]] || return 1
   cli_root="$(cd "${pkg_dir}/../../.." && pwd)"
+  # Product pack: CLI root has etc/bashrc + openfoam/.
   if [[ -f "${cli_root}/etc/bashrc" ]]; then
     normalize_prefix_path "${cli_root}"
     return 0
@@ -79,7 +85,16 @@ resolve_runtime_prefix() {
 }
 
 prefix_has_bashrc() {
-  [[ -f "$1/etc/bashrc" ]]
+  local root="$1"
+  # Product layout: wrapper + upstream under openfoam/.
+  if [[ -f "${root}/etc/bashrc" && -f "${root}/openfoam/etc/bashrc" ]]; then
+    return 0
+  fi
+  # Local openfoam-build (flat).
+  if [[ -f "${root}/etc/bashrc" && ! -d "${root}/openfoam" ]]; then
+    return 0
+  fi
+  return 1
 }
 
 prefix_hint_missing_bashrc() {

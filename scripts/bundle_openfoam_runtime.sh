@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bundle third-party shared libraries into STAGE/lib/bundled and fix rpath.
+# Bundle third-party shared libraries into STAGE/lib and fix rpath.
 set -euo pipefail
 
 STAGE="${1:?stage prefix required}"
@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/platform_paths.sh
 source "${ROOT}/scripts/platform_paths.sh"
 FIX_RPATH="${ROOT}/scripts/bundle_fix_rpath.sh"
-RUNTIME_DIR="${STAGE}/lib/bundled"
+RUNTIME_DIR="${STAGE}/lib"
 
 if [[ ! -f "${STAGE}/etc/bashrc" ]]; then
   echo "[bundle_openfoam_runtime] Missing ${STAGE}/etc/bashrc" >&2
@@ -21,6 +21,11 @@ if [[ "${platform}" == "Linux" ]] && ! command -v patchelf >/dev/null; then
 fi
 
 mkdir -p "${RUNTIME_DIR}"
+# Migrate away from the former lib/bundled layout.
+if [[ -d "${STAGE}/lib/bundled" ]]; then
+  echo "[bundle_openfoam_runtime] Removing legacy ${STAGE}/lib/bundled"
+  rm -rf "${STAGE}/lib/bundled"
+fi
 
 collect_search_paths() {
   local paths=("${RUNTIME_DIR}")
@@ -84,18 +89,18 @@ path_marker_for() {
   case "${platform}" in
   Darwin)
     if [[ "${target}" == */platforms/*/lib/* ]]; then
-      printf '@loader_path/../../../lib/bundled'
+      printf '@loader_path/../../../lib'
     elif [[ "${target}" == */platforms/*/bin/* ]]; then
-      printf '@executable_path/../../../lib/bundled'
+      printf '@executable_path/../../../lib'
     else
-      printf '@executable_path/../lib/bundled'
+      printf '@executable_path/../lib'
     fi
     ;;
   Linux)
     if [[ "${target}" == */platforms/*/lib/* || "${target}" == */platforms/*/bin/* ]]; then
-      printf '$ORIGIN/../../../lib/bundled'
+      printf '$ORIGIN/../../../lib'
     else
-      printf '$ORIGIN/../lib/bundled'
+      printf '$ORIGIN/../lib'
     fi
     ;;
   esac

@@ -1,0 +1,76 @@
+#!/bin/bash
+# Product runtime env (installed as <prefix>/etc/bashrc).
+# Upstream OpenFOAM lives under <prefix>/openfoam/etc/bashrc — do not edit it.
+#
+# Usage: source <prefix>/etc/bashrc
+
+_OF_DIST_THIS="${BASH_SOURCE[0]:-$0}"
+_OF_DIST_ETC="$(CDPATH= cd -- "$(dirname "${_OF_DIST_THIS}")" && pwd)"
+_OF_DIST_PREFIX="$(CDPATH= cd -- "${_OF_DIST_ETC}/.." && pwd)"
+_OF_UPSTREAM="${_OF_DIST_PREFIX}/openfoam/etc/bashrc"
+
+_of_dist_prepend_path() {
+  case ":${PATH}:" in
+  *":$1:"*) ;;
+  *) export PATH="$1${PATH:+:$PATH}" ;;
+  esac
+}
+
+_of_dist_prepend_lib() {
+  [ -d "$1" ] || return 0
+  case ":${LD_LIBRARY_PATH:-}:" in
+  *":$1:"*) ;;
+  *) export LD_LIBRARY_PATH="$1${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ;;
+  esac
+  case ":${DYLD_LIBRARY_PATH:-}:" in
+  *":$1:"*) ;;
+  *) export DYLD_LIBRARY_PATH="$1${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" ;;
+  esac
+}
+
+if [ ! -f "${_OF_UPSTREAM}" ]; then
+  echo "Missing ${_OF_UPSTREAM} (OpenFOAM tree under openfoam/)" 1>&2
+  unset _OF_DIST_THIS _OF_DIST_ETC _OF_DIST_PREFIX _OF_UPSTREAM
+  unset -f _of_dist_prepend_path _of_dist_prepend_lib
+  return 1 2>/dev/null || exit 1
+fi
+
+# OpenFOAM bashrc forwards "$@" into config.sh/setup; clear while sourcing.
+# Optional unset vars fail under set -u.
+_of_had_u=0
+case "$-" in *u*) _of_had_u=1; set +u ;; esac
+_of_saved_args=("$@")
+set --
+# shellcheck disable=SC1090
+. "${_OF_UPSTREAM}"
+set -- "${_of_saved_args[@]}"
+unset _of_saved_args
+[ "${_of_had_u}" -eq 1 ] && set -u
+unset _of_had_u
+
+# Bundled third-party runtime under openfoam/lib.
+if [ -f "${_OF_DIST_PREFIX}/openfoam/lib/.bundle-stamp" ]; then
+  _of_bundled="${_OF_DIST_PREFIX}/openfoam/lib"
+  _of_dist_prepend_lib "${_of_bundled}"
+  if [ -d "${_of_bundled}/mpi-bin" ]; then
+    _of_dist_prepend_path "${_of_bundled}/mpi-bin"
+  elif [ -d "${_of_bundled}/bin" ]; then
+    _of_dist_prepend_path "${_of_bundled}/bin"
+  fi
+  if [ -z "${OPAL_PREFIX:-}" ]; then
+    export OPAL_PREFIX="${_of_bundled}"
+  fi
+  if [ -z "${OPAL_LIBDIR:-}" ]; then
+    export OPAL_LIBDIR="${_of_bundled}"
+  fi
+  if [ -z "${PRTE_PREFIX:-}" ]; then
+    export PRTE_PREFIX="${_of_bundled}"
+  fi
+  unset _of_bundled
+fi
+
+export OPENFOAM_PREFIX="${OPENFOAM_PREFIX:-${_OF_DIST_PREFIX}}"
+export OPENFOAM_BASHRC="${OPENFOAM_BASHRC:-${_OF_DIST_ETC}/bashrc}"
+
+unset -f _of_dist_prepend_path _of_dist_prepend_lib
+unset _OF_DIST_THIS _OF_DIST_ETC _OF_DIST_PREFIX _OF_UPSTREAM

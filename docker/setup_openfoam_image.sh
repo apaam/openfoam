@@ -117,6 +117,27 @@ remove_replaced_image() {
   docker rmi "${old_id}" >/dev/null 2>&1 || true
 }
 
+# Verify failed: put IMAGE tag back on the previous id, then drop the bad build.
+restore_previous_image() {
+  local prev_id="${1:-}"
+  local failed_id="${2:-}"
+
+  if [[ -n "${prev_id}" && "${prev_id}" != "${failed_id}" ]]; then
+    printf '==> Verify failed; restoring %s -> %s\n' "${prev_id#"sha256:"}" "${IMAGE}" >&2
+    docker tag "${prev_id}" "${IMAGE}"
+  else
+    printf '==> Verify failed; no previous image to restore for %s\n' "${IMAGE}" >&2
+  fi
+
+  if [[ -n "${failed_id}" && "${failed_id}" != "${prev_id}" ]]; then
+    printf '==> Removing failed build (%s)\n' "${failed_id#"sha256:"}" >&2
+    docker rmi "${failed_id}" >/dev/null 2>&1 || true
+  elif [[ -z "${prev_id}" ]]; then
+    # First build failed: remove the tagged image if present.
+    docker rmi "${IMAGE}" >/dev/null 2>&1 || true
+  fi
+}
+
 ARCHIVE=""
 if ! ARCHIVE="$(find_linux_native_archive)"; then
   echo "[setup_openfoam_image] Build one with: make dist-native (Linux) or make docker-dist-native" >&2
@@ -146,14 +167,10 @@ DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
   --load \
   "${ROOT}"
 
+NEW_IMAGE_ID="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
+
 if ! verify; then
-  if [[ -n "${PREV_IMAGE_ID}" ]]; then
-    cat >&2 <<EOF
-[setup_openfoam_image] Verify failed; previous image kept as dangling.
-  Restore: docker tag ${PREV_IMAGE_ID} ${IMAGE}
-  Remove:  docker rmi ${PREV_IMAGE_ID}
-EOF
-  fi
+  restore_previous_image "${PREV_IMAGE_ID}" "${NEW_IMAGE_ID}"
   exit 1
 fi
 

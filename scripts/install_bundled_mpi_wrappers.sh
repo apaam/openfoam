@@ -2,19 +2,23 @@
 # Install self-locating wrappers around bundled OpenMPI launchers.
 #
 # Usage:
-#   install_bundled_mpi_wrappers.sh <bundled-lib-dir>
-#   install_bundled_mpi_wrappers.sh <stage-prefix>   # uses <stage>/lib/bundled
+#   install_bundled_mpi_wrappers.sh <runtime-lib-dir>
+#   install_bundled_mpi_wrappers.sh <stage-prefix>   # uses <stage>/lib
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="${1:?bundled lib dir or stage prefix required}"
+TARGET="${1:?runtime lib dir or stage prefix required}"
 ENV_SRC="${ROOT}/scripts/openfoam_mpi_env.sh"
 if [[ ! -f "${ENV_SRC}" ]]; then
   ENV_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/openfoam_mpi_env.sh"
 fi
 
-if [[ -d "${TARGET}/lib/bundled" ]]; then
-  RUNTIME_DIR="${TARGET}/lib/bundled"
+# Prefer direct mpi-bin: TARGET may already be the runtime lib dir, which also
+# has lib -> . so TARGET/lib/mpi-bin would falsely match via that symlink.
+if [[ -d "${TARGET}/mpi-bin" ]]; then
+  RUNTIME_DIR="${TARGET}"
+elif [[ -d "${TARGET}/lib/mpi-bin" ]]; then
+  RUNTIME_DIR="${TARGET}/lib"
 elif [[ -d "${TARGET}" ]]; then
   RUNTIME_DIR="${TARGET}"
 else
@@ -43,7 +47,8 @@ is_our_wrapper() {
 }
 
 wrapped=0
-for cmd in mpirun mpiexec orterun orted; do
+# OMPI ≤4: orterun/orted; OMPI 5+: prterun/prted (mpirun execs prterun).
+for cmd in mpirun mpiexec orterun orted prterun prted prte prun; do
   src="${MPI_BIN}/${cmd}"
   [[ -e "${src}" ]] || continue
   real="${MPI_BIN}/.real/${cmd}"

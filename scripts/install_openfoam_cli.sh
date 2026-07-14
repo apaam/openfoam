@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Install openfoam CLI.
 # Usage:
-#   install_openfoam_cli.sh <cli_root>              # bundled: CLI inside OpenFOAM prefix (cli-pack)
-#   install_openfoam_cli.sh <cli_root> <prefix>     # separate: CLI root + OpenFOAM WM_PROJECT_DIR
+#   install_openfoam_cli.sh <cli_root>              # CLI inside product prefix
+#   install_openfoam_cli.sh <cli_root> <of_prefix>  # CLI root + OpenFOAM WM_PROJECT_DIR
 set -euo pipefail
 
 CLI_ROOT="${1:?cli root required}"
@@ -20,9 +20,10 @@ esac
 
 CLI_SRC="${ROOT}/cli/openfoam"
 SHARE_CLI="${CLI_ROOT}/share/openfoam/cli"
-BUNDLED=false
-if [[ "${CLI_ROOT}" == "${NATIVE_PREFIX}" ]]; then
-  BUNDLED=true
+PRODUCT_LAYOUT=false
+if [[ -f "${CLI_ROOT}/openfoam/etc/bashrc" ]] \
+  || [[ "${NATIVE_PREFIX}" == "${CLI_ROOT}/openfoam" ]]; then
+  PRODUCT_LAYOUT=true
 fi
 
 rm -rf "${SHARE_CLI}"
@@ -36,7 +37,8 @@ for script in openfoam.sh prefix.sh native.sh docker_run.sh shell_prompt.sh \
 done
 
 mkdir -p "${CLI_ROOT}/bin"
-if [[ "${BUNDLED}" == true ]]; then
+if [[ "${PRODUCT_LAYOUT}" == true || "${CLI_ROOT}" == "${NATIVE_PREFIX}" ]]; then
+  # Product pack or self-contained prefix: OPENFOAM_PREFIX = CLI root.
   cat >"${CLI_ROOT}/bin/openfoam" <<'EOF'
 #!/usr/bin/env bash
 OPENFOAM_PREFIX="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -44,6 +46,7 @@ export OPENFOAM_PREFIX
 exec bash "${OPENFOAM_PREFIX}/share/openfoam/cli/openfoam.sh" "$@"
 EOF
 else
+  # Dev: CLI in cli-build/, OpenFOAM in openfoam-build/.
   cat >"${CLI_ROOT}/bin/openfoam" <<EOF
 #!/usr/bin/env bash
 CLI_ROOT="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
@@ -64,7 +67,7 @@ export OPENFOAM_PACKAGE_DIR
 source "\${OPENFOAM_PACKAGE_DIR}/completion.bash"
 EOF
 
-if [[ "${BUNDLED}" == true ]]; then
+if [[ "${PRODUCT_LAYOUT}" == true ]] || [[ "${CLI_ROOT}" == "${NATIVE_PREFIX}" ]]; then
   # shellcheck source=../cli/openfoam/manifest.sh
   source "${ROOT}/cli/openfoam/manifest.sh"
   write_cli_manifest "${SHARE_CLI}/manifest.json" "pack" 0 \
