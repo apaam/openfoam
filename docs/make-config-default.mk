@@ -3,7 +3,7 @@
 #
 # Path model:
 #   BUILD_ROOT / DOCKER_BUILD_ROOT — build trees (components + pack/wheel/dist)
-#   INSTALL_PREFIX / DOCKER_INSTALL_PREFIX — make install destinations
+#   INSTALL_PREFIX / DOCKER_INSTALL_PREFIX — make install from build (not pack/wheel)
 #   Components live under openfoam-build/ and cli-build/
 #
 # Prefer changing BUILD_ROOT / DOCKER_BUILD_ROOT; keep derived paths as $(BUILD_ROOT)/...
@@ -17,10 +17,6 @@ BUILD_ROOT = build
 DOCKER_BUILD_ROOT = docker-build
 INSTALL_PREFIX = install
 DOCKER_INSTALL_PREFIX = docker-install
-
-# install: 1 = enable, 0 = skip that artifact
-INSTALL_PACK = 1
-INSTALL_WHEEL = 1
 
 OPENFOAM_BUILD = $(BUILD_ROOT)/openfoam-build
 OPENFOAM_CLI_BUILD = $(BUILD_ROOT)/cli-build

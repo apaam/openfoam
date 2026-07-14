@@ -1,6 +1,7 @@
 # Copy to make-config-user.mk at the project root (git-ignored) and edit.
 #
 # Components: openfoam-build/ + cli-build/ under BUILD_ROOT.
+# make install / all-install: product tree from build → INSTALL_PREFIX.
 # Package forms: pack (one tar) + wheel (one whl). Dist ships both;
 # docker also ships host CLI pack+whl as a specialty.
 
@@ -11,8 +12,6 @@ OPENFOAM_VERSION = v2412
 # DOCKER_BUILD_ROOT = docker-build
 # INSTALL_PREFIX = install
 # DOCKER_INSTALL_PREFIX = docker-install
-# INSTALL_PACK = 1
-# INSTALL_WHEEL = 1
 # OPENFOAM_BUILD_MODULES = 0
 # OPENFOAM_BUNDLE_RUNTIME = 0
 

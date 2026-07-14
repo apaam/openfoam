@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Prepare product pack tree: openfoam/ (OF) + etc/bashrc + embedded CLI.
+# OPENFOAM_STAGE_OVERRIDE=... redirects the product dest (used by make install).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -18,7 +19,11 @@ else
 fi
 
 OPENFOAM_BUILD="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_BUILD}")"
-OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
+if [[ -n "${OPENFOAM_STAGE_OVERRIDE:-}" ]]; then
+  OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE_OVERRIDE}")"
+else
+  OPENFOAM_STAGE="$(openfoam_abs_under_root "${ROOT}" "${OPENFOAM_STAGE}")"
+fi
 FORCE_STAGE="${FORCE_STAGE:-0}"
 OF_DEST="${OPENFOAM_STAGE}/openfoam"
 

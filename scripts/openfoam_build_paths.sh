@@ -7,8 +7,6 @@ openfoam_apply_build_path_defaults() {
   : "${DOCKER_BUILD_ROOT:=docker-build}"
   : "${INSTALL_PREFIX:=install}"
   : "${DOCKER_INSTALL_PREFIX:=docker-install}"
-  : "${INSTALL_PACK:=1}"
-  : "${INSTALL_WHEEL:=1}"
   : "${OPENFOAM_BUILD:=${BUILD_ROOT}/openfoam-build}"
   : "${OPENFOAM_CLI_BUILD:=${BUILD_ROOT}/cli-build}"
   # Product pack staging (etc/ + openfoam/ + CLI), not openfoam-build mirror.

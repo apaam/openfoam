@@ -6,7 +6,7 @@ This repository contains a customized build system for OpenFOAM, designed to sim
 
 - **Version via config**: Set `OPENFOAM_VERSION` in `make-config-user.mk`
 - **Cross-platform compatibility**: macOS and Linux support
-- **Automated dependency management**: Uses Homebrew on macOS for dependency resolution
+- **Automated dependency management**: `make deps` (Homebrew / apt)
 - **Parallel compilation**: Configurable parallel build jobs
 - **Clean build system**: Easy cleanup and rebuild options
 
@@ -14,34 +14,21 @@ This repository contains a customized build system for OpenFOAM, designed to sim
 
 ### Prerequisites
 
-#### macOS (Recommended)
-The build system automatically handles dependencies using Homebrew:
-
 ```bash
 make deps
 ```
 
-#### Linux (Ubuntu/Debian)
-Install required packages manually:
+macOS: Homebrew (`Brewfile`). Ubuntu/Debian: apt (`scripts/linux_build_packages.txt`).
+
+### Build
+
+Set `OPENFOAM_VERSION` in `make-config-user.mk` if needed, then:
 
 ```bash
-sudo apt-get update
-sudo apt-get install build-essential cmake
-sudo apt-get install libopenmpi-dev openmpi-bin zlib1g-dev libboost-system-dev libboost-thread-dev
-sudo apt-get install rsync flex bison gnuplot libreadline-dev libncurses-dev libxt-dev
+make -j8 all
 ```
 
-### Installation
-
-```bash
-make all
-```
-
-Set `OPENFOAM_VERSION` in `make-config-user.mk` and checkout the matching tag in `openfoam-source` before building.
-
-```bash
-make -j8 openfoam
-```
+Or `make all-install` to install into `INSTALL_PREFIX`.
 
 ## Build System Overview
 
@@ -97,15 +84,15 @@ openfoam/
 | `make all` | `openfoam` + `cli` |
 | `make pack` | One tar (OF+CLI) → `$(BUILD_ROOT)/pack/` |
 | `make wheel` | CLI pip wheel → `$(BUILD_ROOT)/wheel/` |
-| `make install` | Unpack pack → `INSTALL_PREFIX` + pip wheel |
-| `make all-install` | `all` + `pack` + `wheel` + `install` (`INSTALL_PACK` / `INSTALL_WHEEL` in user.mk) |
+| `make install` | From build → `INSTALL_PREFIX` (no pack/wheel) |
+| `make all-install` | `all` + `install` |
 | `make dist-native` | Bundled tar + whl → `$(BUILD_ROOT)/dist-native/` |
 | `make dist-docker` | Linux: image + host CLI pack/whl → `build/dist-docker/` (macOS: use `docker-dist-docker`) |
 | `make docker-dist-native` | Container build → `docker-build/dist-native/` |
 | `make docker-dist-docker` | Container build + image + host CLI → `docker-build/dist-docker/` |
 | `make docker-shell` | Interactive build container (`BUILD_ROOT=docker-build`) |
 | `make docker-setup-base` | Optional: pull Ubuntu base |
-| `make deps` | Install dependencies (macOS only) |
+| `make deps` | Install dependencies (Homebrew / apt) |
 | `make clean-build` | Remove current `$(BUILD_ROOT)/` |
 | `make clean-install` | Remove `INSTALL_PREFIX` |
 | `make real-clean` | `clean-build` + reset `openfoam-source` |
@@ -224,21 +211,12 @@ Set `OPENFOAM_PREFIX` to your install root (default `/opt/openfoam`). Use a case
 
 ## Dependencies
 
-### macOS (via Homebrew)
-- bash, open-mpi, libomp
-- adios2, boost, cmake, fftw
-- kahip, metis, cgal, scotch
-- flex
-
-### Linux
-- build-essential, cmake
-- openmpi, boost libraries
-- zlib, flex, bison, gnuplot
-- readline, ncurses, xt development libraries
+- macOS: `Brewfile` (`make deps` → Homebrew)
+- Ubuntu/Debian: `scripts/linux_build_packages.txt` (`make deps` → apt)
 
 ## Troubleshooting
 
-1. **Build fails on macOS**: `make deps`
+1. **Missing build tools / libs**: `make deps`
 2. **Permission errors**: Check write permissions on `$(BUILD_ROOT)/` (`build/` or `docker-build/`)
 3. **Memory issues**: `make -j2 openfoam`
 4. **Clean rebuild**: `make real-clean && make all` (only current `BUILD_ROOT`; use `make clean-all` to wipe both `build/` and `docker-build/`)

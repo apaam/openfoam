@@ -54,8 +54,6 @@ export OPENFOAM_SKIP_ALLWMAKE := $(OPENFOAM_SKIP_ALLWMAKE)
 export FORCE := $(FORCE)
 export INSTALL_PREFIX := $(INSTALL_PREFIX)
 export DOCKER_INSTALL_PREFIX := $(DOCKER_INSTALL_PREFIX)
-export INSTALL_PACK := $(INSTALL_PACK)
-export INSTALL_WHEEL := $(INSTALL_WHEEL)
 
 .DEFAULT_GOAL := help
 
@@ -129,14 +127,12 @@ wheel: cli
 # Install
 # =============================================================================
 
-install:
+install: check-build
 	@INSTALL_PREFIX="$(INSTALL_PREFIX)" \
-	  INSTALL_PACK="$(INSTALL_PACK)" \
-	  INSTALL_WHEEL="$(INSTALL_WHEEL)" \
-	  BUILD_PY=$(BUILD_PY) \
+	  OPENFOAM_BUNDLE_RUNTIME=0 \
 	  bash scripts/install_openfoam_prefix.sh
 
-all-install: all pack wheel install
+all-install: all install
 
 # =============================================================================
 # Dist
@@ -152,7 +148,7 @@ dist-native: all wheel
 	  bash scripts/stage_cli_dist.sh
 
 deps:
-	brew bundle -f
+	@bash scripts/install_deps.sh
 
 get-jobs:
 	@echo "Parallel jobs: $(JOBS)"
@@ -170,9 +166,8 @@ help:
 	@echo "  make wheel                   one whl -> $(BUILD_WHEEL_DIR)/"
 	@echo ""
 	@echo "Install:"
-	@echo "  make install                 pack -> $(HOST_INSTALL_PREFIX)/ + pip wheel"
-	@echo "  make all-install             all + pack + wheel + install"
-	@echo "                               (INSTALL_PACK / INSTALL_WHEEL in make-config-user.mk)"
+	@echo "  make install                 build -> $(HOST_INSTALL_PREFIX)/ (no pack/wheel)"
+	@echo "  make all-install             all + install"
 	@echo ""
 	@echo "Dist:"
 	@echo "  make dist-native             bundled tar + whl -> $(DIST_NATIVE_DIR)/"
