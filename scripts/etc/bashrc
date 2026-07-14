@@ -72,5 +72,34 @@ fi
 export OPENFOAM_PREFIX="${OPENFOAM_PREFIX:-${_OF_DIST_PREFIX}}"
 export OPENFOAM_BASHRC="${OPENFOAM_BASHRC:-${_OF_DIST_ETC}/bashrc}"
 
+# Product CLI (bin/) + tab completions (share/).
+_of_dist_prepend_path "${_OF_DIST_PREFIX}/bin"
+
+_of_cli_share="${_OF_DIST_PREFIX}/share/openfoam/cli"
+if [ -d "${_of_cli_share}" ]; then
+  export OPENFOAM_PACKAGE_DIR="${_of_cli_share}"
+fi
+
+if [ -n "${BASH_VERSION:-}" ] && [ -f "${_of_cli_share}/completion.bash" ]; then
+  # shellcheck disable=SC1090
+  . "${_of_cli_share}/completion.bash"
+fi
+
+if [ -n "${ZSH_VERSION:-}" ]; then
+  _of_zsh_fp="${_OF_DIST_PREFIX}/share/zsh/site-functions"
+  if [ -d "${_of_zsh_fp}" ]; then
+    case " ${fpath[*]} " in
+    *" ${_of_zsh_fp} "*) ;;
+    *) fpath=("${_of_zsh_fp}" ${fpath[@]}) ;;
+    esac
+    if typeset -f compdef >/dev/null 2>&1; then
+      autoload -Uz _openfoam
+      compdef _openfoam openfoam
+    fi
+  fi
+  unset _of_zsh_fp
+fi
+unset _of_cli_share
+
 unset -f _of_dist_prepend_path _of_dist_prepend_lib
 unset _OF_DIST_THIS _OF_DIST_ETC _OF_DIST_PREFIX _OF_UPSTREAM
