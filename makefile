@@ -180,11 +180,13 @@ help:
 	@echo "  make docker-setup-base / docker-setup-build / docker-push / docker-prune-images"
 	@echo ""
 	@echo "Clean:"
-	@echo "  make clean-build             remove $(HOST_BUILD_ROOT)/"
-	@echo "  make clean-docker-build      remove $(DOCKER_BUILD_ROOT)/"
-	@echo "  make clean-install           remove $(HOST_INSTALL_PREFIX)/"
-	@echo "  make clean-docker-install    remove $(DOCKER_INSTALL_PREFIX)/"
-	@echo "  make clean-submodules        reset openfoam-source"
+	@echo "  make clean-build             remove $(HOST_BUILD_ROOT)/ (asks confirm)"
+	@echo "  make clean-docker-build      remove $(DOCKER_BUILD_ROOT)/ (asks confirm)"
+	@echo "  make clean-install           remove owned install (asks confirm; FORCE=1)"
+	@echo "  make clean-docker-install    same for $(DOCKER_INSTALL_PREFIX)/ (asks confirm)"
+	@echo "  make clean-submodules        reset openfoam-source (asks confirm)"
+	@echo "  make clean-all               all clean-* above (asks confirm once)"
+	@echo "  CONFIRM=1                    skip clean confirmation prompts"
 	@echo ""
 	@echo "After make all:"
 	@echo "  source $(OPENFOAM_BUILD)/etc/bashrc"
@@ -199,7 +201,24 @@ help:
 
 # --- Clean / submodule ---
 
+# Prompt once; skip with CONFIRM=1 or YES=1.
+define confirm-clean
+case "$(CONFIRM)$(YES)" in \
+  1*|y*|Y*|yes*|YES*|true*|TRUE*|on*|ON*) ;; \
+  *) \
+    printf '%s\n' "$(1)" >&2; \
+    printf 'Proceed? [y/N] ' >&2; \
+    _ans=""; \
+    if read -r _ans 2>/dev/null; then :; \
+    elif read -r _ans < /dev/tty 2>/dev/null; then :; \
+    else echo "Aborted (no tty; use CONFIRM=1)." >&2; exit 1; fi; \
+    case "$$_ans" in y|Y|yes|YES) ;; \
+      *) echo "Aborted." >&2; exit 1 ;; esac ;; \
+esac
+endef
+
 clean-build:
+	@$(call confirm-clean,Remove host build tree: $(HOST_BUILD_ROOT)/)
 	@case "$(HOST_BUILD_ROOT)" in \
 	  ""|"."|".."|"/"|*..*) \
 	    echo "Refusing to clean HOST_BUILD_ROOT='$(HOST_BUILD_ROOT)'" >&2; \
@@ -209,6 +228,7 @@ clean-build:
 	rm -rf -- "$(HOST_BUILD_ROOT)"
 
 clean-docker-build:
+	@$(call confirm-clean,Remove docker build tree: $(DOCKER_BUILD_ROOT)/)
 	@case "$(DOCKER_BUILD_ROOT)" in \
 	  ""|"."|".."|"/"|*..*) \
 	    echo "Refusing to clean DOCKER_BUILD_ROOT='$(DOCKER_BUILD_ROOT)'" >&2; \
@@ -218,24 +238,19 @@ clean-docker-build:
 	rm -rf -- "$(DOCKER_BUILD_ROOT)"
 
 clean-install:
-	@case "$(HOST_INSTALL_PREFIX)" in \
-	  ""|"."|".."|"/"|*..*) \
-	    echo "Refusing to clean HOST_INSTALL_PREFIX='$(HOST_INSTALL_PREFIX)'" >&2; \
-	    exit 1 ;; \
-	esac; \
-	rm -rf -- "$(HOST_INSTALL_PREFIX)" 2>/dev/null || true; \
-	rm -rf -- "$(HOST_INSTALL_PREFIX)"
+	@$(call confirm-clean,Remove owned install under: $(HOST_INSTALL_PREFIX)/)
+	@INSTALL_PREFIX="$(HOST_INSTALL_PREFIX)" \
+	  FORCE="$(FORCE)" \
+	  bash scripts/uninstall_openfoam_prefix.sh
 
 clean-docker-install:
-	@case "$(DOCKER_INSTALL_PREFIX)" in \
-	  ""|"."|".."|"/"|*..*) \
-	    echo "Refusing to clean DOCKER_INSTALL_PREFIX='$(DOCKER_INSTALL_PREFIX)'" >&2; \
-	    exit 1 ;; \
-	esac; \
-	rm -rf -- "$(DOCKER_INSTALL_PREFIX)" 2>/dev/null || true; \
-	rm -rf -- "$(DOCKER_INSTALL_PREFIX)"
+	@$(call confirm-clean,Remove owned docker install under: $(DOCKER_INSTALL_PREFIX)/)
+	@INSTALL_PREFIX="$(DOCKER_INSTALL_PREFIX)" \
+	  FORCE="$(FORCE)" \
+	  bash scripts/uninstall_openfoam_prefix.sh
 
 clean-submodules:
+	@$(call confirm-clean,Reset submodule openfoam-source (delete + checkout + sync))
 	@if [ -d openfoam-source ]; then \
 	  chflags -R nouchg openfoam-source 2>/dev/null; \
 	  chmod -R u+w openfoam-source 2>/dev/null; \
@@ -245,6 +260,13 @@ clean-submodules:
 	@test ! -d openfoam-source
 	git checkout openfoam-source
 	$(MAKE) sync-submodule
+
+clean-all:
+	@$(call confirm-clean,Remove build/docker-build/install/docker-install and reset openfoam-source)
+	@$(MAKE) CONFIRM=1 \
+	  clean-build clean-docker-build \
+	  clean-install clean-docker-install \
+	  clean-submodules
 
 sync-submodule:
 	git -c submodule.recurse=false submodule sync -- openfoam-source
@@ -364,7 +386,7 @@ docker-prune-images:
 .PHONY: help openfoam cli all pack wheel install all-install \
 	get-jobs deps sync-submodule \
 	clean-build clean-docker-build clean-install clean-docker-install \
-	clean-submodules check-build \
+	clean-submodules clean-all check-build \
 	dist-native dist-docker \
 	docker-host-guard docker-setup-build docker-shell \
 	docker-setup-base _docker-pack-image docker-push \

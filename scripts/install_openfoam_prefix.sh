@@ -20,11 +20,20 @@ if [[ ! -f "${OPENFOAM_BUILD}/etc/bashrc" ]]; then
   exit 1
 fi
 
+# shellcheck source=openfoam_install_manifest.sh
+source "${ROOT}/scripts/openfoam_install_manifest.sh"
+
 echo "[install] ${OPENFOAM_BUILD} -> ${PREFIX}"
 FORCE_STAGE="${FORCE_STAGE:-0}" \
+  OPENFOAM_INSTALL_MODE=1 \
   OPENFOAM_BUNDLE_RUNTIME="${OPENFOAM_BUNDLE_RUNTIME:-0}" \
   OPENFOAM_STAGE_OVERRIDE="${PREFIX}" \
   bash "${ROOT}/scripts/prepare_openfoam_pack_tree.sh"
+
+openfoam_write_install_manifest \
+  "${PREFIX}" \
+  "${OPENFOAM_BUNDLE_RUNTIME:-0}" \
+  "${OPENFOAM_VERSION#v}"
 
 echo "[install] Done at ${PREFIX}"
 echo "[install] export OPENFOAM_PREFIX=${PREFIX}"

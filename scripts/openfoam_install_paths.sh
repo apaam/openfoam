@@ -162,5 +162,6 @@ openfoam_pack_prefix_tar() {
     --exclude='.stage-stamp' \
     --exclude='.pack-stamp' \
     --exclude='.dist-stamp' \
+    --exclude='.openfoam-manifest.json' \
     .
 }

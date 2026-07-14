@@ -26,10 +26,26 @@ else
 fi
 FORCE_STAGE="${FORCE_STAGE:-0}"
 OF_DEST="${OPENFOAM_STAGE}/openfoam"
+INSTALL_MODE=0
+case "${OPENFOAM_INSTALL_MODE:-0}" in
+1 | yes | true | on) INSTALL_MODE=1 ;;
+esac
 
-# Clear pack stage before restage: FORCE wipes all; otherwise keep openfoam/ for
-# incremental rsync and drop everything else (etc/bin/share/stamps).
-if [[ "${FORCE_STAGE}" == "1" ]]; then
+# shellcheck source=openfoam_install_manifest.sh
+source "${ROOT}/scripts/openfoam_install_manifest.sh"
+
+# Clear before restage.
+# Install mode: only remove previously owned product names (never foreign siblings).
+# Pack stage: dedicated dir — FORCE wipes all; else keep openfoam/ and drop the rest.
+if [[ "${INSTALL_MODE}" -eq 1 ]]; then
+  if [[ "${FORCE_STAGE}" == "1" ]]; then
+    echo "[prepare_openfoam_pack_tree] Install force: clear owned under ${OPENFOAM_STAGE}"
+    openfoam_clear_install_owned "${OPENFOAM_STAGE}" 0
+  else
+    echo "[prepare_openfoam_pack_tree] Install restage: clear owned (keep openfoam/) under ${OPENFOAM_STAGE}"
+    openfoam_clear_install_owned "${OPENFOAM_STAGE}" 1
+  fi
+elif [[ "${FORCE_STAGE}" == "1" ]]; then
   echo "[prepare_openfoam_pack_tree] Force clean ${OPENFOAM_STAGE}"
   openfoam_safe_rm "${OPENFOAM_STAGE}"
 else

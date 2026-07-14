@@ -93,9 +93,12 @@ openfoam/
 | `make docker-shell` | Interactive build container (`BUILD_ROOT=docker-build`) |
 | `make docker-setup-base` | Optional: pull Ubuntu base |
 | `make deps` | Install dependencies (Homebrew / apt) |
-| `make clean-build` | Remove current `$(BUILD_ROOT)/` |
-| `make clean-install` | Remove `INSTALL_PREFIX` |
-| `make real-clean` | `clean-build` + reset `openfoam-source` |
+| `make clean-build` | Remove `$(BUILD_ROOT)/` (asks confirm; `CONFIRM=1` to skip) |
+| `make clean-docker-build` | Remove `$(DOCKER_BUILD_ROOT)/` (asks confirm) |
+| `make clean-install` | Remove owned install via manifest (asks confirm; `FORCE=1` fallback) |
+| `make clean-docker-install` | Same for `DOCKER_INSTALL_PREFIX` (asks confirm) |
+| `make clean-submodules` | Reset `openfoam-source` (asks confirm) |
+| `make clean-all` | All `clean-*` above (asks confirm once) |
 
 ## Distribution
 
