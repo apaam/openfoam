@@ -63,7 +63,7 @@ require_docker() {
     exit 1
   fi
   if ! docker info >/dev/null 2>&1; then
-    echo "Docker is installed but not running. Start Docker and retry." >&2
+    echo "Docker is installed but not running. Start Docker Desktop (or the daemon) and retry." >&2
     exit 1
   fi
 }

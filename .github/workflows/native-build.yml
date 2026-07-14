@@ -91,7 +91,7 @@ jobs:
           test -f openfoam-source/src/finiteVolume/finiteVolume/fvc/fvcDDt.H
 
       - name: Install build dependencies
-        run: make deps
+        run: make install-deps
 
       - name: Install Python packaging (macOS)
         if: runner.os == 'macOS'

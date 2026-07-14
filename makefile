@@ -147,8 +147,11 @@ dist-native: all wheel
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  bash scripts/stage_cli_dist.sh
 
-deps:
+install-deps:
 	@bash scripts/install_deps.sh
+
+check-deps:
+	@bash scripts/check_deps.sh
 
 get-jobs:
 	@echo "Parallel jobs: $(JOBS)"
@@ -178,6 +181,10 @@ help:
 	@echo "  make docker-dist-native      container dist-native -> $(DOCKER_BUILD_ROOT)/"
 	@echo "  make docker-dist-docker      image + host CLI -> $(DOCKER_BUILD_ROOT)/dist-docker/"
 	@echo "  make docker-setup-base / docker-setup-build / docker-push / docker-prune-images"
+	@echo ""
+	@echo "Deps:"
+	@echo "  make install-deps            install Homebrew / apt build deps"
+	@echo "  make check-deps              verify deps without installing"
 	@echo ""
 	@echo "Clean:"
 	@echo "  make clean-build             remove $(HOST_BUILD_ROOT)/ (asks confirm)"
@@ -384,7 +391,7 @@ docker-prune-images:
 	@docker image prune -f
 
 .PHONY: help openfoam cli all pack wheel install all-install \
-	get-jobs deps sync-submodule \
+	get-jobs install-deps check-deps sync-submodule \
 	clean-build clean-docker-build clean-install clean-docker-install \
 	clean-submodules clean-all check-build \
 	dist-native dist-docker \

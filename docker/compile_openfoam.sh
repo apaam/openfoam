@@ -9,6 +9,7 @@ cd "${ROOT}"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
 openfoam_require_docker_host "docker-dist" || exit 1
+openfoam_require_docker || exit 1
 
 # shellcheck disable=SC1091
 source "${ROOT}/scripts/openfoam_build_paths.sh"
@@ -31,11 +32,6 @@ APT_MIRROR="${DOCKER_APT_MIRROR:-}"
 BUILD_JOBS="${BUILD_JOBS:-${NUM_JOBS:-4}}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 FORCE="${FORCE:-0}"
-
-if ! command -v docker >/dev/null 2>&1; then
-  echo "[compile_openfoam] docker not found" >&2
-  exit 1
-fi
 
 printf '==> Ensuring openfoam-source submodule\n'
 git -c submodule.recurse=false submodule sync -- openfoam-source

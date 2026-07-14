@@ -9,6 +9,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
+# shellcheck disable=SC1091
+source "${ROOT}/docker/require_host.sh"
+openfoam_require_docker || exit 1
+
 UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
 BUILD_IMAGE_NAME="${DOCKER_BUILD_IMAGE_NAME:-phynexis-build}"
 APT_MIRROR="${DOCKER_APT_MIRROR:-}"
@@ -31,10 +35,6 @@ esac
 TARGETARCH="${PLATFORM#linux/}"
 IMAGE="${BUILD_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "[setup_build_image] docker not found" >&2
-  exit 1
-fi
 if ! docker buildx version >/dev/null 2>&1; then
   echo "[setup_build_image] docker buildx is required" >&2
   exit 1

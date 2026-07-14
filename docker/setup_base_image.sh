@@ -8,6 +8,11 @@ set -euo pipefail
 #   PLATFORM=all ./docker/setup_base_image.sh
 #   FORCE=1 ./docker/setup_base_image.sh
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "${ROOT}/docker/require_host.sh"
+openfoam_require_docker || exit 1
+
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 DOCKER_UBUNTU_IMAGE_NAME="${DOCKER_UBUNTU_IMAGE_NAME:-phynexis-ubuntu}"
 SOURCE_IMAGE="ubuntu:${UBUNTU_VERSION}"

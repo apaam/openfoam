@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "${ROOT}/docker/require_host.sh"
+openfoam_require_docker || exit 1
+
 IMAGE="${1:-}"
 
 if [[ -z "${IMAGE}" ]]; then

@@ -11,6 +11,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
 # shellcheck disable=SC1091
+source "${ROOT}/docker/require_host.sh"
+openfoam_require_docker || exit 1
+
+# shellcheck disable=SC1091
 source "${ROOT}/scripts/openfoam_build_paths.sh"
 openfoam_load_build_paths "${ROOT}"
 

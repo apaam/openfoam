@@ -6,7 +6,7 @@ This repository contains a customized build system for OpenFOAM, designed to sim
 
 - **Version via config**: Set `OPENFOAM_VERSION` in `make-config-user.mk`
 - **Cross-platform compatibility**: macOS and Linux support
-- **Automated dependency management**: `make deps` (Homebrew / apt)
+- **Automated dependency management**: `make install-deps` / `make check-deps` (Homebrew / apt)
 - **Parallel compilation**: Configurable parallel build jobs
 - **Clean build system**: Easy cleanup and rebuild options
 
@@ -15,7 +15,8 @@ This repository contains a customized build system for OpenFOAM, designed to sim
 ### Prerequisites
 
 ```bash
-make deps
+make install-deps
+make check-deps   # optional: verify without installing
 ```
 
 macOS: Homebrew (`Brewfile`). Ubuntu/Debian: apt (`scripts/linux_build_packages.txt`).
@@ -92,7 +93,8 @@ openfoam/
 | `make docker-dist-docker` | Container build + image + host CLI → `docker-build/dist-docker/` |
 | `make docker-shell` | Interactive build container (`BUILD_ROOT=docker-build`) |
 | `make docker-setup-base` | Optional: pull Ubuntu base |
-| `make deps` | Install dependencies (Homebrew / apt) |
+| `make install-deps` | Install dependencies (Homebrew / apt) |
+| `make check-deps` | Verify dependencies without installing |
 | `make clean-build` | Remove `$(BUILD_ROOT)/` (asks confirm; `CONFIRM=1` to skip) |
 | `make clean-docker-build` | Remove `$(DOCKER_BUILD_ROOT)/` (asks confirm) |
 | `make clean-install` | Remove owned install via manifest (asks confirm; `FORCE=1` fallback) |
@@ -214,15 +216,16 @@ Set `OPENFOAM_PREFIX` to your install root (default `/opt/openfoam`). Use a case
 
 ## Dependencies
 
-- macOS: `Brewfile` (`make deps` → Homebrew)
-- Ubuntu/Debian: `scripts/linux_build_packages.txt` (`make deps` → apt)
+- macOS: `Brewfile` (`make install-deps` → Homebrew; `make check-deps` → `brew bundle check`)
+- Ubuntu/Debian: `scripts/linux_build_packages.txt` (`make install-deps` → apt + pip; `make check-deps` → dpkg / import)
 
 ## Troubleshooting
 
-1. **Missing build tools / libs**: `make deps`
+1. **Missing build tools / libs**: `make check-deps` then `make install-deps`
 2. **Permission errors**: Check write permissions on `$(BUILD_ROOT)/` (`build/` or `docker-build/`)
 3. **Memory issues**: `make -j2 openfoam`
 4. **Clean rebuild**: `make real-clean && make all` (only current `BUILD_ROOT`; use `make clean-all` to wipe both `build/` and `docker-build/`)
+5. **Docker not running**: `make docker-*` prints a clear message; start Docker Desktop (or the daemon) and retry
 
 ## License
 
