@@ -8,8 +8,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Same group as Release so a tag push can cancel duplicate main CI.
-  group: openfoam-${{ github.sha }}
+  # Keep CI concurrency separate from Release. Sharing a group with
+  # cancel-in-progress marked tag-owned main CI as cancelled (red on main).
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -43,3 +44,26 @@ jobs:
     with:
       make_target: all
       upload_dist: false
+
+  # Stable check for branch status: green on intentional skip or native success;
+  # red if native/gate failed or was cancelled (do not leave this job skipped).
+  result:
+    needs: [gate, native]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate CI status
+        run: |
+          set -euo pipefail
+          echo "gate=${{ needs.gate.result }} run_ci=${{ needs.gate.outputs.run_ci }} native=${{ needs.native.result }}"
+          if [[ "${{ needs.gate.result }}" != "success" ]]; then
+            echo "gate did not succeed"; exit 1
+          fi
+          if [[ "${{ needs.gate.outputs.run_ci }}" != "true" ]]; then
+            echo "CI skipped: version tag owns this commit (Release)."
+            exit 0
+          fi
+          if [[ "${{ needs.native.result }}" != "success" ]]; then
+            echo "native did not succeed"; exit 1
+          fi
+          echo "CI native build succeeded."

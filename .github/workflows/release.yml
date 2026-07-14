@@ -11,10 +11,10 @@ on:
         type: string
 
 concurrency:
-  # Share with CI (github.sha on tag push) so Release cancels duplicate main CI.
-  # workflow_dispatch uses inputs.tag so distinct tags do not cancel each other.
-  group: openfoam-${{ inputs.tag || github.sha }}
-  cancel-in-progress: true
+  # Do not share with CI — cancelling main CI leaves a red/cancelled check
+  # on the branch commit even when Release succeeded.
+  group: release-${{ github.workflow }}-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
