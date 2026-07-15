@@ -9,7 +9,7 @@
 # Prefer changing BUILD_ROOT / DOCKER_BUILD_ROOT; keep derived paths as $(BUILD_ROOT)/...
 
 # --- Native build ---
-BUILD_JOBS = 4
+BUILD_JOBS = 2
 BUILD_PY = python3
 OPENFOAM_VERSION = v2412
 
