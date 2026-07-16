@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# One-line installer for phynexis-foam (OpenFOAM).
+#
+#   read -p 'Account: ' u && curl -u "$u" -fsSL @BASEURL@/install.sh | bash
+#
+# Installs the native pack + CLI wheel, adds ~/.local/bin to PATH.
+# @BASEURL@ / @VERSION@ are substituted at publish time.
+set -euo pipefail
+
+BASE_URL="@BASEURL@"
+VERSION="@VERSION@"
+DEFAULT_PREFIX="/opt/openfoam"
+
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+info() { echo -e "${GREEN}[openfoam]${NC} $*"; }
+warn() { echo -e "${YELLOW}[openfoam]${NC} $*"; }
+die()  { echo -e "${RED}[openfoam]${NC} $*" >&2; exit 1; }
+
+# ---------- platform detection ----------
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+ARCH="$(uname -m)"
+case "$ARCH" in
+    x86_64)  ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+esac
+
+case "$OS" in
+    darwin)  PLATFORM="darwin-${ARCH}" ;;
+    linux)   PLATFORM="linux-${ARCH}" ;;
+    *)       die "Unsupported OS: $OS" ;;
+esac
+
+PACK="phynexis-foam-${VERSION}-${PLATFORM}.tar.gz"
+WHEEL="phynexis_foam-${VERSION}-py3-none-any.whl"
+
+info "Platform: $PLATFORM"
+info "Version:  $VERSION"
+
+# ---------- credentials ----------
+XIAOHE_USER="${XIAOHE_USER:-}"
+XIAOHE_PASS="${XIAOHE_PASS:-}"
+if [[ -z "$XIAOHE_USER" ]]; then
+    read -r -p "Download account: " XIAOHE_USER </dev/tty
+fi
+if [[ -z "$XIAOHE_PASS" ]]; then
+    read -r -s -p "Password: " XIAOHE_PASS </dev/tty; echo ""
+fi
+
+TMP_WORK="$(mktemp -d -t of-install.XXXXXX)"
+TMP_CURLRC="$TMP_WORK/curlrc"
+chmod 700 "$TMP_WORK"
+trap 'rm -rf "$TMP_WORK"' EXIT
+printf 'user = "%s:%s"\n' "$XIAOHE_USER" "$XIAOHE_PASS" > "$TMP_CURLRC"
+
+download() {
+    local url="$1" out="$2"
+    info "Downloading $(basename "$out") ..."
+    curl -fsSL -K "$TMP_CURLRC" "$url" -o "$out" || die "Download failed: $url"
+}
+
+# ---------- download ----------
+download "${BASE_URL}/${PACK}"   "$TMP_WORK/${PACK}"
+download "${BASE_URL}/${WHEEL}"  "$TMP_WORK/${WHEEL}"
+
+# ---------- install ----------
+PY_STDLIB="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))' 2>/dev/null || echo "")"
+PIP_FLAGS=()
+[[ -f "$PY_STDLIB/EXTERNALLY-MANAGED" ]] && PIP_FLAGS=("--break-system-packages")
+
+info "Installing CLI wheel ..."
+pip install "$TMP_WORK/${WHEEL}" --quiet "${PIP_FLAGS[@]}" 2>&1 || die "pip install failed"
+
+info "Installing OpenFOAM pack to ${DEFAULT_PREFIX} ..."
+phynexis-foam install "$TMP_WORK/${PACK}" --prefix "${DEFAULT_PREFIX}" --force
+
+# ---------- PATH setup ----------
+mkdir -p "$HOME/.local/bin"
+
+ensure_path_in_rc() {
+    local rc="$1" line='export PATH="$HOME/.local/bin:$PATH"'
+    if [[ -f "$rc" ]]; then
+        if ! grep -q 'HOME/.local/bin' "$rc" 2>/dev/null; then
+            printf '\n# Added by phynexis-foam installer\n%s\n' "$line" >> "$rc"
+            info "Added ~/.local/bin to PATH in $(basename "$rc")"
+        fi
+    fi
+}
+
+PRIMARY_RC="$HOME/.bashrc"
+case "${SHELL:-}" in */zsh) PRIMARY_RC="$HOME/.zshrc" ;; esac
+for rc in "$PRIMARY_RC" "$HOME/.bashrc" "$HOME/.zshrc"; do
+    ensure_path_in_rc "$rc"
+done
+export PATH="$HOME/.local/bin:$PATH"
+
+# ---------- done ----------
+echo ""
+info "phynexis-foam ${VERSION} installed."
+echo ""
+echo "  OpenFOAM:  ${DEFAULT_PREFIX}"
+echo "  CLI:       $(command -v phynexis-foam)"
+echo ""
+echo "  Interactive shell:   phynexis-foam shell"
+echo "  Run a command:       phynexis-foam run blockMesh"
+echo "  Load env manually:   source ${DEFAULT_PREFIX}/etc/bashrc"
+echo ""

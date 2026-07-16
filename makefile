@@ -210,8 +210,7 @@ help:
 	@echo "  CONFIRM=1                    skip clean confirmation prompts"
 	@echo ""
 	@echo "Git:"
-	@echo "  make push-ts-vps             push main + openfoam-source mirror to ts-vps (confirms)"
-	@echo "  make push-ts-vps-modules     push only the openfoam-source mirror"
+	@echo "  make publish                 upload dist-native artifacts to VPS download server"
 	@echo ""
 	@echo "After make all:"
 	@echo "  source $(OPENFOAM_BUILD)/etc/bashrc"
@@ -404,12 +403,15 @@ docker-push: docker-host-guard
 	  docker tag "$(DOCKER_OPENFOAM_IMAGE)" "$$remote"; \
 	  docker push "$$remote"
 
+# Publish dist artifacts to VPS download server (dufs :8088).
+publish:
+	@bash scripts/release/publish-vps.sh
+
 docker-prune-images:
 	@docker image prune -f
 
 # Push main + openfoam-source mirror to ts-vps (ts-vps:apaam/repo/openfoam).
 # Reachable over tailnet SSH; refuses when tailnet or the vps peer is down.
-push-ts-vps:
 	@if ! command -v tailscale >/dev/null 2>&1 || ! tailscale status >/dev/null 2>&1; then \
 		echo "tailnet is down (tailscale not running); cannot push to ts-vps."; \
 		exit 1; \
@@ -424,14 +426,12 @@ push-ts-vps:
 	@read -p "Confirm push? [y/N] " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
 		git push ts-vps main && \
-		bash scripts/push_modules_to_vps.sh && \
 		echo "Done."; \
 	else \
 		echo "Aborted."; \
 	fi
 
 # Module-mirror-only push (no branch push, no confirm).
-push-ts-vps-modules:
 	@if ! command -v tailscale >/dev/null 2>&1 || ! tailscale status >/dev/null 2>&1; then \
 		echo "tailnet is down (tailscale not running); cannot push to ts-vps."; \
 		exit 1; \
@@ -440,7 +440,6 @@ push-ts-vps-modules:
 		echo "tailnet vps peer (100.64.0.3) unreachable; cannot push to ts-vps."; \
 		exit 1; \
 	fi
-	@bash scripts/push_modules_to_vps.sh
 
 .PHONY: help openfoam cli all pack wheel install all-install \
 	get-jobs install-deps check-deps sync-submodule \
@@ -450,4 +449,4 @@ push-ts-vps-modules:
 	docker-host-guard docker-setup-build docker-shell \
 	docker-setup-base _docker-pack-image docker-push \
 	_docker-compile docker-dist-native docker-dist-docker \
-	docker-prune-images push-ts-vps push-ts-vps-modules
+		docker-prune-images publish
