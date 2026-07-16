@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # One-line installer for phynexis-foam (OpenFOAM).
-#
-#   read -p 'Account: ' u && curl -u "$u" -fsSL @BASEURL@/install.sh | bash
+#   curl -u <account> -fsSL <server>/openfoam/install.sh | bash
 #
 # Installs the native pack + CLI wheel, adds ~/.local/bin to PATH.
-# @BASEURL@ / @VERSION@ are substituted at publish time.
 set -euo pipefail
 
 BASE_URL="@BASEURL@"
