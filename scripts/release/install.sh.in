@@ -68,7 +68,7 @@ PIP_FLAGS=()
 [[ -f "$PY_STDLIB/EXTERNALLY-MANAGED" ]] && PIP_FLAGS=("--break-system-packages")
 
 info "Installing CLI wheel ..."
-pip install "$TMP_WORK/${WHEEL}" --quiet "${PIP_FLAGS[@]}" 2>&1 || die "pip install failed"
+pip install "$TMP_WORK/${WHEEL}" --quiet "${PIP_FLAGS[@]}" || die "pip install failed"
 
 info "Installing OpenFOAM pack to ${DEFAULT_PREFIX} ..."
 phynexis-foam install "$TMP_WORK/${PACK}" --prefix "${DEFAULT_PREFIX}" --force
