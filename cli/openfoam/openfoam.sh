@@ -10,6 +10,8 @@ usage() {
 OpenFOAM CLI
 
 Native:
+  install <archive.tar.gz> [--prefix <dir>] [--force]
+                                    Install a native pack (default prefix: /opt/openfoam)
   prefix [--path]                   Print OPENFOAM_PREFIX (resolved install root)
   completion bash|zsh               Tab completion
   run [-np <N>] <command> [args...] Run a command in the current directory
@@ -26,7 +28,8 @@ Docker:
 
 Examples:
   pip install openfoam_cli-*.whl
-  export OPENFOAM_PREFIX=/Volumes/OpenFOAM/opt/openfoam
+  openfoam install openfoam-*.tar.gz
+  export OPENFOAM_PREFIX=/opt/openfoam
   source "\$OPENFOAM_PREFIX/etc/bashrc"
   blockMesh -help
   openfoam run blockMesh

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pack-time only: if bundled OpenMPI MCA includes pmix, copy libpmix into lib
 # from the *build* host. Runtime Docker images must not call this — libpmix ships
-# inside openfoam-native tar.
+# inside openfoam tar.
 # Usage: ensure_bundled_libpmix.sh <stage-prefix>
 set -euo pipefail
 

@@ -24,6 +24,7 @@ openfoam = [
   "docker_run.sh",
   "shell_prompt.sh",
   "shell_bashrc.sh",
+  "rewrite_openfoam_paths.sh",
   "manifest.sh",
   "manifest.json",
   "_openfoam",

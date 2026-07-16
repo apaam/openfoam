@@ -78,7 +78,7 @@ find_linux_native_archive() {
   fi
 
   while IFS= read -r arch; do
-    name="openfoam-native-${DIST_VERSION}-linux-${arch}.tar.gz"
+    name="openfoam-${DIST_VERSION}-linux-${arch}.tar.gz"
     candidate="${DIST_DIR}/${name}"
     if [[ -f "${candidate}" ]]; then
       printf '%s' "${candidate}"
@@ -90,10 +90,10 @@ find_linux_native_archive() {
   echo "[setup_openfoam_image] Docker images are always Linux (no macOS Docker image)." >&2
   echo "[setup_openfoam_image] Expected under ${DIST_DIR}/:" >&2
   while IFS= read -r arch; do
-    echo "  openfoam-native-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
+    echo "  openfoam-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
   done < <(arch_globs)
   shopt -s nullglob
-  local darwin_archives=("${DIST_DIR}"/openfoam-native-"${DIST_VERSION}"-darwin-*.tar.gz)
+  local darwin_archives=("${DIST_DIR}"/openfoam-"${DIST_VERSION}"-darwin-*.tar.gz)
   shopt -u nullglob
   if [[ ${#darwin_archives[@]} -gt 0 ]]; then
     echo "[setup_openfoam_image] Found darwin archive(s) for native install only:" >&2
@@ -156,7 +156,7 @@ UBUNTU_VERSION="${UBUNTU_VERSION}" \
   bash "${ROOT}/docker/setup_base_image.sh"
 
 mkdir -p "${CONTEXT_DIR}"
-cp "${ARCHIVE}" "${CONTEXT_DIR}/openfoam-native.tar.gz"
+cp "${ARCHIVE}" "${CONTEXT_DIR}/openfoam.tar.gz"
 
 PREV_IMAGE_ID="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
 

@@ -93,7 +93,7 @@ DOCKER_IMAGE_TAR = $(BUILD_DOCKER_DIR)/$(DOCKER_DIST_BASENAME).tar.gz
 # Build
 # =============================================================================
 
-openfoam: get-jobs sync-submodule
+openfoam: get-jobs sync-submodule check-deps
 	@OPENFOAM_VERSION=$(OPENFOAM_VERSION) bash install.sh
 
 cli:
@@ -150,8 +150,20 @@ dist-native: all wheel
 install-deps:
 	@bash scripts/install_deps.sh
 
+# Verify build dependencies. On failure, print how to install them; with
+# INSTALL_DEPS=1, install missing deps (sudo apt/brew) instead of failing.
 check-deps:
-	@bash scripts/check_deps.sh
+	@bash scripts/check_deps.sh || { \
+		if [ "$(INSTALL_DEPS)" = "1" ]; then \
+			echo "[check-deps] INSTALL_DEPS=1: installing missing dependencies..."; \
+			bash scripts/install_deps.sh; \
+		else \
+			echo "[check-deps] Missing dependencies. Either run:"; \
+			echo "  make install-deps              # install now (sudo apt/brew)"; \
+			echo "  make <target> INSTALL_DEPS=1   # auto-install, then build"; \
+			exit 1; \
+		fi; \
+	}
 
 get-jobs:
 	@echo "Parallel jobs: $(JOBS)"
@@ -174,12 +186,12 @@ help:
 	@echo ""
 	@echo "Dist:"
 	@echo "  make dist-native             bundled tar + whl -> $(DIST_NATIVE_DIR)/"
-	@echo "  make dist-docker             Linux: image + host CLI pack/whl -> $(HOST_BUILD_ROOT)/dist-docker/"
+	@echo "  make dist-docker             Linux: image tar + whl -> $(HOST_BUILD_ROOT)/dist-docker/"
 	@echo ""
 	@echo "Docker (host only):"
 	@echo "  make docker-shell            -> $(DOCKER_BUILD_ROOT)/"
 	@echo "  make docker-dist-native      container dist-native -> $(DOCKER_BUILD_ROOT)/"
-	@echo "  make docker-dist-docker      image + host CLI -> $(DOCKER_BUILD_ROOT)/dist-docker/"
+	@echo "  make docker-dist-docker      image tar + whl -> $(DOCKER_BUILD_ROOT)/dist-docker/"
 	@echo "  make docker-setup-base / docker-setup-build / docker-push / docker-prune-images"
 	@echo ""
 	@echo "Deps:"
@@ -327,7 +339,7 @@ _docker-pack-image: docker-host-guard
 	  OPENFOAM_NATIVE_DIST="$(OPENFOAM_NATIVE_DIST)" \
 	  bash docker/setup_openfoam_image.sh
 
-# Export image + host CLI pack + wheel into $(1)/dist-docker/.
+# Export image tar + wheel into $(1)/dist-docker/.
 # $(2) is CONTAINER_BUILD when rebuilding CLI from that tree.
 define _dist-docker-export
 img_tar="$(1)/docker/$(DOCKER_DIST_BASENAME).tar.gz"; \
@@ -342,7 +354,6 @@ printf '[dist-docker] Exporting %s -> %s/dist-docker/\n' \
 cp "$$img_tar" "$(1)/dist-docker/$(DOCKER_DIST_BASENAME).tar.gz"; \
 $(MAKE) CONTAINER_BUILD=$(2) BUILD_ROOT=$(1) cli wheel; \
 DIST_DIR="$(CURDIR)/$(1)/dist-docker" \
-  HOST_CLI_PACK=1 \
   OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
   bash scripts/stage_cli_dist.sh; \
 printf '[dist-docker] Done (%s/dist-docker/)\n' "$(1)"

@@ -23,9 +23,17 @@ normalize_prefix_path() {
 }
 
 rewrite_script_path() {
-  local script="${SCRIPT_DIR}/rewrite_openfoam_paths.sh"
-  [[ -f "${script}" ]] || return 1
-  printf '%s' "${script}"
+  # Installed CLI keeps the script beside this one; in the source tree it
+  # lives at <repo>/scripts/ (not duplicated into cli/openfoam/).
+  local script
+  for script in \
+    "${SCRIPT_DIR}/rewrite_openfoam_paths.sh" \
+    "${SCRIPT_DIR}/../../scripts/rewrite_openfoam_paths.sh"; do
+    [[ -f "${script}" ]] || continue
+    printf '%s' "${script}"
+    return 0
+  done
+  return 1
 }
 
 rewrite_installed_prefix() {
@@ -101,7 +109,7 @@ prefix_hint_missing_bashrc() {
   local prefix="$1"
   cat >&2 <<EOF
 Note: ${prefix}/etc/bashrc not found.
-Pack:    tar xzf openfoam-native-*.tar.gz -C <prefix>
+Pack:    tar xzf openfoam-*.tar.gz -C <prefix>
 Local:   make openfoam && source ${OPENFOAM_BUILD:-${BUILD_ROOT:-build}/openfoam-build}/etc/bashrc
          (docker-shell uses BUILD_ROOT=docker-build)
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
@@ -128,7 +136,7 @@ require_native_prefix() {
     cat >&2 <<EOF
 OpenFOAM install not found at ${prefix}.
 
-Pack:    tar xzf openfoam-native-*.tar.gz -C <prefix>
+Pack:    tar xzf openfoam-*.tar.gz -C <prefix>
 Local:   make all && source ${OPENFOAM_BUILD:-${BUILD_ROOT:-build}/openfoam-build}/etc/bashrc
          (docker-shell uses BUILD_ROOT=docker-build)
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).

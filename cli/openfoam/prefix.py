@@ -82,7 +82,7 @@ def native_prefix() -> Path:
     if not _has_bashrc(root):
         raise FileNotFoundError(
             f"OpenFOAM install not found at {root}; "
-            f"extract openfoam-native tar or set OPENFOAM_PREFIX"
+            f"extract openfoam tar or set OPENFOAM_PREFIX"
         )
 
     _rewrite_installed_prefix(root)

@@ -2,7 +2,7 @@
 # Docker runtime launcher (openfoam docker).
 #
 # Install: pip install openfoam_cli-*.whl  (make wheel)
-# Native:  tar xzf openfoam-native-*.tar.gz -C <prefix>  (make dist-native)
+# Native:  tar xzf openfoam-*.tar.gz -C <prefix>  (make dist-native)
 #   openfoam docker install-image [image.tar.gz]
 #   openfoam docker pull
 #
