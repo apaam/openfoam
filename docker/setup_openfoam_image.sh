@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Build the openfoam runtime image from a linux dist-native archive.
+# Build the phynexis-foam runtime image from a linux dist-native archive.
 #
 # Usage (env vars from make):
-#   DOCKER_OPENFOAM_IMAGE=openfoam:24.04-arm64 \
+#   DOCKER_OPENFOAM_IMAGE=phynexis-foam:2412-arm64 \
 #   DOCKER_PLATFORM=linux/arm64 \
 #   bash docker/setup_openfoam_image.sh
 set -euo pipefail
@@ -36,7 +36,7 @@ OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
 DIST_VERSION="${OPENFOAM_VERSION#v}"
 DIST_DIR="$(openfoam_abs_under_root "${ROOT}" "${DIST_NATIVE_DIR:-${BUILD_ROOT:-build}/dist-native}")"
 BUILD_DOCKER_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_DOCKER_DIR:-${BUILD_ROOT:-build}/docker}")"
-IMAGE_TAR="${DOCKER_IMAGE_TAR:-${BUILD_DOCKER_DIR}/openfoam-docker-${DIST_VERSION}-linux-${TARGETARCH}.tar.gz}"
+IMAGE_TAR="${DOCKER_IMAGE_TAR:-${BUILD_DOCKER_DIR}/phynexis-foam-docker-${DIST_VERSION}-linux-${TARGETARCH}.tar.gz}"
 CONTEXT_DIR="${BUILD_DOCKER_DIR}/of-dist-context"
 
 arch_globs() {
@@ -78,7 +78,7 @@ find_linux_native_archive() {
   fi
 
   while IFS= read -r arch; do
-    name="openfoam-${DIST_VERSION}-linux-${arch}.tar.gz"
+    name="phynexis-foam-${DIST_VERSION}-linux-${arch}.tar.gz"
     candidate="${DIST_DIR}/${name}"
     if [[ -f "${candidate}" ]]; then
       printf '%s' "${candidate}"
@@ -90,10 +90,10 @@ find_linux_native_archive() {
   echo "[setup_openfoam_image] Docker images are always Linux (no macOS Docker image)." >&2
   echo "[setup_openfoam_image] Expected under ${DIST_DIR}/:" >&2
   while IFS= read -r arch; do
-    echo "  openfoam-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
+    echo "  phynexis-foam-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
   done < <(arch_globs)
   shopt -s nullglob
-  local darwin_archives=("${DIST_DIR}"/openfoam-"${DIST_VERSION}"-darwin-*.tar.gz)
+  local darwin_archives=("${DIST_DIR}"/phynexis-foam-"${DIST_VERSION}"-darwin-*.tar.gz)
   shopt -u nullglob
   if [[ ${#darwin_archives[@]} -gt 0 ]]; then
     echo "[setup_openfoam_image] Found darwin archive(s) for native install only:" >&2
@@ -156,7 +156,7 @@ UBUNTU_VERSION="${UBUNTU_VERSION}" \
   bash "${ROOT}/docker/setup_base_image.sh"
 
 mkdir -p "${CONTEXT_DIR}"
-cp "${ARCHIVE}" "${CONTEXT_DIR}/openfoam.tar.gz"
+cp "${ARCHIVE}" "${CONTEXT_DIR}/phynexis-foam.tar.gz"
 
 PREV_IMAGE_ID="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
 

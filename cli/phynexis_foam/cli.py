@@ -3,9 +3,9 @@ import sys
 
 
 def _launcher_path() -> str:
-    import openfoam
+    import phynexis_foam
 
-    return os.path.join(os.path.dirname(openfoam.__file__), "openfoam.sh")
+    return os.path.join(os.path.dirname(phynexis_foam.__file__), "phynexis-foam.sh")
 
 
 def main() -> None:

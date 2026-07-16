@@ -24,7 +24,7 @@ normalize_prefix_path() {
 
 rewrite_script_path() {
   # Installed CLI keeps the script beside this one; in the source tree it
-  # lives at <repo>/scripts/ (not duplicated into cli/openfoam/).
+  # lives at <repo>/scripts/ (not duplicated into cli/phynexis_foam/).
   local script
   for script in \
     "${SCRIPT_DIR}/rewrite_openfoam_paths.sh" \
@@ -66,7 +66,7 @@ resolve_local_build_prefix() {
   local pkg_dir="$1"
   local cli_root
 
-  [[ "${pkg_dir}" == */share/openfoam/cli ]] || return 1
+  [[ "${pkg_dir}" == */share/phynexis-foam/cli ]] || return 1
   cli_root="$(cd "${pkg_dir}/../../.." && pwd)"
   # Product pack: CLI root has etc/bashrc + openfoam/.
   if [[ -f "${cli_root}/etc/bashrc" ]]; then
@@ -109,7 +109,7 @@ prefix_hint_missing_bashrc() {
   local prefix="$1"
   cat >&2 <<EOF
 Note: ${prefix}/etc/bashrc not found.
-Pack:    tar xzf openfoam-*.tar.gz -C <prefix>
+Pack:    tar xzf phynexis-foam-*.tar.gz -C <prefix>
 Local:   make openfoam && source ${OPENFOAM_BUILD:-${BUILD_ROOT:-build}/openfoam-build}/etc/bashrc
          (docker-shell uses BUILD_ROOT=docker-build)
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).
@@ -136,7 +136,7 @@ require_native_prefix() {
     cat >&2 <<EOF
 OpenFOAM install not found at ${prefix}.
 
-Pack:    tar xzf openfoam-*.tar.gz -C <prefix>
+Pack:    tar xzf phynexis-foam-*.tar.gz -C <prefix>
 Local:   make all && source ${OPENFOAM_BUILD:-${BUILD_ROOT:-build}/openfoam-build}/etc/bashrc
          (docker-shell uses BUILD_ROOT=docker-build)
 Set OPENFOAM_PREFIX to your install root (default: ${DEFAULT_OPENFOAM_PREFIX}).

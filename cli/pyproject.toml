@@ -3,21 +3,21 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openfoam-cli"
+name = "phynexis-foam"
 version = "2412"
 description = "OpenFOAM install and command-line tools"
 requires-python = ">=3.7"
 
 [project.scripts]
-openfoam = "openfoam.cli:main"
+phynexis-foam = "phynexis_foam.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["openfoam"]
+include = ["phynexis_foam"]
 
 [tool.setuptools.package-data]
-openfoam = [
-  "openfoam.sh",
+phynexis_foam = [
+  "phynexis-foam.sh",
   "prefix.sh",
   "prefix.py",
   "native.sh",
@@ -27,7 +27,7 @@ openfoam = [
   "rewrite_openfoam_paths.sh",
   "manifest.sh",
   "manifest.json",
-  "_openfoam",
+  "_phynexis-foam",
   "completion.bash",
   "completion.zsh",
 ]

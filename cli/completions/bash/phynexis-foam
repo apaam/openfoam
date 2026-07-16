@@ -1,0 +1,14 @@
+# Bash tab completion for phynexis-foam (installed as share/bash-completion/completions/phynexis-foam).
+_phynexis_foam_cli_dir() {
+  if [[ -n "${OPENFOAM_PACKAGE_DIR:-}" ]]; then
+    printf '%s' "${OPENFOAM_PACKAGE_DIR}"
+    return 0
+  fi
+  local dir py="${OPENFOAM_PYTHON:-python3}"
+  dir="$("$py" -c 'import os, phynexis_foam; print(os.path.dirname(phynexis_foam.__file__))' 2>/dev/null)" || return 1
+  printf '%s' "${dir}"
+}
+
+_phynexis_foam_cli_dir="$(_phynexis_foam_cli_dir)" || return 0
+# shellcheck disable=SC1090
+source "${_phynexis_foam_cli_dir}/completion.bash"

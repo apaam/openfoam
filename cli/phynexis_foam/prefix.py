@@ -51,7 +51,7 @@ def _rewrite_installed_prefix(installed: Path) -> None:
 
 def _local_build_prefix() -> Optional[Path]:
     pkg_dir = _package_dir()
-    if not str(pkg_dir).endswith("/share/openfoam/cli"):
+    if not str(pkg_dir).endswith("/share/phynexis-foam/cli"):
         return None
     cli_root = pkg_dir.parent.parent.parent.resolve()
     if (cli_root / "etc" / "bashrc").is_file():
@@ -82,7 +82,7 @@ def native_prefix() -> Path:
     if not _has_bashrc(root):
         raise FileNotFoundError(
             f"OpenFOAM install not found at {root}; "
-            f"extract openfoam tar or set OPENFOAM_PREFIX"
+            f"extract phynexis-foam tar or set OPENFOAM_PREFIX"
         )
 
     _rewrite_installed_prefix(root)

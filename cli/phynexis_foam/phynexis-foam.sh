@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OpenFOAM CLI entry (native + docker).
+# phynexis-foam CLI entry (native + docker).
 
 set -euo pipefail
 
@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<EOF
-OpenFOAM CLI
+phynexis-foam — OpenFOAM CLI
 
 Native:
   install <archive.tar.gz> [--prefix <dir>] [--force]
@@ -27,16 +27,16 @@ Docker:
   docker uninstall-image            Remove runtime image
 
 Examples:
-  pip install openfoam_cli-*.whl
-  openfoam install openfoam-*.tar.gz
+  pip install phynexis_foam-*.whl
+  phynexis-foam install phynexis-foam-*.tar.gz
   export OPENFOAM_PREFIX=/opt/openfoam
   source "\$OPENFOAM_PREFIX/etc/bashrc"
   blockMesh -help
-  openfoam run blockMesh
-  openfoam run -np 4 icoFoam -parallel
-  openfoam docker run ./Allrun
+  phynexis-foam run blockMesh
+  phynexis-foam run -np 4 icoFoam -parallel
+  phynexis-foam docker run ./Allrun
 
-See also: openfoam docker help
+See also: phynexis-foam docker help
 EOF
 }
 

@@ -1,5 +1,5 @@
 # Container interactive / docker-run env (installed as /root/.bashrc).
-# Non-interactive `openfoam docker run` also sources this file explicitly.
+# Non-interactive `phynexis-foam docker run` also sources this file explicitly.
 # Product env: /opt/openfoam/etc/bashrc → openfoam/etc/bashrc.
 
 if [[ -f /opt/openfoam/etc/bashrc ]]; then

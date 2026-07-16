@@ -1,16 +1,16 @@
-# Bash tab completion for the openfoam CLI.
-# Pip install registers share/bash-completion/completions/openfoam automatically.
-# Or source this file from shell_bashrc.sh inside openfoam shell.
+# Bash tab completion for the phynexis-foam CLI.
+# Pip install registers share/bash-completion/completions/phynexis-foam automatically.
+# Or source this file from shell_bashrc.sh inside phynexis-foam shell.
 
-_openfoam_complete_dirs() {
+_phynexis_foam_complete_dirs() {
   compgen -d -- "$1"
 }
 
-_openfoam_complete_paths() {
+_phynexis_foam_complete_paths() {
   compgen -f -- "$1"
 }
 
-_openfoam() {
+_phynexis_foam() {
   local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
@@ -18,12 +18,21 @@ _openfoam() {
   case "${COMP_CWORD}" in
   1)
     mapfile -t COMPREPLY < <(
-      compgen -W "prefix run shell docker completion help -h --help" -- "${cur}"
+      compgen -W "install prefix run shell docker completion help -h --help" -- "${cur}"
     )
     ;;
   *)
     case "${COMP_WORDS[1]}" in
     prefix | help | -h | --help)
+      ;;
+    install)
+      if [[ "${COMP_CWORD}" -eq 2 ]]; then
+        mapfile -t COMPREPLY < <(
+          compgen -f -X '!*.tar.gz' -- "${cur}"
+          compgen -f -X '!*.tgz' -- "${cur}"
+          _phynexis_foam_complete_dirs "${cur}"
+        )
+      fi
       ;;
     completion)
       if [[ "${COMP_CWORD}" -eq 2 ]]; then
@@ -32,15 +41,15 @@ _openfoam() {
       ;;
     shell)
       if [[ "${COMP_CWORD}" -eq 2 ]]; then
-        mapfile -t COMPREPLY < <(_openfoam_complete_dirs "${cur}")
+        mapfile -t COMPREPLY < <(_phynexis_foam_complete_dirs "${cur}")
       fi
       ;;
     run)
       if [[ "${COMP_CWORD}" -eq 2 ]]; then
         mapfile -t COMPREPLY < <(
           {
-            _openfoam_complete_paths "${cur}"
-            _openfoam_complete_dirs "${cur}"
+            _phynexis_foam_complete_paths "${cur}"
+            _phynexis_foam_complete_dirs "${cur}"
           } | sort -u
         )
       fi
@@ -55,13 +64,13 @@ _openfoam() {
       3)
         case "${COMP_WORDS[2]}" in
         shell)
-          mapfile -t COMPREPLY < <(_openfoam_complete_dirs "${cur}")
+          mapfile -t COMPREPLY < <(_phynexis_foam_complete_dirs "${cur}")
           ;;
         run)
           mapfile -t COMPREPLY < <(
             {
-              _openfoam_complete_paths "${cur}"
-              _openfoam_complete_dirs "${cur}"
+              _phynexis_foam_complete_paths "${cur}"
+              _phynexis_foam_complete_dirs "${cur}"
             } | sort -u
           )
           ;;
@@ -81,6 +90,6 @@ _openfoam() {
   esac
 }
 
-if ! declare -F _openfoam >/dev/null 2>&1; then
-  complete -o default -o bashdefault -F _openfoam openfoam
+if ! declare -F _phynexis_foam >/dev/null 2>&1; then
+  complete -o default -o bashdefault -F _phynexis_foam phynexis-foam
 fi

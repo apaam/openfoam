@@ -75,7 +75,7 @@ export OPENFOAM_BASHRC="${OPENFOAM_BASHRC:-${_OF_DIST_ETC}/bashrc}"
 # Product CLI (bin/) + tab completions (share/).
 _of_dist_prepend_path "${_OF_DIST_PREFIX}/bin"
 
-_of_cli_share="${_OF_DIST_PREFIX}/share/openfoam/cli"
+_of_cli_share="${_OF_DIST_PREFIX}/share/phynexis-foam/cli"
 if [ -d "${_of_cli_share}" ]; then
   export OPENFOAM_PACKAGE_DIR="${_of_cli_share}"
 fi
@@ -93,8 +93,8 @@ if [ -n "${ZSH_VERSION:-}" ]; then
     *) fpath=("${_of_zsh_fp}" ${fpath[@]}) ;;
     esac
     if typeset -f compdef >/dev/null 2>&1; then
-      autoload -Uz _openfoam
-      compdef _openfoam openfoam
+      autoload -Uz _phynexis-foam
+      compdef _phynexis-foam phynexis-foam
     fi
   fi
   unset _of_zsh_fp

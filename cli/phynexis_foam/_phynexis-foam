@@ -1,24 +1,30 @@
-#compdef openfoam
+#compdef phynexis-foam
 
-_openfoam_complete_dirs() {
+_phynexis_foam_complete_dirs() {
   _files -/
 }
 
-_openfoam_complete_paths() {
+_phynexis_foam_complete_paths() {
   _files
 }
 
-_openfoam() {
+_phynexis-foam() {
   local -a static docker_static
 
   if (( CURRENT == 2 )); then
-    static=(prefix run shell docker completion help -h --help)
-    _describe 'openfoam command' static
+    static=(install prefix run shell docker completion help -h --help)
+    _describe 'phynexis-foam command' static
     return 0
   fi
 
   case ${words[2]} in
   prefix | help | -h | --help)
+    ;;
+  install)
+    if (( CURRENT == 3 )); then
+      _files -g '*.tar.gz' -g '*.tgz'
+      _phynexis_foam_complete_dirs
+    fi
     ;;
   completion)
     if (( CURRENT == 3 )); then
@@ -27,13 +33,13 @@ _openfoam() {
     ;;
   shell)
     if (( CURRENT == 3 )); then
-      _openfoam_complete_dirs
+      _phynexis_foam_complete_dirs
     fi
     ;;
   run)
     if (( CURRENT == 3 )); then
-      _openfoam_complete_paths
-      _openfoam_complete_dirs
+      _phynexis_foam_complete_paths
+      _phynexis_foam_complete_dirs
     fi
     ;;
   docker)
@@ -47,11 +53,11 @@ _openfoam() {
     4)
       case ${words[3]} in
       shell)
-        _openfoam_complete_dirs
+        _phynexis_foam_complete_dirs
         ;;
       run)
-        _openfoam_complete_paths
-        _openfoam_complete_dirs
+        _phynexis_foam_complete_paths
+        _phynexis_foam_complete_dirs
         ;;
       install-image)
         _files -g '*.tar.gz' -g '*.tgz' -g '*.tar'

@@ -18,7 +18,7 @@ openfoam_apply_build_path_defaults() {
   : "${BUILD_DOCKER_DIR:=${BUILD_ROOT}/docker}"
   : "${BUILD_WHEEL_STAGE_DIR:=${BUILD_ROOT}/stage/cli-wheel}"
   : "${BUILD_WHEEL_TMP_DIR:=${BUILD_ROOT}/stage/wheel-build}"
-  : "${BUILD_WHEEL_MATCH:=openfoam_cli-*.whl}"
+  : "${BUILD_WHEEL_MATCH:=phynexis_foam-*.whl}"
 }
 
 openfoam_apply_container_build_paths() {

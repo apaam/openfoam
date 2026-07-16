@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Read/write openfoam CLI manifest.json (schema 1).
+# Read/write phynexis-foam CLI manifest.json (schema 1).
 
 set -euo pipefail
 
 CLI_MANIFEST_NAME="manifest.json"
-DEFAULT_PREFIX_ARCHIVE_NAME="openfoam-prefix.tar.gz"
+DEFAULT_PREFIX_ARCHIVE_NAME="phynexis-foam-prefix.tar.gz"
 
 _openfoam_python() {
   printf '%s' "${OPENFOAM_PYTHON:-python3}"

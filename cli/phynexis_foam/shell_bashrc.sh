@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash --rcfile wrapper for openfoam shell: load user bashrc, then add prompt prefix.
+# Bash --rcfile wrapper for phynexis-foam shell: load user bashrc, then add prompt prefix.
 
 if [[ -f "${HOME}/.bashrc" ]]; then
   # shellcheck disable=SC1090
@@ -8,7 +8,7 @@ fi
 
 if [[ -n "${OPENFOAM_SHELL:-}" && -z "${OPENFOAM_PS1_APPLIED:-}" ]]; then
   export OPENFOAM_PS1_APPLIED=1
-  PS1="(${OPENFOAM_SHELL_TAG:-openfoam}) ${PS1:-$ }"
+  PS1="(${OPENFOAM_SHELL_TAG:-phynexis-foam}) ${PS1:-$ }"
 fi
 
 # Functions from etc/bashrc are lost across exec bash; reload completions here.

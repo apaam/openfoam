@@ -19,7 +19,7 @@ case "${DIST_DIR}" in
 esac
 
 WHEEL_DIR="$(openfoam_abs_under_root "${ROOT}" "${BUILD_WHEEL_DIR}")"
-WHEEL_MATCH="${BUILD_WHEEL_MATCH:-openfoam_cli-*.whl}"
+WHEEL_MATCH="${BUILD_WHEEL_MATCH:-phynexis_foam-*.whl}"
 
 mkdir -p "${DIST_DIR}"
 

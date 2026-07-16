@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Docker runtime launcher (openfoam docker).
+# Docker runtime launcher (phynexis-foam docker).
 #
-# Install: pip install openfoam_cli-*.whl  (make wheel)
-# Native:  tar xzf openfoam-*.tar.gz -C <prefix>  (make dist-native)
-#   openfoam docker install-image [image.tar.gz]
-#   openfoam docker pull
+# Install: pip install phynexis_foam-*.whl  (make wheel)
+# Native:  tar xzf phynexis-foam-*.tar.gz -C <prefix>  (make dist-native)
+#   phynexis-foam docker install-image [image.tar.gz]
+#   phynexis-foam docker pull
 #
 # Usage:
-#   openfoam docker run blockMesh
-#   openfoam docker run -np 4 icoFoam -parallel
-#   openfoam docker shell .
+#   phynexis-foam docker run blockMesh
+#   phynexis-foam docker run -np 4 icoFoam -parallel
+#   phynexis-foam docker shell .
 
 set -euo pipefail
 
@@ -29,8 +29,9 @@ fi
 
 default_openfoam_image() {
   local registry="${DOCKER_REGISTRY:-}"
-  local name="${DOCKER_OPENFOAM_IMAGE_NAME:-openfoam}"
-  local version="${DOCKER_UBUNTU_VERSION:-24.04}"
+  local name="${DOCKER_OPENFOAM_IMAGE_NAME:-phynexis-foam}"
+  local version="${OPENFOAM_VERSION:-v2412}"
+  version="${version#v}"
   local arch="${DOCKER_ARCH:-}"
   if [[ -z "${arch}" ]]; then
     case "$(uname -m)" in
@@ -47,7 +48,7 @@ default_openfoam_image() {
 }
 
 OPENFOAM_IMAGE="${OPENFOAM_IMAGE:-$(default_openfoam_image)}"
-CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-openfoam docker}"
+CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-phynexis-foam docker}"
 
 platform_args() {
   case "${OPENFOAM_IMAGE}" in
@@ -118,7 +119,7 @@ docker_dist_basename() {
     *) arch="amd64" ;;
     esac
   fi
-  printf 'openfoam-docker-%s-linux-%s' "${version}" "${arch}"
+  printf 'phynexis-foam-docker-%s-linux-%s' "${version}" "${arch}"
 }
 
 pack_basename() {
@@ -157,11 +158,11 @@ Environment:
   OPENFOAM_PACK    Offline archive path (optional, for install-image)
 
 Examples:
-  openfoam docker pull
-  openfoam docker run blockMesh
-  openfoam docker run -np 4 icoFoam -parallel
-  openfoam docker run ./Allrun
-  openfoam docker shell .
+  ${CLI_PREFIX} pull
+  ${CLI_PREFIX} run blockMesh
+  ${CLI_PREFIX} run -np 4 icoFoam -parallel
+  ${CLI_PREFIX} run ./Allrun
+  ${CLI_PREFIX} shell .
 
 Case inputs and outputs stay on your machine.
 EOF
@@ -173,7 +174,7 @@ cmd_install_image() {
   if [[ -z "${archive}" ]]; then
     if ! archive="$(find_pack_archive)"; then
       echo "Offline image archive not found." >&2
-      echo "Run: openfoam docker install-image <path/to/$(docker_dist_basename).tar.gz>" >&2
+      echo "Run: ${CLI_PREFIX} install-image <path/to/$(docker_dist_basename).tar.gz>" >&2
       exit 1
     fi
   fi
@@ -260,17 +261,17 @@ cmd_shell() {
   # Copy CLI shell files to /tmp so Docker Desktop can mount them (site-packages
   # under /opt/homebrew is not shared by default on macOS).
   pkg_src="$(openfoam_shell_bashrc_path)"
-  pkg_host="$(mktemp -d "/tmp/openfoam-docker-shell.XXXXXX")"
+  pkg_host="$(mktemp -d "/tmp/phynexis-foam-docker-shell.XXXXXX")"
   # Expand path now: EXIT trap runs after locals are gone (set -u would fail).
   trap "rm -rf $(printf '%q' "${pkg_host}")" EXIT
   cp "${pkg_src}/shell_bashrc.sh" "${pkg_host}/"
   if [[ -f "${pkg_src}/completion.bash" ]]; then
     cp "${pkg_src}/completion.bash" "${pkg_host}/"
   fi
-  pkg_container="/etc/openfoam_cli"
+  pkg_container="/etc/phynexis-foam"
   wrapper_container="${pkg_container}/shell_bashrc.sh"
   # Env comes from /root/.bashrc via shell_bashrc.sh (same as phynexis-v0).
-  inner="$(openfoam_interactive_shell_cmd "openfoam:docker" \
+  inner="$(openfoam_interactive_shell_cmd "phynexis-foam:docker" \
     "${wrapper_container}" "${pkg_container}")"
   # Do not exec: keep trap so pkg_host is removed after the container exits.
   if [[ -n "${platform}" ]]; then

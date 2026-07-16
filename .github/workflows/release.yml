@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-docker-${{ matrix.arch }}
-          path: build/dist-docker/openfoam-docker-*.tar.gz
+          path: build/dist-docker/phynexis-foam-docker-*.tar.gz
           if-no-files-found: error
           retention-days: 14
 
@@ -106,7 +106,7 @@ jobs:
               seen[$base]=1
             fi
           done
-          native=(dist/openfoam-native-*)
+          native=(dist/phynexis-foam-[0-9]*)
           if ((${#native[@]} == 0)); then
             echo "No dist-native release assets under dist/" >&2
             ls -la dist 2>/dev/null || true
@@ -132,27 +132,26 @@ jobs:
 
             | Platform | OpenFOAM | CLI |
             |----------|----------|-----|
-            | **macOS** | `openfoam-native-*-darwin-*.tar.gz` | `pip install openfoam_cli-*.whl` or darwin `openfoam-cli-*.tar.gz` |
-            | **Linux** | `openfoam-native-*-linux-*.tar.gz` (amd64 / arm64) | same wheel / matching `openfoam-cli-*.tar.gz` |
-            | **Windows / Docker** | `openfoam docker install-image` with `openfoam-docker-*-linux-amd64.tar.gz` or `*-linux-arm64.tar.gz` | host `pip install openfoam_cli-*.whl` |
+            | **macOS** | `phynexis-foam install phynexis-foam-*-darwin-arm64.tar.gz` | `pip install phynexis_foam-*.whl` (or the pack-embedded `bin/phynexis-foam`) |
+            | **Linux** | `phynexis-foam install phynexis-foam-*-linux-*.tar.gz` (amd64 / arm64) | same wheel |
+            | **Windows / Docker** | `phynexis-foam docker install-image` with `phynexis-foam-docker-*-linux-amd64.tar.gz` or `*-linux-arm64.tar.gz` | host `pip install phynexis_foam-*.whl` |
 
-            Native extract (macOS needs a case-sensitive volume):
+            Native (macOS needs a case-sensitive volume; default prefix `/opt/openfoam`):
 
             ```bash
-            mkdir -p ~/opt/openfoam && tar xzf openfoam-native-*.tar.gz -C ~/opt/openfoam
-            source ~/opt/openfoam/etc/bashrc
-            export OPENFOAM_PREFIX=~/opt/openfoam
-            pip install openfoam_cli-*.whl
+            pip install phynexis_foam-*.whl
+            phynexis-foam install phynexis-foam-*-darwin-arm64.tar.gz   # or linux-*
+            source /opt/openfoam/etc/bashrc
             ```
 
             Docker (Linux images only; Docker Desktop on macOS/Windows still runs Linux):
 
             ```bash
-            pip install openfoam_cli-*.whl
+            pip install phynexis_foam-*.whl
             # pick amd64 or arm64 to match the machine / Docker platform
-            openfoam docker install-image openfoam-docker-*-linux-amd64.tar.gz
-            # openfoam docker install-image openfoam-docker-*-linux-arm64.tar.gz
-            openfoam docker run …
+            phynexis-foam docker install-image phynexis-foam-docker-*-linux-amd64.tar.gz
+            # phynexis-foam docker install-image phynexis-foam-docker-*-linux-arm64.tar.gz
+            phynexis-foam docker run …
             ```
 
             Notes:

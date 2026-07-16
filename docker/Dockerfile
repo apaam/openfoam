@@ -1,5 +1,5 @@
 # OpenFOAM runtime image from linux dist-native (bundled libs).
-# Build context of-dist must contain openfoam.tar.gz.
+# Build context of-dist must contain phynexis-foam.tar.gz.
 
 ARG DOCKER_UBUNTU_IMAGE_NAME=phynexis-ubuntu
 ARG UBUNTU_VERSION=24.04
@@ -33,10 +33,10 @@ RUN chmod +x /usr/local/bin/apt_setup.sh \
   && apt-get install -y --no-install-recommends ca-certificates openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=of-dist openfoam.tar.gz /tmp/openfoam.tar.gz
+COPY --from=of-dist phynexis-foam.tar.gz /tmp/phynexis-foam.tar.gz
 RUN mkdir -p /opt/openfoam \
-  && tar xzf /tmp/openfoam.tar.gz -C /opt/openfoam \
-  && rm -f /tmp/openfoam.tar.gz \
+  && tar xzf /tmp/phynexis-foam.tar.gz -C /opt/openfoam \
+  && rm -f /tmp/phynexis-foam.tar.gz \
   && test -f /opt/openfoam/.pack-source-prefix \
   && test -f /opt/openfoam/openfoam/etc/bashrc \
   && OLD_PREFIX="$(cat /opt/openfoam/.pack-source-prefix)" \

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native OpenFOAM launcher (openfoam prefix / run / shell).
+# Native OpenFOAM launcher (phynexis-foam prefix / run / shell).
 
 set -euo pipefail
 
@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/prefix.sh"
 # shellcheck source=shell_prompt.sh
 source "${SCRIPT_DIR}/shell_prompt.sh"
 
-CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-openfoam}"
+CLI_PREFIX="${OPENFOAM_CLI_PREFIX:-phynexis-foam}"
 
 abs_path() {
   local path="$1"
@@ -43,15 +43,15 @@ Run:
   shell [dir]                       Interactive shell (sources etc/bashrc)
 
 Examples:
-  pip install openfoam_cli-*.whl
-  openfoam install openfoam-*.tar.gz
+  pip install phynexis_foam-*.whl
+  ${CLI_PREFIX} install phynexis-foam-*.tar.gz
   export OPENFOAM_PREFIX=${DEFAULT_OPENFOAM_PREFIX}
   source "\$OPENFOAM_PREFIX/etc/bashrc"
   blockMesh -help
-  openfoam run blockMesh
-  openfoam run -np 4 icoFoam -parallel
-  openfoam run ./Allrun
-  openfoam shell .
+  ${CLI_PREFIX} run blockMesh
+  ${CLI_PREFIX} run -np 4 icoFoam -parallel
+  ${CLI_PREFIX} run ./Allrun
+  ${CLI_PREFIX} shell .
 EOF
 }
 
@@ -95,8 +95,8 @@ cmd_completion() {
     ;;
   zsh)
     printf 'typeset -g OPENFOAM_PACKAGE_DIR=%q\n' "${SCRIPT_DIR}"
-    sed '/^#compdef /d' "${SCRIPT_DIR}/_openfoam"
-    printf '\nautoload -Uz compdef\ncompdef _openfoam openfoam\n'
+    sed '/^#compdef /d' "${SCRIPT_DIR}/_phynexis-foam"
+    printf '\nautoload -Uz compdef\ncompdef _phynexis-foam phynexis-foam\n'
     ;;
   *)
     echo "Unsupported shell: ${shell} (supported: bash, zsh)" >&2
@@ -204,7 +204,7 @@ Load the environment:
   source "\$OPENFOAM_PREFIX/etc/bashrc"
 
 Or call the bundled CLI:
-  ${prefix}/bin/openfoam run blockMesh
+  ${prefix}/bin/phynexis-foam run blockMesh
 EOF
 }
 
@@ -231,7 +231,7 @@ cmd_shell() {
     exit 1
   fi
   local inner
-  inner="$(openfoam_shell_cmd "$(openfoam_interactive_shell_cmd "openfoam")")"
+  inner="$(openfoam_shell_cmd "$(openfoam_interactive_shell_cmd "phynexis-foam")")"
   (cd "${work_dir}" && exec bash -lc "${inner}")
 }
 

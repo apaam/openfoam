@@ -66,7 +66,7 @@ openfoam/
 │   ├── bin/              # embedded CLI
 │   └── share/
 ├── docker-build/         # DOCKER_BUILD_ROOT (mirrors build/ under docker-shell)
-├── cli/                  # openfoam CLI sources
+├── cli/                  # phynexis-foam CLI sources
 ├── docker/               # Docker image build scripts
 ├── scripts/              # Build and packaging scripts
 ├── configure.sh          # macOS-specific configuration
@@ -106,11 +106,11 @@ openfoam/
 
 Release bundles: `dist-native` (bundled OF+CLI tar + wheel), `dist-docker` (Linux Docker image + wheel). Dev intermediates: `pack`, `wheel`.
 
-Two artifacts only: the platform **pack** (`openfoam-<ver>-<os>-<arch>.tar.gz`, self-contained with embedded CLI) and the cross-platform **wheel** (`openfoam_cli-*-py3-none-any.whl`).
+Two artifacts only: the platform **pack** (`phynexis-foam-<ver>-<os>-<arch>.tar.gz`, self-contained with embedded CLI) and the cross-platform **wheel** (`phynexis_foam-*-py3-none-any.whl`).
 
 ### CLI reference
 
-Top-level: `openfoam help`, `openfoam docker help`.
+Top-level: `phynexis-foam help`, `phynexis-foam docker help`.
 
 | Command | Purpose |
 |---------|---------|
@@ -126,15 +126,15 @@ Top-level: `openfoam help`, `openfoam docker help`.
 
 | Channel | Install openfoam | Install CLI |
 |---------|------------------|-------------|
-| local dev | `make all` | `$(BUILD_ROOT)/cli-build/bin/openfoam` or `make all-install` |
-| macOS / Linux native | `openfoam install openfoam-*.tar.gz` (`make dist-native`); or plain `tar xzf … -C <prefix>` (pack is self-contained) | `pip install openfoam_cli-*.whl`, or use the pack-embedded `<prefix>/bin/openfoam` |
-| Docker (Linux image only) | `openfoam docker install-image` (`make dist-docker` on Linux / CI; `make docker-dist-docker` on macOS) | host `pip install openfoam_cli-*.whl` |
+| local dev | `make all` | `$(BUILD_ROOT)/cli-build/bin/phynexis-foam` or `make all-install` |
+| macOS / Linux native | `phynexis-foam install phynexis-foam-*.tar.gz` (`make dist-native`); or plain `tar xzf … -C <prefix>` (pack is self-contained) | `pip install phynexis_foam-*.whl`, or use the pack-embedded `<prefix>/bin/phynexis-foam` |
+| Docker (Linux image only) | `phynexis-foam docker install-image` (`make dist-docker` on Linux / CI; `make docker-dist-docker` on macOS) | host `pip install phynexis_foam-*.whl` |
 
 | Make target | Output |
 |-------------|--------|
 | `pack` / `wheel` | `build/pack/` one tar; `build/wheel/` one whl |
-| `dist-native` | `build/dist-native/` — `openfoam-*-<os>-<arch>.tar.gz` + `openfoam_cli-*.whl` |
-| `dist-docker` | `build/dist-docker/` — Linux image tar + `openfoam_cli-*.whl` |
+| `dist-native` | `build/dist-native/` — `phynexis-foam-*-<os>-<arch>.tar.gz` + `phynexis_foam-*.whl` |
+| `dist-docker` | `build/dist-docker/` — Linux image tar + `phynexis_foam-*.whl` |
 | `docker-dist-native` | `docker-build/dist-native/` — container linux native |
 | `docker-dist-docker` | `docker-build/dist-docker/` — container image + wheel |
 
@@ -148,40 +148,40 @@ source build/openfoam-build/etc/bashrc
 export PATH="build/cli-build/bin:$PATH"
 
 # native release (dist-native)
-pip install build/dist-native/openfoam_cli-*.whl
-openfoam install build/dist-native/openfoam-*-$(uname -s | tr '[:upper:]' '[:lower:]')-*.tar.gz
+pip install build/dist-native/phynexis_foam-*.whl
+phynexis-foam install build/dist-native/phynexis-foam-*-$(uname -s | tr '[:upper:]' '[:lower:]')-*.tar.gz
 source /opt/openfoam/etc/bashrc
 
 # docker (pip-installed CLI does not auto-find repo dist-docker/)
-pip install build/dist-docker/openfoam_cli-*.whl
-openfoam docker install-image build/dist-docker/openfoam-docker-2412-linux-amd64.tar.gz
-# Apple Silicon Docker: openfoam-docker-*-linux-arm64.tar.gz
-# or: OPENFOAM_PACK=/path/to/openfoam-docker-2412-linux-amd64.tar.gz openfoam docker install-image
+pip install build/dist-docker/phynexis_foam-*.whl
+phynexis-foam docker install-image build/dist-docker/phynexis-foam-docker-2412-linux-amd64.tar.gz
+# Apple Silicon Docker: phynexis-foam-docker-*-linux-arm64.tar.gz
+# or: OPENFOAM_PACK=/path/to/phynexis-foam-docker-2412-linux-amd64.tar.gz phynexis-foam docker install-image
 ```
 
 ### Verify
 
 ```bash
-eval "$(openfoam prefix)"
+eval "$(phynexis-foam prefix)"
 source "$OPENFOAM_PREFIX/etc/bashrc"
-# or: source "$(openfoam prefix --path)/etc/bashrc"
+# or: source "$(phynexis-foam prefix --path)/etc/bashrc"
 blockMesh -help
-(cd "$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily" && openfoam run ./Allrun)
-(cd "$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily" && openfoam docker run ./Allrun)
-# openfoam run -np 4 icoFoam -parallel
+(cd "$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily" && phynexis-foam run ./Allrun)
+(cd "$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily" && phynexis-foam docker run ./Allrun)
+# phynexis-foam run -np 4 icoFoam -parallel
 ```
 
 ## Docker
 
 Docker (Linux image only; Docker Desktop on macOS/Windows still runs Linux containers). macOS users who want a native install use `make dist-native`; there is no macOS Docker image.
 
-`dist-docker` (Linux host) packs `build/dist-native/openfoam-*-linux-*.tar.gz` into a runtime image under `build/dist-docker/`. On macOS use `docker-dist-docker` (compiles in container → `docker-build/`). Release builds **amd64** and **arm64** images from matching Linux artifacts. `docker-*` targets must run on the host (not inside `docker-shell`).
+`dist-docker` (Linux host) packs `build/dist-native/phynexis-foam-*-linux-*.tar.gz` into a runtime image under `build/dist-docker/`. On macOS use `docker-dist-docker` (compiles in container → `docker-build/`). Release builds **amd64** and **arm64** images from matching Linux artifacts. `docker-*` targets must run on the host (not inside `docker-shell`).
 
 ```
 phynexis-build:24.04-{arch}   →  docker-setup-build / docker-shell
 phynexis-ubuntu:24.04-{arch}  →  docker-setup-base
-openfoam-*-linux-*.tar.gz     →  dist-docker / docker-dist-docker
-openfoam:24.04-{arch}          →  runtime image
+phynexis-foam-*-linux-*.tar.gz     →  dist-docker / docker-dist-docker
+phynexis-foam:2412-{arch}          →  runtime image
 build/dist-docker/             →  host release (make dist-docker)
 docker-build/dist-docker/      →  container release (make docker-dist-docker)
 ```

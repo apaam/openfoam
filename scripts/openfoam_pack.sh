@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build one openfoam-*.tar.gz (OF tree + embedded CLI) into PACK_DIR.
+# Build one phynexis-foam-*.tar.gz (OF tree + embedded CLI) into PACK_DIR.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,13 +37,13 @@ esac
 STAGE_STAMP="${OPENFOAM_STAGE}/.pack-stamp"
 
 mkdir -p "${PACK_DIR}"
-archive="${PACK_DIR}/openfoam-${version}-${os_name}-${arch}.tar.gz"
+archive="${PACK_DIR}/phynexis-foam-${version}-${os_name}-${arch}.tar.gz"
 
 if [[ -f "${archive}" && -f "${STAGE_STAMP}" && "${archive}" -nt "${STAGE_STAMP}" ]] \
   && openfoam_pack_stamp_matches "${STAGE_STAMP}" "${OPENFOAM_BUNDLE_RUNTIME}" \
   && [[ -f "${OPENFOAM_STAGE}/etc/bashrc" ]] \
   && [[ -f "${OPENFOAM_STAGE}/openfoam/etc/bashrc" ]] \
-  && [[ -x "${OPENFOAM_STAGE}/bin/openfoam" ]] \
+  && [[ -x "${OPENFOAM_STAGE}/bin/phynexis-foam" ]] \
   && [[ ! -d "${OPENFOAM_STAGE}/platforms" ]] \
   && [[ ! -d "${OPENFOAM_STAGE}/etc/config.sh" ]]; then
   echo "[pack] Up to date: ${archive}"
