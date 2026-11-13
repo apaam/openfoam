@@ -1,0 +1,179 @@
+name: foam-dist-linux-amd64
+
+# phynexis-foam Linux x86_64 发布包（glibc 2.35 基线）on Gitea Actions。
+#
+# 一设备一文件：foam-dist-<device>.yml；本文件 = linux-amd64 发布构建机。
+# 帧：build → verify → upload → install-smoke（与 xiaohe-agent 的 agent-linux
+# 同形）。发布是公开的 dufs /openfoam/<ver>/，保留 3 个版本（publish-vps.sh
+# 内裁剪），不设 beta 槽。
+#
+# Runner：vars.FOAM_CI_RUNNER_LINUX（ci-linux: ts-mac-mini 上的 x86_64
+# Ubuntu 22.04 Lima VM，label `ci-linux:host`）。该 VM 本身就是发布基线，
+# 因此这里原生构建（裸机 make，不用 Docker）；glibc 门禁在 verify 里兜底，
+# 任何 >2.35 的产物都会被拒绝。
+#
+# 2026-11 天河裸机构建 v1–v14 排障的结论仍然成立：产物只能在 22.04 上编。
+#
+# Secrets: XIAOHE_VPS_SSH_KEY（ts-xiaohe）、CI_GIT_TOKEN（openfoam-source 是
+# submodule，必须）。
+on:
+  workflow_dispatch:
+    inputs:
+      upload_only:
+        description: Skip build; run upload on the existing drop.
+        type: boolean
+        default: false
+      release_tag:
+        description: Version directory on dufs (e.g. v2412.6).
+        type: string
+        default: v2412.6
+
+permissions:
+  contents: read
+
+env:
+  GLIBC_FLOOR: "2.35"
+  RELEASE_TAG: ${{ inputs.release_tag }}
+
+jobs:
+  build-linux-amd64:
+    name: build-linux-amd64
+    if: inputs.upload_only != true && inputs.upload_only != 'true'
+    runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_LINUX || '"ci-linux"') }}
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          token: ${{ secrets.CI_GIT_TOKEN }}
+
+      - name: Baseline check (Ubuntu 22.04 / glibc 2.35)
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          echo "host: $PRETTY_NAME, glibc $(ldd --version | head -1 | awk '{print $NF}')"
+          [[ "$VERSION_ID" == "22.04" ]] || { echo "build host must be Ubuntu 22.04"; exit 1; }
+
+      - name: Ensure build deps (idempotent)
+        run: bash scripts/install_deps.sh
+
+      - name: Build (native make dist-native)
+        run: |
+          set -euo pipefail
+          make -j"${NUM_JOBS:-3}" dist-native
+        env:
+          NUM_JOBS: "3"
+
+      - name: Write build manifest
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          src_sha=$(git submodule status openfoam-source | awk '{print $1}')
+          stamp="dev-$(date +%Y%m%d)-g${sha:0:7}"
+          python3 - "$stamp" "$sha" "$src_sha" <<'PY'
+          import hashlib, json, pathlib, sys
+          stamp, sha, src_sha = sys.argv[1:4]
+          root = pathlib.Path("build/dist-native")
+          arts = {}
+          for p in sorted(root.iterdir()):
+              if p.is_file():
+                  arts[p.name] = "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()
+          manifest = {
+              "version": stamp,
+              "commit_foam_repo": sha,
+              "commit_openfoam_source": src_sha.strip("+"),
+              "ubuntu_baseline": "22.04", "glibc_floor": "2.35",
+              "built_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+              "builder": "gitea-actions/foam-dist-linux-amd64",
+              "artifacts": arts,
+          }
+          (root / "build-manifest.json").write_text(json.dumps(manifest, indent=2))
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Verify glibc floor, ldd and bashrc smoke
+        run: |
+          set -euo pipefail
+          tar=$(ls build/dist-native/*.tar.gz | sort -V | tail -1)
+          stage=$(mktemp -d)
+          tar -xzf "$tar" -C "$stage"
+          max=$(find "$stage" -name "*.so*" -type f \
+            | xargs -r objdump -T 2>/dev/null \
+            | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 | cut -d_ -f2)
+          echo "max GLIBC symbol: GLIBC_$max (floor $GLIBC_FLOOR)"
+          [ "$(printf '%s\n%s\n' "$GLIBC_FLOOR" "$max" | sort -V | tail -1)" = "$GLIBC_FLOOR" ] \
+            || { echo "glibc floor violated"; exit 1; }
+          bad=0
+          while IFS= read -r lib; do
+            if ldd -r "$lib" 2>&1 | grep -q "not found"; then
+              echo "unresolved libs: $lib"; ldd -r "$lib" | grep "not found"; bad=1
+            fi
+          done < <(find "$stage" -name "*.so*" -type f)
+          [ "$bad" -eq 0 ]
+          stage_abs=$(cd "$stage" && pwd)
+          bash -c "source ${stage_abs}/openfoam/etc/bashrc >/dev/null 2>&1 || source ${stage_abs}/etc/bashrc >/dev/null 2>&1; command -v wmake blockMesh"
+          rm -rf "$stage"
+
+      - name: Drop artifacts for upload
+        run: |
+          set -euo pipefail
+          d="$HOME/.xiaohe/ci-drop/foam-linux-amd64"
+          rm -rf "$d"; mkdir -p "$d"
+          cp build/dist-native/* "$d"/
+          ls -la "$d"
+
+  upload:
+    name: upload
+    needs: build-linux-amd64
+    if: always() && (inputs.upload_only == true || inputs.upload_only == 'true' || needs.build-linux-amd64.result == 'success')
+    runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_LINUX || '"ci-linux"') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Require VPS SSH secret
+        env:
+          SSH_KEY: ${{ secrets.XIAOHE_VPS_SSH_KEY }}
+        run: '[[ -n "${SSH_KEY}" ]] || { echo "Missing secret XIAOHE_VPS_SSH_KEY"; exit 1; }'
+
+      - name: Prepare SSH
+        env:
+          SSH_KEY: ${{ secrets.XIAOHE_VPS_SSH_KEY }}
+          XIAOHE_VPS_SSH: ${{ secrets.XIAOHE_VPS_SSH || 'ubuntu@100.64.0.4' }}
+          XIAOHE_VPS_SSH_PORT: ${{ secrets.XIAOHE_VPS_SSH_PORT || '22022' }}
+        run: bash scripts/ci/gha-prepare-vps-ssh.sh
+
+      - name: Publish to dufs /openfoam/<ver> (glibc gate + prune 3)
+        env:
+          OPENFOAM_RELEASE_TAG: ${{ inputs.release_tag }}
+          KEEP_VERSIONS: "3"
+          BUILD_ROOT: build
+        run: |
+          set -euo pipefail
+          d="$HOME/.xiaohe/ci-drop/foam-linux-amd64"
+          [[ -d "$d" ]] || { echo "missing drop $d (need same runner as build)"; exit 1; }
+          mkdir -p build/dist-native
+          cp -f "$d"/* build/dist-native/
+          bash scripts/release/publish-vps.sh
+
+  install-smoke:
+    name: install-smoke
+    needs: upload
+    runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_LINUX || '"ci-linux"') }}
+    timeout-minutes: 30
+    steps:
+      - name: Download published pack and run a cavity case
+        env:
+          BASE: ${{ secrets.XIAOHE_VPS_PUBLIC_URL || 'https://download.xiaohe.team' }}
+        run: |
+          set -euo pipefail
+          url="${BASE%/}/openfoam/${RELEASE_TAG}/openfoam-native-2412-linux-x86_64.tar.gz"
+          echo "fetch $url"
+          tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+          curl -fsSL --retry 3 -o "$tmp/pack.tar.gz" "$url"
+          mkdir -p "$tmp/opt"
+          tar -xzf "$tmp/pack.tar.gz" -C "$tmp/opt"
+          src="$tmp/opt"
+          [[ -f "$src/etc/bashrc" ]] || src="$tmp/opt/openfoam"
+          bash -c "set -e; source '$src/etc/bashrc' >/dev/null; cd '$tmp'; cp -r \"\$FOAM_TUTORIALS/incompressible/icoFoam/cavity/cavity\" .; cd cavity; blockMesh >/dev/null; icoFoam >/dev/null; test -f 0.5/U"
+          echo "cavity smoke OK"
