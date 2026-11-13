@@ -181,9 +181,17 @@ if [[ -n "${MPI_BIN_DIR}" && -d "${MPI_BIN_DIR}" ]]; then
   search_paths="${RUNTIME_DIR}:${mpi_bin_dest}"
   bundled=0
   # OMPI ≤4: orterun/orted; OMPI 5+: prterun/prted (mpirun execs prterun).
+  # On OMPI 5 the PRRTE launchers live in a separate package (Homebrew:
+  # Cellar/prrte), so also search the dir of any prterun on PATH.
+  launcher_dirs=("${MPI_BIN_DIR}")
+  _prte_dir="$(dirname "$(command -v prterun 2>/dev/null || echo /nonexistent/x)")"
+  [[ -d "${_prte_dir}" ]] && launcher_dirs+=("${_prte_dir}")
   for cmd in mpirun mpiexec orterun orted prterun prted prte prun; do
-    src="${MPI_BIN_DIR}/${cmd}"
-    [[ -e "${src}" ]] || continue
+    src=""
+    for d in "${launcher_dirs[@]}"; do
+      if [[ -e "${d}/${cmd}" ]]; then src="${d}/${cmd}"; break; fi
+    done
+    [[ -n "${src}" ]] || continue
     dest="${mpi_bin_dest}/${cmd}"
     cp -fL "${src}" "${dest}"
     chmod u+w "${dest}" 2>/dev/null || true
