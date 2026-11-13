@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# Publish OpenFOAM release artifacts to the VPS download service (dufs, port 8088).
+# Publish an OpenFOAM release pack to the dufs download service.
 #
-# Reads server settings from ~/.xiaohe/agent/config.json (same as xiaohe-agent):
-#   settings.vps_ssh      ssh alias, default: ts-vps
-#   settings.vps_dir      remote download dir, default: /srv/downloads/openfoam
-#   settings.vps_baseurl  public download base
+# Layout (docs/ci-release.md, phynexis-ops references/openfoam.md):
+#   /srv/downloads/openfoam/<ver>/openfoam-native-2412-linux-x86_64.tar.gz
+# The version directory is what CI pins (OPENFOAM_RELEASE_TAG) and what the
+# download page links to, so it is published atomically per version and old
+# versions are pruned to KEEP_VERSIONS (default 3).
 #
-# Renders install.sh from install.sh.in (substituting base URL + version),
-# then rsyncs the tarball, wheel and install.sh to the VPS.
+# Usage: OPENFOAM_RELEASE_TAG=v2412.6 bash scripts/release/publish-vps.sh
+#
+# Settings are read from ~/.xiaohe/agent/settings.json or
+# ~/.xiaohe/agent/config.json (settings.*); the defaults below are the current
+# production values.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -22,7 +26,6 @@ CONFIG="$HOME/.xiaohe/agent/config.json"
 SETTINGS="$HOME/.xiaohe/agent/settings.json"
 REL="$ROOT/scripts/release"
 
-# --- read a settings key with a default ---
 cfg() {
     python3 - "$SETTINGS" "$CONFIG" "$1" "${2:-}" <<'PY'
 import json, sys
@@ -40,50 +43,91 @@ print(val or default)
 PY
 }
 
-SSH_HOST="$(cfg vps_ssh ts-vps)"
+SSH_HOST="$(cfg vps_ssh ts-xiaohe)"
 REMOTE_DIR="$(cfg vps_dir /srv/downloads/openfoam)"
-BASEURL="$(cfg vps_baseurl http://1.14.226.205:8088/openfoam)"
+BASEURL="$(cfg vps_baseurl https://download.xiaohe.team/openfoam)"
 
-# --- version ---
-VERSION="${OPENFOAM_VERSION:-v2412}"
-info "Server : ${SSH_HOST}:${REMOTE_DIR}"
-info "BaseURL: ${BASEURL}"
-info "Version: ${VERSION}"
+VERSION="${OPENFOAM_RELEASE_TAG:-}"
+[[ -n "$VERSION" ]] || die "Set OPENFOAM_RELEASE_TAG (e.g. v2412.6)"
+[[ "$VERSION" =~ ^v[0-9] ]] || die "OPENFOAM_RELEASE_TAG must look like v2412.6 (got '$VERSION')"
+KEEP_VERSIONS="${KEEP_VERSIONS:-3}"
 
-# --- find dist artifacts ---
+info "Server  : ${SSH_HOST}:${REMOTE_DIR}/${VERSION}"
+info "BaseURL : ${BASEURL}"
+info "Keep    : ${KEEP_VERSIONS} version dirs"
+
+# --- dist artifacts -------------------------------------------------------
+shopt -s nullglob
 DIST_NATIVE="${BUILD_ROOT:-build}/dist-native"
-PACK=$(ls "$DIST_NATIVE"/phynexis-foam-*-*.tar.gz 2>/dev/null | head -1)
-WHEEL=$(ls "$DIST_NATIVE"/phynexis_foam-*.whl 2>/dev/null | head -1)
+PACKS=("$DIST_NATIVE"/openfoam-native-*.tar.gz "$DIST_NATIVE"/phynexis-foam-*.tar.gz)
+WHEELS=("$DIST_NATIVE"/phynexis_foam-*.whl)
+[[ ${#PACKS[@]} -gt 0 ]] || die "Missing dist pack. Run 'make dist-native' first."
+PACK="$(ls -1t "${PACKS[@]}" | head -1)"
+WHEEL=""
+[[ ${#WHEELS[@]} -gt 0 ]] && WHEEL="$(ls -1t "${WHEELS[@]}" | head -1)"
+ASSET="openfoam-native-2412-linux-x86_64.tar.gz"
+info "Pack  : $(basename "$PACK") → ${ASSET}"
+[[ -n "$WHEEL" ]] && info "Wheel : $(basename "$WHEEL")"
 
-if [[ -z "$PACK" || -z "$WHEEL" ]]; then
-    die "Missing dist artifacts. Run 'make dist-native' first."
+# --- gate: glibc floor (32-bit-safe symbol scan) --------------------------
+# Policy: published packs must not reference a GLIBC symbol newer than 2.35;
+# a 24.04 build silently ships __isoc23_*@GLIBC_2.38 and breaks every 22.04
+# host (this is what bit the v2412.5 pack).
+GLIBC_FLOOR="${GLIBC_FLOOR:-2.35}"
+info "Verifying glibc floor ≤ ${GLIBC_FLOOR} ..."
+STAGE="$(mktemp -d -t of-verify.XXXXXX)"
+trap 'rm -rf "$STAGE"' EXIT
+tar -xzf "$PACK" -C "$STAGE"
+max="$(find "$STAGE" -name '*.so*' -type f -print0 \
+        | xargs -0 -r objdump -T 2>/dev/null \
+        | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 | cut -d_ -f2)"
+[[ -n "$max" ]] || die "could not read GLIBC symbols from $PACK"
+info "max GLIBC symbol: GLIBC_${max}"
+if [[ "$(printf '%s\n%s\n' "$GLIBC_FLOOR" "$max" | sort -V | tail -1)" != "$GLIBC_FLOOR" ]]; then
+    die "pack references GLIBC_${max} > ${GLIBC_FLOOR}: rebuild on the Ubuntu 22.04 baseline"
 fi
-info "Pack:  $(basename "$PACK")"
-info "Wheel: $(basename "$WHEEL")"
 
-# --- render install.sh ---
-render() {
-    local in="$1" out="$2"
-    [[ -f "$in" ]] || die "Template missing: $in"
-    sed -e "s#@BASEURL@#${BASEURL}#g" -e "s#@VERSION@#${VERSION}#g" "$in" > "$out"
-}
-TMP_INSTALL="$(mktemp -t of-install.XXXXXX.sh)"
-trap 'rm -f "$TMP_INSTALL"' EXIT
-info "Rendering install.sh ..."
-render "$REL/install.sh.in" "$TMP_INSTALL"
-chmod +x "$TMP_INSTALL"
+# --- upload ---------------------------------------------------------------
+info "Uploading → ${SSH_HOST}:${REMOTE_DIR}/${VERSION}/ ..."
+ssh "$SSH_HOST" "sudo mkdir -p '${REMOTE_DIR}/${VERSION}' && sudo chown -R \$(id -un): '${REMOTE_DIR}'"
+scp -q "$PACK" "${SSH_HOST}:/tmp/$(basename "$ASSET")"
+ssh "$SSH_HOST" "sudo mv '/tmp/$(basename "$ASSET")' '${REMOTE_DIR}/${VERSION}/${ASSET}' \
+  && sudo chmod -R a+rX '${REMOTE_DIR}/${VERSION}'"
+if [[ -n "$WHEEL" ]]; then
+    scp -q "$WHEEL" "${SSH_HOST}:/tmp/$(basename "$WHEEL")"
+    ssh "$SSH_HOST" "sudo mv '/tmp/$(basename "$WHEEL")' '${REMOTE_DIR}/${VERSION}/$(basename "$WHEEL")' \
+      && sudo chmod a+r '${REMOTE_DIR}/${VERSION}/$(basename "$WHEEL")'"
+fi
 
-# --- upload ---
-info "Ensuring remote dir exists..."
-ssh "$SSH_HOST" "mkdir -p '${REMOTE_DIR}'" || die "SSH failed. Check tailnet is up."
+# --- render install.sh at the channel root --------------------------------
+if [[ -f "$REL/install.sh.in" ]]; then
+    TMP_INSTALL="$(mktemp -t of-install.XXXXXX.sh)"
+    sed -e "s#@BASEURL@#${BASEURL}#g" -e "s#@VERSION@#${VERSION}#g" "$REL/install.sh.in" > "$TMP_INSTALL"
+    chmod +x "$TMP_INSTALL"
+    scp -q "$TMP_INSTALL" "${SSH_HOST}:/tmp/install.sh"
+    ssh "$SSH_HOST" "sudo mv /tmp/install.sh '${REMOTE_DIR}/install.sh' && sudo chmod a+rX '${REMOTE_DIR}/install.sh'"
+    rm -f "$TMP_INSTALL"
+    info "install.sh rendered for ${VERSION}"
+fi
 
-info "Uploading artifacts → ${SSH_HOST}:${REMOTE_DIR}/ ..."
-rsync -avz --human-readable "$TMP_INSTALL" "${SSH_HOST}:${REMOTE_DIR}/install.sh"
-rsync -avz --human-readable "$PACK"    "${SSH_HOST}:${REMOTE_DIR}/$(basename "$PACK")"
-rsync -avz --human-readable "$WHEEL"   "${SSH_HOST}:${REMOTE_DIR}/$(basename "$WHEEL")"
+# --- prune (keep newest KEEP_VERSIONS) ------------------------------------
+info "Pruning old version dirs (keep ${KEEP_VERSIONS}) ..."
+ssh "$SSH_HOST" "sudo bash -s -- '${REMOTE_DIR}' '${VERSION}' '${KEEP_VERSIONS}'" <<'REMOTE'
+set -euo pipefail
+DIR="$1"; CUR="$2"; KEEP="$3"
+cd "$DIR"
+mapfile -t all < <(ls -1d v[0-9]* 2>/dev/null | sort -V)
+n=${#all[@]}
+if (( n > KEEP )); then
+  for ((i=0; i<n-KEEP; i++)); do
+    old="${all[$i]}"
+    [[ "$old" == "$CUR" ]] && continue
+    echo "  prune $old"
+    rm -rf "$old"
+  done
+fi
+ls -1d v[0-9]* 2>/dev/null | sort -V | sed 's/^/  keep /'
+REMOTE
 
-echo ""
-info "Published. Install with:"
-echo ""
-echo "    read -p 'Account: ' u && curl -u \"\$u\" -fsSL ${BASEURL}/install.sh | bash"
-echo ""
+info "Published ${VERSION}"
+echo "    ${BASEURL}/${VERSION}/${ASSET}"
