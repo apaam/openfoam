@@ -43,7 +43,7 @@ print(val or default)
 PY
 }
 
-SSH_HOST="$(cfg vps_ssh ts-xiaohe)"
+SSH_HOST="${OPENFOAM_VPS_SSH:-${XIAOHE_VPS_SSH:-$(cfg vps_ssh ts-xiaohe)}}"
 REMOTE_DIR="$(cfg vps_dir /srv/downloads/openfoam)"
 BASEURL="$(cfg vps_baseurl https://download.xiaohe.team/openfoam)"
 
@@ -65,7 +65,14 @@ WHEELS=("$DIST_NATIVE"/phynexis_foam-*.whl)
 PACK="$(ls -1t "${PACKS[@]}" | head -1)"
 WHEEL=""
 [[ ${#WHEELS[@]} -gt 0 ]] && WHEEL="$(ls -1t "${WHEELS[@]}" | head -1)"
-ASSET="openfoam-native-2412-linux-x86_64.tar.gz"
+# Asset name follows the platform: the Linux pack keeps the historical
+# "-linux-x86_64" name the phynexis CI pattern-matches on; Darwin uses arm64.
+case "$(uname -s)/$(uname -m)" in
+  Linux/x86_64)          OS_ARCH="linux-x86_64" ;;
+  Darwin/arm64)          OS_ARCH="darwin-arm64" ;;
+  *)                     OS_ARCH="$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" ;;
+esac
+ASSET="openfoam-native-2412-${OS_ARCH}.tar.gz"
 info "Pack  : $(basename "$PACK") → ${ASSET}"
 [[ -n "$WHEEL" ]] && info "Wheel : $(basename "$WHEEL")"
 
@@ -74,6 +81,9 @@ info "Pack  : $(basename "$PACK") → ${ASSET}"
 # a 24.04 build silently ships __isoc23_*@GLIBC_2.38 and breaks every 22.04
 # host (this is what bit the v2412.5 pack).
 GLIBC_FLOOR="${GLIBC_FLOOR:-2.35}"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  info "Darwin pack: skipping the GLIBC floor check (Mach-O)"
+else
 info "Verifying glibc floor ≤ ${GLIBC_FLOOR} ..."
 STAGE="$(mktemp -d -t of-verify.XXXXXX)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -85,6 +95,7 @@ max="$(find "$STAGE" -name '*.so*' -type f -print0 \
 info "max GLIBC symbol: GLIBC_${max}"
 if [[ "$(printf '%s\n%s\n' "$GLIBC_FLOOR" "$max" | sort -V | tail -1)" != "$GLIBC_FLOOR" ]]; then
     die "pack references GLIBC_${max} > ${GLIBC_FLOOR}: rebuild on the Ubuntu 22.04 baseline"
+fi
 fi
 
 # --- upload ---------------------------------------------------------------
