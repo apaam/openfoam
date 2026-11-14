@@ -30,6 +30,15 @@ if [[ "$(printf '%s\n%s\n' "${FLOOR}" "${max}" | sort -V | tail -1)" != "${FLOOR
   exit 1
 fi
 
+src="${stage}"
+[[ -f "${src}/etc/bashrc" ]] || src="${stage}/openfoam"
+[[ -f "${src}/etc/bashrc" ]] || { echo "[verify] pack lacks etc/bashrc" >&2; exit 1; }
+# ldd needs the pack's own lib dirs; the bashrc sets LD_LIBRARY_PATH.
+set +u
+# shellcheck disable=SC1091
+source "${src}/etc/bashrc" >/dev/null 2>&1 || true
+set -u
+
 bad=0
 while IFS= read -r lib; do
   if ldd -r "${lib}" 2>&1 | grep -q "not found"; then
