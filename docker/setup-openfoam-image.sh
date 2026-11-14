@@ -4,7 +4,7 @@
 # Usage (env vars from make):
 #   DOCKER_OPENFOAM_IMAGE=phynexis-foam:2412-arm64 \
 #   DOCKER_PLATFORM=linux/arm64 \
-#   bash docker/setup_openfoam_image.sh
+#   bash docker/setup-openfoam-image.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,7 +13,7 @@ cd "${ROOT}"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
 # shellcheck disable=SC1091
-source "${ROOT}/docker/container_backend.sh"
+source "${ROOT}/docker/container-backend.sh"
 openfoam_require_container || exit 1
 
 # shellcheck disable=SC1091
@@ -25,7 +25,7 @@ PLATFORM="${DOCKER_PLATFORM:?DOCKER_PLATFORM required}"
 case "${PLATFORM}" in
 linux/*) ;;
 *)
-  echo "[setup_openfoam_image] DOCKER_PLATFORM must be linux/* (got ${PLATFORM})" >&2
+  echo "[setup-openfoam-image] DOCKER_PLATFORM must be linux/* (got ${PLATFORM})" >&2
   exit 1
   ;;
 esac
@@ -58,20 +58,20 @@ find_linux_native_archive() {
     *) candidate="${ROOT}/${candidate}" ;;
     esac
     if [[ ! -f "${candidate}" ]]; then
-      echo "[setup_openfoam_image] OPENFOAM_NATIVE_DIST not found: ${candidate}" >&2
+      echo "[setup-openfoam-image] OPENFOAM_NATIVE_DIST not found: ${candidate}" >&2
       return 1
     fi
     base="$(basename "${candidate}")"
     case "${base}" in
     *darwin*)
-      echo "[setup_openfoam_image] Docker images are Linux-only; refusing darwin archive:" >&2
+      echo "[setup-openfoam-image] Docker images are Linux-only; refusing darwin archive:" >&2
       echo "  ${base}" >&2
-      echo "[setup_openfoam_image] On macOS install with: make dist-native" >&2
+      echo "[setup-openfoam-image] On macOS install with: make dist-native" >&2
       return 1
       ;;
     *linux*) ;;
     *)
-      echo "[setup_openfoam_image] Expected a linux native archive name (*-linux-*), got: ${base}" >&2
+      echo "[setup-openfoam-image] Expected a linux native archive name (*-linux-*), got: ${base}" >&2
       return 1
       ;;
     esac
@@ -88,9 +88,9 @@ find_linux_native_archive() {
     fi
   done < <(arch_globs)
 
-  echo "[setup_openfoam_image] Missing linux native dist for ${PLATFORM}" >&2
-  echo "[setup_openfoam_image] Docker images are always Linux (no macOS Docker image)." >&2
-  echo "[setup_openfoam_image] Expected under ${DIST_DIR}/:" >&2
+  echo "[setup-openfoam-image] Missing linux native dist for ${PLATFORM}" >&2
+  echo "[setup-openfoam-image] Docker images are always Linux (no macOS Docker image)." >&2
+  echo "[setup-openfoam-image] Expected under ${DIST_DIR}/:" >&2
   while IFS= read -r arch; do
     echo "  phynexis-foam-${DIST_VERSION}-linux-${arch}.tar.gz" >&2
   done < <(arch_globs)
@@ -98,7 +98,7 @@ find_linux_native_archive() {
   local darwin_archives=("${DIST_DIR}"/phynexis-foam-"${DIST_VERSION}"-darwin-*.tar.gz)
   shopt -u nullglob
   if [[ ${#darwin_archives[@]} -gt 0 ]]; then
-    echo "[setup_openfoam_image] Found darwin archive(s) for native install only:" >&2
+    echo "[setup-openfoam-image] Found darwin archive(s) for native install only:" >&2
     for a in "${darwin_archives[@]}"; do
       echo "  $(basename "${a}")" >&2
     done
@@ -107,7 +107,7 @@ find_linux_native_archive() {
 }
 
 verify() {
-  bash "${ROOT}/docker/verify_openfoam_image.sh" "${IMAGE}"
+  bash "${ROOT}/docker/verify-openfoam-image.sh" "${IMAGE}"
 }
 
 # Remove only the image this rebuild untagged (not every dangling image).
@@ -146,8 +146,8 @@ restore_previous_image() {
 
 ARCHIVE=""
 if ! ARCHIVE="$(find_linux_native_archive)"; then
-  echo "[setup_openfoam_image] Build one with: make dist-native (Linux) or make docker-dist-native" >&2
-  echo "[setup_openfoam_image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz" >&2
+  echo "[setup-openfoam-image] Build one with: make dist-native (Linux) or make docker-dist-native" >&2
+  echo "[setup-openfoam-image] Or set OPENFOAM_NATIVE_DIST to a *-linux-*.tar.gz" >&2
   exit 1
 fi
 printf '==> Packaging %s -> image %s\n' "${ARCHIVE}" "${IMAGE}"
@@ -155,7 +155,7 @@ printf '==> Packaging %s -> image %s\n' "${ARCHIVE}" "${IMAGE}"
 UBUNTU_VERSION="${UBUNTU_VERSION}" \
   DOCKER_UBUNTU_IMAGE_NAME="${UBUNTU_IMAGE_NAME}" \
   PLATFORM="${PLATFORM}" \
-  bash "${ROOT}/docker/setup_base_image.sh"
+  bash "${ROOT}/docker/setup-base-image.sh"
 
 mkdir -p "${CONTEXT_DIR}"
 cp "${ARCHIVE}" "${CONTEXT_DIR}/phynexis-foam.tar.gz"

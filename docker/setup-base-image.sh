@@ -3,16 +3,16 @@ set -euo pipefail
 
 # Prepare digest-pinned Ubuntu base (phynexis-ubuntu:* tags).
 # Usage:
-#   ./docker/setup_base_image.sh
-#   PLATFORM=linux/amd64 ./docker/setup_base_image.sh
-#   PLATFORM=all ./docker/setup_base_image.sh
-#   FORCE=1 ./docker/setup_base_image.sh
+#   ./docker/setup-base-image.sh
+#   PLATFORM=linux/amd64 ./docker/setup-base-image.sh
+#   PLATFORM=all ./docker/setup-base-image.sh
+#   FORCE=1 ./docker/setup-base-image.sh
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
 # shellcheck disable=SC1091
-source "${ROOT}/docker/container_backend.sh"
+source "${ROOT}/docker/container-backend.sh"
 openfoam_require_container || exit 1
 
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"

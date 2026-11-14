@@ -19,4 +19,4 @@ EOF
 
 # Container CLI selection (docker / podman / apple) lives in the plugin.
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/container_backend.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/container-backend.sh"

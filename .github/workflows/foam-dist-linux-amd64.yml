@@ -4,7 +4,7 @@ name: foam-dist-linux-amd64
 #
 # 构建在 ubuntu:22.04 容器里完成（docker/Dockerfile.build），与开发机、CI
 # 共用同一条 `make docker-dist-native`。runner 只要求有容器后端（docker /
-# podman / apple，见 docker/container_backend.sh），宿主系统不限；当前是
+# podman / apple，见 docker/container-backend.sh），宿主系统不限；当前是
 # ts-mac-mini 宿主 + colima Rosetta，label `ci-container:host`。
 #
 # 帧：build → verify → upload → install-smoke。verify / install-smoke 也都

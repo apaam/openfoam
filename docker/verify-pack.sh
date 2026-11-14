@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Download a published OpenFOAM pack and run the cavity tutorial, inside the
-# build image (the host may be macOS and unable to run a Linux pack).
-# Host wrapper: make docker-install-smoke
+# Verify a dist-native pack inside the build image (glibc floor, ldd, bashrc).
+# Host wrapper: make docker-verify-pack
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -10,7 +9,7 @@ cd "${ROOT}"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
 # shellcheck disable=SC1091
-source "${ROOT}/docker/container_backend.sh"
+source "${ROOT}/docker/container-backend.sh"
 openfoam_require_container || exit 1
 
 PLATFORM="${DOCKER_PLATFORM:-}"
@@ -29,7 +28,7 @@ cb run --rm \
   --platform "${PLATFORM}" \
   -v "${ROOT}:/src" \
   -w /src \
-  -e "RELEASE_TAG=${RELEASE_TAG:?RELEASE_TAG required}" \
-  -e "OPENFOAM_BASEURL=${OPENFOAM_BASEURL:-https://download.xiaohe.team}" \
+  -e "GLIBC_FLOOR=${GLIBC_FLOOR:-2.35}" \
+  -e "BUILD_ROOT=${BUILD_ROOT:-docker-build}" \
   "${IMAGE}" \
-  bash scripts/ci/install_smoke.sh
+  bash scripts/ci/verify-pack.sh

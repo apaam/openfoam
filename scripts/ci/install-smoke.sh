@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs INSIDE the ubuntu 22.04 build image (see docker/install_smoke.sh).
+# Runs INSIDE the ubuntu 22.04 build image (see docker/install-smoke.sh).
 # Downloads the published pack and runs the icoFoam cavity tutorial.
 set -euo pipefail
 

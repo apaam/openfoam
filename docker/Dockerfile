@@ -17,19 +17,19 @@ ENV LANG=C.UTF-8 \
     OPENFOAM_PREFIX=/opt/openfoam \
     HOME=/root
 
-COPY docker/apt_setup.sh /usr/local/bin/apt_setup.sh
+COPY docker/apt-setup.sh /usr/local/bin/apt-setup.sh
 COPY scripts/rewrite_openfoam_paths.sh /usr/local/bin/rewrite_openfoam_paths.sh
 COPY scripts/rewrite_openfoam_prefs.sh /usr/local/bin/rewrite_openfoam_prefs.sh
 COPY scripts/install_dist_bashrc.sh /usr/local/bin/install_dist_bashrc.sh
 COPY scripts/etc/bashrc /usr/local/share/openfoam/etc/bashrc
 COPY scripts/openfoam_mpi_env.sh /usr/local/bin/openfoam_mpi_env.sh
 COPY scripts/install_bundled_mpi_wrappers.sh /usr/local/bin/install_bundled_mpi_wrappers.sh
-RUN chmod +x /usr/local/bin/apt_setup.sh \
+RUN chmod +x /usr/local/bin/apt-setup.sh \
     /usr/local/bin/rewrite_openfoam_paths.sh \
     /usr/local/bin/rewrite_openfoam_prefs.sh \
     /usr/local/bin/install_dist_bashrc.sh \
     /usr/local/bin/install_bundled_mpi_wrappers.sh \
-  && APT_MIRROR=${APT_MIRROR} apt_setup.sh \
+  && APT_MIRROR=${APT_MIRROR} apt-setup.sh \
   && apt-get install -y --no-install-recommends ca-certificates openssh-client \
   && rm -rf /var/lib/apt/lists/*
 

@@ -1,0 +1,118 @@
+name: foam-dist-darwin-arm64
+
+# phynexis-foam macOS arm64 发布包 on Gitea Actions。
+# 与 foam-dist-linux-amd64 同帧：build → verify → upload-beta → install-beta；
+# 与 xiaohe-agent 的 client-darwin 共用 runner 纪律（ts-mac，勿堆并发）。
+#
+# mac 包是开发/演示渠道（darwin-arm64 只有 Apple 硅用户），glibc 基线政策
+# 不适用，但 manifest/verify/drop/upload 约定与 linux 完全一致——两文件保持
+# 步骤同名同序，差异只在构建命令与符号扫描（mac 扫的是 dylib install_name，
+# 用 otool -L 查 @loader_path 完整性）。
+#
+# 宿主环境由 dmg 工作流维护（OpenFOAM.dmg 为构建树镜像）；CI 在干净 checkout
+# 上重跑 make dist-native，保证仓内脚本自足、不依赖本机状态。
+on:
+  workflow_dispatch:
+    inputs:
+      upload_only:
+        description: Skip build; run upload-beta on the existing ci-drop (debug).
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-darwin-arm64:
+    name: build-darwin-arm64
+    if: inputs.upload_only != true
+    runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_DARWIN || '"macos-latest"') }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          token: ${{ secrets.CI_GIT_TOKEN }}
+
+      # 继承 native-build.yml 的处理：OpenFOAM 源码有仅大小写不同的文件名冲突，
+      # macOS 默认大小写不敏感，必须先把 workspace 放进大小写敏感的 sparseimage。
+      - name: Case-sensitive workspace (macOS)
+        run: |
+          set -euo pipefail
+          img="${RUNNER_TEMP}/openfoam-cs.sparseimage"
+          mnt="/Volumes/OpenFOAM"
+          hdiutil detach "${mnt}" -force 2>/dev/null || true
+          hdiutil create -size 60g -type SPARSE -fs "Case-sensitive APFS" \
+            -volname OpenFOAM "${img}"
+          hdiutil attach "${img}" -mountpoint "${mnt}"
+          cs_work="${mnt}/workspace"
+          mkdir -p "${cs_work}"
+          rm -rf "${GITHUB_WORKSPACE}"
+          ln -s "${cs_work}" "${GITHUB_WORKSPACE}"
+          rsync -a --exclude '.git' "${RUNNER_WORKSPACE}/$(basename "$GITHUB_REPOSITORY")/" "${cs_work}/" 2>/dev/null || true
+
+      - name: make dist-native (native darwin)
+        run: |
+          set -euo pipefail
+          brew bundle -f || true   # Brewfile 与 check-deps 双重兜底
+          make dist-native
+
+      - name: Write build manifest
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          src_sha=$(git submodule status openfoam-source | awk '{print $1}')
+          stamp=dev-$(date +%Y%m%d)-g${sha:0:7}
+          python3 - "$stamp" "$sha" "$src_sha" <<'PY'
+          import hashlib, json, pathlib, sys, datetime
+          stamp, sha, src_sha = sys.argv[1:4]
+          root = pathlib.Path("dist-native")
+          arts = {p.name: "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in sorted(root.iterdir()) if p.is_file()}
+          (root / "build-manifest.json").write_text(json.dumps({
+              "version": stamp,
+              "commit_foam_repo": sha,
+              "commit_openfoam_source": src_sha.strip("+"),
+              "platform": "darwin-arm64",
+              "built_at": datetime.datetime.utcnow().isoformat() + "Z",
+              "builder": "gitea-actions/foam-dist-darwin-arm64",
+              "artifacts": arts}, indent=2))
+          PY
+
+      - name: Verify: install_name + smoke
+        run: |
+          set -euo pipefail
+          tar=$(ls dist-native/phynexis-foam-*-darwin-arm64.tar.gz | sort -V | tail -1)
+          stage=$(mktemp -d)
+          tar -xzf "$tar" -C "$stage"
+          lib=$(find "$stage" -name "libOpenFOAM*.dylib" | head -1)
+          otool -L "$lib" | grep -E "^\s+/" \
+            && { echo "absolute install_name found (must be @loader_path)"; exit 1; } || true
+          bash -c "source $(find "$stage" -name bashrc -path '*etc*' | head -1); command -v wmake blockMesh"
+
+      - name: Drop artifacts for upload-beta
+        run: bash -c 'set -e; d="$HOME/.xiaohe/ci-drop/foam-darwin-arm64"; rm -rf "$d"; mkdir -p "$d"; cp dist-native/* "$d"/'
+
+  upload-beta:
+    name: upload-beta
+    needs: build-darwin-arm64
+    if: always() && (inputs.upload_only == true || needs.build-darwin-arm64.result == 'success')
+    runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_DARWIN || '"macos-latest"') }}
+    timeout-minutes: 30
+    steps:
+      - name: Publish to dufs beta (foam channel, darwin)
+        run: |
+          set -euo pipefail
+          DROP="$HOME/.xiaohe/ci-drop/foam-darwin-arm64"
+          [[ -d "$DROP" ]] || { echo "missing drop $DROP"; exit 1; }
+          # TODO(ops): 与 foam-dist-linux-amd64 共用 publish.sh --beta
+          echo "upload darwin drop pending ops scripts"
+
+  install-beta:
+    name: install-beta
+    needs: upload-beta
+    runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_DARWIN || '"macos-latest"') }}
+    timeout-minutes: 30
+    steps:
+      - name: Install from dufs beta + smoke (mac)
+        run: echo "install-beta pending ops scripts（对齐 linux 文件同名步骤）"

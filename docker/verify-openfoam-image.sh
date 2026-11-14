@@ -9,12 +9,12 @@ openfoam_require_docker || exit 1
 IMAGE="${1:-}"
 
 if [[ -z "${IMAGE}" ]]; then
-  echo "Usage: docker/verify_openfoam_image.sh IMAGE" >&2
+  echo "Usage: docker/verify-openfoam-image.sh IMAGE" >&2
   exit 1
 fi
 
 if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
-  echo "[verify_openfoam_image] Docker image not found: ${IMAGE}" >&2
+  echo "[verify-openfoam-image] Docker image not found: ${IMAGE}" >&2
   exit 1
 fi
 
@@ -93,4 +93,4 @@ if ! docker run --rm "${IMAGE}" bash -c '
   exit 1
 fi
 
-echo "[verify_openfoam_image] OK: ${IMAGE}"
+echo "[verify-openfoam-image] OK: ${IMAGE}"

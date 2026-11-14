@@ -315,7 +315,7 @@ docker-setup-build: docker-host-guard
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
 	  FORCE=$(FORCE) \
-	  bash docker/setup_build_image.sh
+	  bash docker/setup-build-image.sh
 
 docker-shell: docker-host-guard
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
@@ -324,12 +324,12 @@ docker-shell: docker-host-guard
 	  DOCKER_APT_MIRROR=$(DOCKER_APT_MIRROR) \
 	  BUILD_JOBS=$(JOBS) \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	  bash docker/build_in_container.sh
+	  bash docker/build-in-container.sh
 
 docker-setup-base: docker-host-guard
 	UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
 	DOCKER_UBUNTU_IMAGE_NAME=$(DOCKER_UBUNTU_IMAGE_NAME) \
-	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup_base_image.sh
+	PLATFORM=$(DOCKER_PLATFORM) ./docker/setup-base-image.sh
 
 _docker-pack-image: docker-host-guard
 	@DOCKER_OPENFOAM_IMAGE=$(DOCKER_OPENFOAM_IMAGE) \
@@ -342,7 +342,7 @@ _docker-pack-image: docker-host-guard
 	  BUILD_DOCKER_DIR=$(BUILD_DOCKER_DIR) \
 	  DOCKER_IMAGE_TAR="$(CURDIR)/$(DOCKER_IMAGE_TAR)" \
 	  OPENFOAM_NATIVE_DIST="$(OPENFOAM_NATIVE_DIST)" \
-	  bash docker/setup_openfoam_image.sh
+	  bash docker/setup-openfoam-image.sh
 
 # Export image tar + wheel into $(1)/dist-docker/.
 # $(2) is CONTAINER_BUILD when rebuilding CLI from that tree.
@@ -382,7 +382,7 @@ _docker-compile: docker-host-guard
 	  BUILD_JOBS=$(JOBS) \
 	  OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	  FORCE=$(FORCE) \
-	  bash docker/compile_openfoam.sh
+	  bash docker/compile-openfoam.sh
 
 docker-dist-native: _docker-compile
 	@printf '[docker-dist-native] Done (%s/dist-native/)\n' "$(DOCKER_BUILD_ROOT)"
@@ -398,7 +398,7 @@ docker-verify-pack: docker-host-guard
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
 	  GLIBC_FLOOR=$(GLIBC_FLOOR) \
 	  BUILD_ROOT=$(BUILD_ROOT) \
-	  bash docker/verify_pack.sh
+	  bash docker/verify-pack.sh
 
 # Download a published pack and run the cavity tutorial inside the build image.
 docker-install-smoke: docker-host-guard
@@ -407,7 +407,7 @@ docker-install-smoke: docker-host-guard
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
 	  RELEASE_TAG=$(RELEASE_TAG) \
 	  OPENFOAM_BASEURL=$(OPENFOAM_BASEURL) \
-	  bash docker/install_smoke.sh
+	  bash docker/install-smoke.sh
 
 docker-push: docker-host-guard
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then \

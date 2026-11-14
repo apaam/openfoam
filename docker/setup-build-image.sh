@@ -2,8 +2,8 @@
 # Build the phynexis-build image (Ubuntu + OpenFOAM build deps).
 #
 # Usage:
-#   bash docker/setup_build_image.sh
-#   FORCE=1 bash docker/setup_build_image.sh
+#   bash docker/setup-build-image.sh
+#   FORCE=1 bash docker/setup-build-image.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,7 +12,7 @@ cd "${ROOT}"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
 # shellcheck disable=SC1091
-source "${ROOT}/docker/container_backend.sh"
+source "${ROOT}/docker/container-backend.sh"
 openfoam_require_container || exit 1
 
 UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
@@ -30,7 +30,7 @@ fi
 case "${PLATFORM}" in
 linux/*) ;;
 *)
-  echo "[setup_build_image] DOCKER_PLATFORM must be linux/* (got ${PLATFORM})" >&2
+  echo "[setup-build-image] DOCKER_PLATFORM must be linux/* (got ${PLATFORM})" >&2
   exit 1
   ;;
 esac
@@ -38,7 +38,7 @@ TARGETARCH="${PLATFORM#linux/}"
 IMAGE="${BUILD_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}"
 
 if ! cb buildx version >/dev/null 2>&1; then
-  echo "[setup_build_image] container backend lacks buildx (CONTAINER_BACKEND=$(openfoam_container_backend))" >&2
+  echo "[setup-build-image] container backend lacks buildx (CONTAINER_BACKEND=$(openfoam_container_backend))" >&2
   exit 1
 fi
 

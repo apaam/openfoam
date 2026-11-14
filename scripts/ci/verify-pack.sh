@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs INSIDE the ubuntu 22.04 build image (see docker/verify_pack.sh).
+# Runs INSIDE the ubuntu 22.04 build image (see docker/verify-pack.sh).
 # Gates the published pack: GLIBC floor, unresolved libraries, bashrc smoke.
 set -euo pipefail
 

@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Interactive shell in phynexis-build. Repo is bind-mounted; make uses
-# CONTAINER_BUILD=1 so BUILD_ROOT=docker-build (isolated from host build/).
-#
-#   make docker-shell
-#   # inside: make dist-native
-#   # on host: make docker-dist-native / make docker-dist-docker
+# Non-interactive: compile + dist-native into docker-build/ (CONTAINER_BUILD=1).
+# Used by make docker-dist-native / docker-dist-docker.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,8 +9,8 @@ cd "${ROOT}"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
 # shellcheck disable=SC1091
-source "${ROOT}/docker/container_backend.sh"
-openfoam_require_docker_host "docker-shell" || exit 1
+source "${ROOT}/docker/container-backend.sh"
+openfoam_require_docker_host "docker-dist" || exit 1
 openfoam_require_container || exit 1
 
 # shellcheck disable=SC1091
@@ -37,6 +33,7 @@ IMAGE="${BUILD_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}"
 APT_MIRROR="${DOCKER_APT_MIRROR:-}"
 BUILD_JOBS="${BUILD_JOBS:-${NUM_JOBS:-2}}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-v2412}"
+FORCE="${FORCE:-0}"
 
 printf '==> Ensuring openfoam-source submodule\n'
 git -c submodule.recurse=false submodule sync -- openfoam-source
@@ -47,16 +44,15 @@ DOCKER_PLATFORM="${PLATFORM}" \
   DOCKER_UBUNTU_VERSION="${UBUNTU_VERSION}" \
   DOCKER_BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME}" \
   DOCKER_APT_MIRROR="${APT_MIRROR}" \
-  bash "${ROOT}/docker/setup_build_image.sh"
+  FORCE="${FORCE}" \
+  bash "${ROOT}/docker/setup-build-image.sh"
 
 mkdir -p "${ROOT}/${BUILD_ROOT}"
 
-printf '==> Shell in %s (%s); BUILD_ROOT=%s/ (CONTAINER_BUILD=1)\n' \
+printf '==> Compiling dist-native in %s (%s); BUILD_ROOT=%s/\n' \
   "${IMAGE}" "${PLATFORM}" "${BUILD_ROOT}"
-printf '    Inside: make openfoam / make dist-native\n'
-printf '    On host: make docker-dist-native / make docker-dist-docker\n'
 
-cb run --rm -it \
+cb run --rm \
   --platform "${PLATFORM}" \
   -v "${ROOT}:/src" \
   -w /src \
@@ -65,5 +61,6 @@ cb run --rm -it \
   -e "NUM_JOBS=${BUILD_JOBS}" \
   -e "OPENFOAM_VERSION=${OPENFOAM_VERSION}" \
   -e "CONTAINER_BUILD=1" \
+  -e "FORCE=${FORCE}" \
   "${IMAGE}" \
-  bash -lc 'export OPENFOAM_SHELL=1 OPENFOAM_SHELL_TAG=docker-shell && exec bash --rcfile /src/cli/phynexis_foam/shell_bashrc.sh -i'
+  make -j"${BUILD_JOBS}" dist-native
