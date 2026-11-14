@@ -15,10 +15,13 @@ ENV LANG=C.UTF-8 \
 COPY docker/apt_setup.sh /tmp/apt_setup.sh
 COPY scripts/linux_build_packages.txt /tmp/linux_build_packages.txt
 
+# --break-system-packages exists from pip 23; jammy ships pip 22.
 RUN chmod +x /tmp/apt_setup.sh \
   && APT_MIRROR=${APT_MIRROR} /tmp/apt_setup.sh \
   && apt-get install -y --no-install-recommends \
        $(grep -v '^#' /tmp/linux_build_packages.txt | grep -v '^[[:space:]]*$') \
        jq docker.io docker-buildx \
-  && python3 -m pip install --break-system-packages setuptools wheel mpi4py \
+  && python3 -m pip install --upgrade pip \
+  && pip_extra="$(python3 -m pip install --help 2>/dev/null | grep -q -- --break-system-packages && echo --break-system-packages || true)" \
+  && python3 -m pip install ${pip_extra} setuptools wheel mpi4py \
   && rm -rf /var/lib/apt/lists/* /tmp/apt_setup.sh /tmp/linux_build_packages.txt
