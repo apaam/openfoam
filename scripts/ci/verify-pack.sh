@@ -22,7 +22,7 @@ tar -xzf "${tar}" -C "${stage}"
 
 max="$(find "${stage}" -name '*.so*' -type f -print0 \
   | xargs -0 -r objdump -T 2>/dev/null \
-  | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 | cut -d_ -f2)"
+  | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 | cut -d_ -f2 || true)"
 [[ -n "${max}" ]] || { echo "[verify] cannot read GLIBC symbols" >&2; exit 1; }
 echo "[verify] max GLIBC symbol: GLIBC_${max}"
 if [[ "$(printf '%s\n%s\n' "${FLOOR}" "${max}" | sort -V | tail -1)" != "${FLOOR}" ]]; then

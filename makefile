@@ -451,7 +451,7 @@ docker-install-smoke: docker-host-guard
 # The release baseline lives here, not in the workflow: amd64 + Ubuntu 22.04.
 CI_DOCKER_ARCH ?= amd64
 CI_DOCKER_UBUNTU_VERSION ?= 22.04
-CI_BUILD_JOBS ?= 6
+CI_BUILD_JOBS ?= 4
 
 ci-build:
 	@$(MAKE) docker-dist-native \
