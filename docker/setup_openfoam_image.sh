@@ -12,7 +12,9 @@ cd "${ROOT}"
 
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
-openfoam_require_docker || exit 1
+# shellcheck disable=SC1091
+source "${ROOT}/docker/container_backend.sh"
+openfoam_require_container || exit 1
 
 # shellcheck disable=SC1091
 source "${ROOT}/scripts/openfoam_build_paths.sh"
@@ -113,12 +115,12 @@ remove_replaced_image() {
   local old_id="${1:-}"
   local new_id=""
   [[ -n "${old_id}" ]] || return 0
-  new_id="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
+  new_id="$(cb image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
   if [[ -z "${new_id}" || "${old_id}" == "${new_id}" ]]; then
     return 0
   fi
   printf '==> Removing previous %s (%s)\n' "${IMAGE}" "${old_id#"sha256:"}"
-  docker rmi "${old_id}" >/dev/null 2>&1 || true
+  cb rmi "${old_id}" >/dev/null 2>&1 || true
 }
 
 # Verify failed: put IMAGE tag back on the previous id, then drop the bad build.
@@ -128,17 +130,17 @@ restore_previous_image() {
 
   if [[ -n "${prev_id}" && "${prev_id}" != "${failed_id}" ]]; then
     printf '==> Verify failed; restoring %s -> %s\n' "${prev_id#"sha256:"}" "${IMAGE}" >&2
-    docker tag "${prev_id}" "${IMAGE}"
+    cb tag "${prev_id}" "${IMAGE}"
   else
     printf '==> Verify failed; no previous image to restore for %s\n' "${IMAGE}" >&2
   fi
 
   if [[ -n "${failed_id}" && "${failed_id}" != "${prev_id}" ]]; then
     printf '==> Removing failed build (%s)\n' "${failed_id#"sha256:"}" >&2
-    docker rmi "${failed_id}" >/dev/null 2>&1 || true
+    cb rmi "${failed_id}" >/dev/null 2>&1 || true
   elif [[ -z "${prev_id}" ]]; then
     # First build failed: remove the tagged image if present.
-    docker rmi "${IMAGE}" >/dev/null 2>&1 || true
+    cb rmi "${IMAGE}" >/dev/null 2>&1 || true
   fi
 }
 
@@ -158,9 +160,9 @@ UBUNTU_VERSION="${UBUNTU_VERSION}" \
 mkdir -p "${CONTEXT_DIR}"
 cp "${ARCHIVE}" "${CONTEXT_DIR}/phynexis-foam.tar.gz"
 
-PREV_IMAGE_ID="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
+PREV_IMAGE_ID="$(cb image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
 
-DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
+DOCKER_BUILDKIT=1 cb buildx build --platform "${PLATFORM}" \
   --build-context "of-dist=${CONTEXT_DIR}" \
   -f "${DOCKERFILE}" \
   --build-arg "DOCKER_UBUNTU_IMAGE_NAME=${UBUNTU_IMAGE_NAME}" \
@@ -171,7 +173,7 @@ DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
   --load \
   "${ROOT}"
 
-NEW_IMAGE_ID="$(docker image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
+NEW_IMAGE_ID="$(cb image inspect "${IMAGE}" -f '{{.Id}}' 2>/dev/null || true)"
 
 if ! verify; then
   restore_previous_image "${PREV_IMAGE_ID}" "${NEW_IMAGE_ID}"
@@ -183,5 +185,5 @@ remove_replaced_image "${PREV_IMAGE_ID}"
 
 mkdir -p "$(dirname "${IMAGE_TAR}")"
 printf '==> Saving %s -> %s\n' "${IMAGE}" "${IMAGE_TAR}"
-docker save "${IMAGE}" | gzip > "${IMAGE_TAR}"
+cb save "${IMAGE}" | gzip > "${IMAGE_TAR}"
 ls -la "${IMAGE_TAR}"

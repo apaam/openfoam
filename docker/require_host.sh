@@ -17,14 +17,6 @@ EOF
   return 0
 }
 
-openfoam_require_docker() {
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker not found. Install Docker Desktop or Docker Engine first." >&2
-    return 1
-  fi
-  if ! docker info >/dev/null 2>&1; then
-    echo "Docker is installed but not running. Start Docker Desktop (or the daemon) and retry." >&2
-    return 1
-  fi
-  return 0
-}
+# Container CLI selection (docker / podman / apple) lives in the plugin.
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/container_backend.sh"

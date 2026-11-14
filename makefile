@@ -1,6 +1,9 @@
 -include docs/make-config-default.mk
 -include make-config-user.mk
 
+# Container CLI backend: auto | docker | podman | apple
+CONTAINER_BACKEND ?= auto
+
 # Host trees before CONTAINER_BUILD remapping.
 HOST_BUILD_ROOT := $(BUILD_ROOT)
 HOST_INSTALL_PREFIX := $(INSTALL_PREFIX)
@@ -35,6 +38,7 @@ ifeq ($(JOBS),)
 endif
 export NUM_JOBS := $(JOBS)
 export CONTAINER_BUILD
+export CONTAINER_BACKEND := $(CONTAINER_BACKEND)
 export BUILD_ROOT := $(BUILD_ROOT)
 export DOCKER_BUILD_ROOT := $(DOCKER_BUILD_ROOT)
 export OPENFOAM_BUILD := $(OPENFOAM_BUILD)

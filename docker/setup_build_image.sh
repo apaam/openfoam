@@ -11,7 +11,9 @@ cd "${ROOT}"
 
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
-openfoam_require_docker || exit 1
+# shellcheck disable=SC1091
+source "${ROOT}/docker/container_backend.sh"
+openfoam_require_container || exit 1
 
 UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION:-24.04}"
 BUILD_IMAGE_NAME="${DOCKER_BUILD_IMAGE_NAME:-phynexis-build}"
@@ -35,18 +37,18 @@ esac
 TARGETARCH="${PLATFORM#linux/}"
 IMAGE="${BUILD_IMAGE_NAME}:${UBUNTU_VERSION}-${TARGETARCH}"
 
-if ! docker buildx version >/dev/null 2>&1; then
-  echo "[setup_build_image] docker buildx is required" >&2
+if ! cb buildx version >/dev/null 2>&1; then
+  echo "[setup_build_image] container backend lacks buildx (CONTAINER_BACKEND=$(openfoam_container_backend))" >&2
   exit 1
 fi
 
-if [[ "${FORCE:-}" != "1" ]] && docker image inspect "${IMAGE}" >/dev/null 2>&1; then
+if [[ "${FORCE:-}" != "1" ]] && cb image inspect "${IMAGE}" >/dev/null 2>&1; then
   echo "==> ${IMAGE} already exists, skipping (FORCE=1 to rebuild)"
   exit 0
 fi
 
 printf '==> Building %s (%s)\n' "${IMAGE}" "${PLATFORM}"
-DOCKER_BUILDKIT=1 docker buildx build --platform "${PLATFORM}" \
+DOCKER_BUILDKIT=1 cb buildx build --platform "${PLATFORM}" \
   -f docker/Dockerfile.build \
   --build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}" \
   --build-arg "APT_MIRROR=${APT_MIRROR}" \

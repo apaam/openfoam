@@ -12,8 +12,10 @@ cd "${ROOT}"
 
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
+# shellcheck disable=SC1091
+source "${ROOT}/docker/container_backend.sh"
 openfoam_require_docker_host "docker-shell" || exit 1
-openfoam_require_docker || exit 1
+openfoam_require_container || exit 1
 
 # shellcheck disable=SC1091
 source "${ROOT}/scripts/openfoam_build_paths.sh"
@@ -54,7 +56,7 @@ printf '==> Shell in %s (%s); BUILD_ROOT=%s/ (CONTAINER_BUILD=1)\n' \
 printf '    Inside: make openfoam / make dist-native\n'
 printf '    On host: make docker-dist-native / make docker-dist-docker\n'
 
-docker run --rm -it \
+cb run --rm -it \
   --platform "${PLATFORM}" \
   -v "${ROOT}:/src" \
   -w /src \

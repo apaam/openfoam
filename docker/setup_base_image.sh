@@ -11,7 +11,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
-openfoam_require_docker || exit 1
+# shellcheck disable=SC1091
+source "${ROOT}/docker/container_backend.sh"
+openfoam_require_container || exit 1
 
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 DOCKER_UBUNTU_IMAGE_NAME="${DOCKER_UBUNTU_IMAGE_NAME:-phynexis-ubuntu}"
@@ -21,8 +23,8 @@ if ! command -v jq >/dev/null 2>&1; then
     echo "ERROR: jq is required but not installed." >&2
     exit 1
 fi
-if ! docker buildx version >/dev/null 2>&1; then
-    echo "ERROR: docker buildx is required but not available." >&2
+if ! cb buildx version >/dev/null 2>&1; then
+    echo "ERROR: container backend lacks buildx (CONTAINER_BACKEND=$(openfoam_container_backend))." >&2
     exit 1
 fi
 
@@ -38,7 +40,7 @@ PLATFORM="${PLATFORM:-${DEFAULT_PLATFORM}}"
 resolve_digest() {
     local platform="$1"
     local raw digest
-    if ! raw="$(docker buildx imagetools inspect "${SOURCE_IMAGE}" --raw 2>&1)"; then
+    if ! raw="$(cb buildx imagetools inspect "${SOURCE_IMAGE}" --raw 2>&1)"; then
         echo "${raw}" >&2
         return 1
     fi
@@ -60,7 +62,7 @@ pull_and_tag() {
     local suffix="${platform#linux/}"
     local target="${DOCKER_UBUNTU_IMAGE_NAME}:${UBUNTU_VERSION}-${suffix}"
 
-    if [[ "${FORCE:-}" != "1" ]] && docker image inspect "${target}" >/dev/null 2>&1; then
+    if [[ "${FORCE:-}" != "1" ]] && cb image inspect "${target}" >/dev/null 2>&1; then
         echo "==> ${target} already exists, skipping"
         return 0
     fi
@@ -69,14 +71,14 @@ pull_and_tag() {
     for candidate in \
         "ubuntu:${UBUNTU_VERSION}-${suffix}" \
         "ubuntu:${UBUNTU_VERSION}"; do
-        if docker image inspect "${candidate}" >/dev/null 2>&1; then
-            arch="$(docker image inspect "${candidate}" \
+        if cb image inspect "${candidate}" >/dev/null 2>&1; then
+            arch="$(cb image inspect "${candidate}" \
               --format '{{.Architecture}}' 2>/dev/null || true)"
             if [[ -z "${arch}" || "${arch}" == "${suffix}" \
                 || ( "${suffix}" == "arm64" && "${arch}" == "arm64" ) \
                 || ( "${suffix}" == "amd64" && "${arch}" == "amd64" ) ]]; then
                 echo "==> Tagging local ${candidate} as ${target} (no pull)"
-                docker tag "${candidate}" "${target}"
+                cb tag "${candidate}" "${target}"
                 return 0
             fi
         fi
@@ -90,10 +92,10 @@ pull_and_tag() {
     fi
 
     echo "==> Pulling ${SOURCE_IMAGE}@${digest}"
-    docker pull --platform "${platform}" "${SOURCE_IMAGE}@${digest}"
+    cb pull --platform "${platform}" "${SOURCE_IMAGE}@${digest}"
 
     echo "==> Tagging as ${target}"
-    docker tag "${SOURCE_IMAGE}@${digest}" "${target}"
+    cb tag "${SOURCE_IMAGE}@${digest}" "${target}"
 }
 
 if [[ "${PLATFORM}" == "all" ]]; then

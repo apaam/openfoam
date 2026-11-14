@@ -8,8 +8,10 @@ cd "${ROOT}"
 
 # shellcheck disable=SC1091
 source "${ROOT}/docker/require_host.sh"
+# shellcheck disable=SC1091
+source "${ROOT}/docker/container_backend.sh"
 openfoam_require_docker_host "docker-dist" || exit 1
-openfoam_require_docker || exit 1
+openfoam_require_container || exit 1
 
 # shellcheck disable=SC1091
 source "${ROOT}/scripts/openfoam_build_paths.sh"
@@ -50,7 +52,7 @@ mkdir -p "${ROOT}/${BUILD_ROOT}"
 printf '==> Compiling dist-native in %s (%s); BUILD_ROOT=%s/\n' \
   "${IMAGE}" "${PLATFORM}" "${BUILD_ROOT}"
 
-docker run --rm \
+cb run --rm \
   --platform "${PLATFORM}" \
   -v "${ROOT}:/src" \
   -w /src \
