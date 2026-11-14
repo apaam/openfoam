@@ -11,8 +11,8 @@ name: foam-dist-linux-amd64
 # 在同一个构建镜像里跑（make docker-verify-pack / docker-install-smoke），
 # 因此宿主机不需要是 Linux。
 #
-# Secrets: XIAOHE_VPS_SSH_KEY（ts-xiaohe）、CI_GIT_TOKEN（openfoam-source 是
-# submodule，必须）。
+# Secrets: XIAOHE_VPS_SSH_KEY（ts-xiaohe）。openfoam-source 是公开 GitLab 子模块，
+# checkout 用 runner 自动下发的仓库 token 即可。
 on:
   workflow_dispatch:
     inputs:
@@ -44,7 +44,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
-          token: ${{ secrets.CI_GIT_TOKEN }}
 
       - name: Build in the ubuntu 22.04 container
         env:
