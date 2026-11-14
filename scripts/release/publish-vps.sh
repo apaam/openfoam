@@ -44,6 +44,17 @@ PY
 }
 
 SSH_HOST="${OPENFOAM_VPS_SSH:-${XIAOHE_VPS_SSH:-$(cfg vps_ssh ts-xiaohe)}}"
+# CI writes the VPS SSH config outside ~/.ssh (XIAOHE_SSH_HOME); honour it.
+SSH_OPTS=()
+SCP_OPTS=()
+if [[ -n "${XIAOHE_SSH_HOME:-}" && -f "${XIAOHE_SSH_HOME}/config" ]]; then
+  SSH_OPTS+=(-F "${XIAOHE_SSH_HOME}/config")
+  SCP_OPTS+=(-F "${XIAOHE_SSH_HOME}/config")
+fi
+if [[ -n "${XIAOHE_VPS_SSH_PORT:-}" ]]; then
+  SSH_OPTS+=(-p "${XIAOHE_VPS_SSH_PORT}")
+  SCP_OPTS+=(-P "${XIAOHE_VPS_SSH_PORT}")
+fi
 REMOTE_DIR="$(cfg vps_dir /srv/downloads/openfoam)"
 BASEURL="$(cfg vps_baseurl https://download.xiaohe.team/openfoam)"
 
@@ -108,13 +119,13 @@ fi
 
 # --- upload ---------------------------------------------------------------
 info "Uploading → ${SSH_HOST}:${REMOTE_DIR}/${VERSION}/ ..."
-ssh "$SSH_HOST" "sudo mkdir -p '${REMOTE_DIR}/${VERSION}' && sudo chown -R \$(id -un): '${REMOTE_DIR}'"
-scp -q "$PACK" "${SSH_HOST}:/tmp/$(basename "$ASSET")"
-ssh "$SSH_HOST" "sudo mv '/tmp/$(basename "$ASSET")' '${REMOTE_DIR}/${VERSION}/${ASSET}' \
+ssh "${SSH_OPTS[@]}" "$SSH_HOST" "sudo mkdir -p '${REMOTE_DIR}/${VERSION}' && sudo chown -R \$(id -un): '${REMOTE_DIR}'"
+scp "${SCP_OPTS[@]}" -q "$PACK" "${SSH_HOST}:/tmp/$(basename "$ASSET")"
+ssh "${SSH_OPTS[@]}" "$SSH_HOST" "sudo mv '/tmp/$(basename "$ASSET")' '${REMOTE_DIR}/${VERSION}/${ASSET}' \
   && sudo chmod -R a+rX '${REMOTE_DIR}/${VERSION}'"
 if [[ -n "$WHEEL" ]]; then
-    scp -q "$WHEEL" "${SSH_HOST}:/tmp/$(basename "$WHEEL")"
-    ssh "$SSH_HOST" "sudo mv '/tmp/$(basename "$WHEEL")' '${REMOTE_DIR}/${VERSION}/$(basename "$WHEEL")' \
+    scp "${SCP_OPTS[@]}" -q "$WHEEL" "${SSH_HOST}:/tmp/$(basename "$WHEEL")"
+    ssh "${SSH_OPTS[@]}" "$SSH_HOST" "sudo mv '/tmp/$(basename "$WHEEL")' '${REMOTE_DIR}/${VERSION}/$(basename "$WHEEL")' \
       && sudo chmod a+r '${REMOTE_DIR}/${VERSION}/$(basename "$WHEEL")'"
 fi
 
@@ -123,15 +134,15 @@ if [[ -f "$REL/install.sh.in" ]]; then
     TMP_INSTALL="$(mktemp -t of-install.XXXXXX.sh)"
     sed -e "s#@BASEURL@#${BASEURL}#g" -e "s#@VERSION@#${VERSION}#g" "$REL/install.sh.in" > "$TMP_INSTALL"
     chmod +x "$TMP_INSTALL"
-    scp -q "$TMP_INSTALL" "${SSH_HOST}:/tmp/install.sh"
-    ssh "$SSH_HOST" "sudo mv /tmp/install.sh '${REMOTE_DIR}/install.sh' && sudo chmod a+rX '${REMOTE_DIR}/install.sh'"
+    scp "${SCP_OPTS[@]}" -q "$TMP_INSTALL" "${SSH_HOST}:/tmp/install.sh"
+    ssh "${SSH_OPTS[@]}" "$SSH_HOST" "sudo mv /tmp/install.sh '${REMOTE_DIR}/install.sh' && sudo chmod a+rX '${REMOTE_DIR}/install.sh'"
     rm -f "$TMP_INSTALL"
     info "install.sh rendered for ${VERSION}"
 fi
 
 # --- prune (keep newest KEEP_VERSIONS) ------------------------------------
 info "Pruning old version dirs (keep ${KEEP_VERSIONS}) ..."
-ssh "$SSH_HOST" "sudo bash -s -- '${REMOTE_DIR}' '${VERSION}' '${KEEP_VERSIONS}'" <<'REMOTE'
+ssh "${SSH_OPTS[@]}" "$SSH_HOST" "sudo bash -s -- '${REMOTE_DIR}' '${VERSION}' '${KEEP_VERSIONS}'" <<'REMOTE'
 set -euo pipefail
 DIR="$1"; CUR="$2"; KEEP="$3"
 cd "$DIR"
