@@ -61,6 +61,9 @@ export DOCKER_INSTALL_PREFIX := $(DOCKER_INSTALL_PREFIX)
 
 # --- Aliases (xiaohe-agent style: verb first) ------------------------------
 .PHONY: build dist verify smoke deps clean clean-container-build clean-container-install
+.PHONY: ci-check
+# GitHub-hosted compile check (native, no publish); Gitea ci-* owns releases.
+ci-check: all
 build: all
 dist: dist-native
 verify: docker-verify-pack

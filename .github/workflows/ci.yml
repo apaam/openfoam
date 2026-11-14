@@ -42,7 +42,7 @@ jobs:
     if: needs.gate.outputs.run_ci == 'true'
     uses: ./.github/workflows/native-build.yml
     with:
-      make_target: all
+      make_target: ci-check
       upload_dist: false
 
   # Stable check for branch status: green on intentional skip or native success;

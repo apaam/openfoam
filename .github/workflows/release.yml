@@ -1,8 +1,9 @@
 name: Release
 
+# Releases are built and published by Gitea Actions (make ci-* -> dufs).
+# Keep this workflow dispatch-only so a tag push on the GitHub mirror does not
+# start a second, divergent release path.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
