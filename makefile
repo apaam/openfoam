@@ -391,6 +391,24 @@ docker-dist-docker: _docker-compile
 	@$(MAKE) CONTAINER_BUILD=1 _docker-pack-image
 	@$(call _dist-docker-export,$(DOCKER_BUILD_ROOT),1)
 
+# Verify the dist pack inside the build image (glibc floor, ldd, bashrc).
+docker-verify-pack: docker-host-guard
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
+	  GLIBC_FLOOR=$(GLIBC_FLOOR) \
+	  BUILD_ROOT=$(BUILD_ROOT) \
+	  bash docker/verify_pack.sh
+
+# Download a published pack and run the cavity tutorial inside the build image.
+docker-install-smoke: docker-host-guard
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
+	  RELEASE_TAG=$(RELEASE_TAG) \
+	  OPENFOAM_BASEURL=$(OPENFOAM_BASEURL) \
+	  bash docker/install_smoke.sh
+
 docker-push: docker-host-guard
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
 	  printf 'DOCKER_REGISTRY is empty; set it in make-config-user.mk\n' \
