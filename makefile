@@ -408,6 +408,24 @@ docker-dist-docker: _docker-compile
 	@$(MAKE) CONTAINER_BUILD=1 _docker-pack-image
 	@$(call _dist-docker-export,$(DOCKER_BUILD_ROOT),1)
 
+# Stage the container build for the upload job (same runner, ~/.xiaohe/ci-drop).
+ci-drop:
+	@d="$$HOME/.xiaohe/ci-drop/foam-linux-amd64"; \
+	rm -rf "$$d"; mkdir -p "$$d"; \
+	cp "$(DOCKER_BUILD_ROOT)"/dist-native/* "$$d"/; \
+	ls -la "$$d"
+
+# Publish the dropped pack to dufs (glibc gate + prune).
+ci-upload:
+	@d="$$HOME/.xiaohe/ci-drop/foam-linux-amd64"; \
+	[ -d "$$d" ] || { echo "missing drop $$d (need same runner as build)" >&2; exit 1; }; \
+	mkdir -p "$(DOCKER_BUILD_ROOT)"/dist-native; \
+	cp -f "$$d"/* "$(DOCKER_BUILD_ROOT)"/dist-native/; \
+	BUILD_ROOT="$(DOCKER_BUILD_ROOT)" \
+	KEEP_VERSIONS="$(KEEP_VERSIONS)" \
+	OPENFOAM_RELEASE_TAG="$(OPENFOAM_RELEASE_TAG)" \
+	bash "$(CURDIR)/scripts/release/publish-vps.sh"
+
 # Verify the dist pack inside the build image (glibc floor, ldd, bashrc).
 docker-verify-pack: docker-host-guard
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \

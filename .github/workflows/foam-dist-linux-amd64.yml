@@ -78,12 +78,7 @@ jobs:
         run: make ci-verify GLIBC_FLOOR="${GLIBC_FLOOR}"
 
       - name: Drop artifacts for upload
-        run: |
-          set -euo pipefail
-          d="$HOME/.xiaohe/ci-drop/foam-linux-amd64"
-          rm -rf "$d"; mkdir -p "$d"
-          cp docker-build/dist-native/* "$d"/
-          ls -la "$d"
+        run: make ci-drop
 
   upload:
     name: upload
@@ -111,13 +106,7 @@ jobs:
           OPENFOAM_RELEASE_TAG: ${{ inputs.release_tag }}
           KEEP_VERSIONS: "3"
           BUILD_ROOT: docker-build
-        run: |
-          set -euo pipefail
-          d="$HOME/.xiaohe/ci-drop/foam-linux-amd64"
-          [[ -d "$d" ]] || { echo "missing drop $d (need same runner as build)"; exit 1; }
-          mkdir -p docker-build/dist-native
-          cp -f "$d"/* docker-build/dist-native/
-          bash scripts/release/publish-vps.sh
+        run: make ci-upload
 
   install-smoke:
     name: install-smoke
