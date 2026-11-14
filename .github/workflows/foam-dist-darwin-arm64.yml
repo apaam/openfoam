@@ -79,7 +79,7 @@ jobs:
               "artifacts": arts}, indent=2))
           PY
 
-      - name: Verify: install_name + smoke
+      - name: Verify install_name and smoke
         run: |
           set -euo pipefail
           tar=$(ls dist-native/phynexis-foam-*-darwin-arm64.tar.gz | sort -V | tail -1)
