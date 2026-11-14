@@ -423,8 +423,12 @@ ci-upload:
 	@d="$$HOME/.xiaohe/ci-drop/foam-linux-amd64"; \
 	[ -d "$$d" ] || { echo "missing drop $$d (need same runner as build)" >&2; exit 1; }; \
 	mkdir -p "$(DOCKER_BUILD_ROOT)"/dist-native; \
-	cp -f "$$d"/* "$(DOCKER_BUILD_ROOT)"/dist-native/; \
-	BUILD_ROOT="$(DOCKER_BUILD_ROOT)" \
+	cp -f "$$d"/* "$(DOCKER_BUILD_ROOT)"/dist-native/
+	@$(MAKE) docker-verify-pack \
+	  DOCKER_ARCH=$(CI_DOCKER_ARCH) \
+	  DOCKER_UBUNTU_VERSION=$(CI_DOCKER_UBUNTU_VERSION) \
+	  GLIBC_FLOOR=$(GLIBC_FLOOR)
+	@BUILD_ROOT="$(DOCKER_BUILD_ROOT)" \
 	KEEP_VERSIONS="$(KEEP_VERSIONS)" \
 	OPENFOAM_RELEASE_TAG="$(OPENFOAM_RELEASE_TAG)" \
 	bash "$(CURDIR)/scripts/release/publish-vps.sh"

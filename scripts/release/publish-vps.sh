@@ -65,13 +65,19 @@ WHEELS=("$DIST_NATIVE"/phynexis_foam-*.whl)
 PACK="$(ls -1t "${PACKS[@]}" | head -1)"
 WHEEL=""
 [[ ${#WHEELS[@]} -gt 0 ]] && WHEEL="$(ls -1t "${WHEELS[@]}" | head -1)"
-# Asset name follows the platform: the Linux pack keeps the historical
-# "-linux-x86_64" name the phynexis CI pattern-matches on; Darwin uses arm64.
-case "$(uname -s)/$(uname -m)" in
-  Linux/x86_64)          OS_ARCH="linux-x86_64" ;;
-  Darwin/arm64)          OS_ARCH="darwin-arm64" ;;
-  *)                     OS_ARCH="$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" ;;
-esac
+# Asset name follows the PACK, not the host: the upload job may run on macOS
+# while the pack is a Linux build. The Linux pack keeps the historical
+# "-linux-x86_64" name the phynexis CI pattern-matches on.
+if [[ -n "${OPENFOAM_ASSET_OS_ARCH:-}" ]]; then
+  OS_ARCH="${OPENFOAM_ASSET_OS_ARCH}"
+else
+  case "$(basename "$PACK")" in
+    *-linux-amd64.tar.gz | *-linux-x86_64.tar.gz) OS_ARCH=linux-x86_64 ;;
+    *-linux-arm64.tar.gz)                         OS_ARCH=linux-arm64 ;;
+    *-darwin-arm64.tar.gz)                        OS_ARCH=darwin-arm64 ;;
+    *) OS_ARCH="$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" ;;
+  esac
+fi
 ASSET="openfoam-native-2412-${OS_ARCH}.tar.gz"
 info "Pack  : $(basename "$PACK") → ${ASSET}"
 [[ -n "$WHEEL" ]] && info "Wheel : $(basename "$WHEEL")"
@@ -81,8 +87,10 @@ info "Pack  : $(basename "$PACK") → ${ASSET}"
 # a 24.04 build silently ships __isoc23_*@GLIBC_2.38 and breaks every 22.04
 # host (this is what bit the v2412.5 pack).
 GLIBC_FLOOR="${GLIBC_FLOOR:-2.35}"
-if [[ "$(uname -s)" == "Darwin" ]]; then
+if [[ "${OS_ARCH}" == darwin-* ]]; then
   info "Darwin pack: skipping the GLIBC floor check (Mach-O)"
+elif ! objdump -T /bin/true >/dev/null 2>&1; then
+  info "host objdump cannot read ELF; the pack was gated in the build container"
 else
 info "Verifying glibc floor ≤ ${GLIBC_FLOOR} ..."
 STAGE="$(mktemp -d -t of-verify.XXXXXX)"
