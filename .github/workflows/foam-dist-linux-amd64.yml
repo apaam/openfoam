@@ -31,8 +31,6 @@ permissions:
 env:
   GLIBC_FLOOR: "2.35"
   RELEASE_TAG: ${{ inputs.release_tag }}
-  DOCKER_ARCH: amd64
-  DOCKER_UBUNTU_VERSION: "22.04"
 
 jobs:
   build-linux-amd64:
@@ -46,14 +44,7 @@ jobs:
           submodules: recursive
 
       - name: Build in the ubuntu 22.04 container
-        env:
-          BUILD_JOBS: "4"
-        run: |
-          set -euo pipefail
-          make docker-dist-native \
-            DOCKER_ARCH="${DOCKER_ARCH}" \
-            DOCKER_UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION}" \
-            BUILD_JOBS="${BUILD_JOBS}"
+        run: make ci-build
 
       - name: Write build manifest
         run: |
@@ -84,12 +75,7 @@ jobs:
           PY
 
       - name: Verify pack (glibc floor, ldd, bashrc)
-        run: |
-          set -euo pipefail
-          make docker-verify-pack \
-            DOCKER_ARCH="${DOCKER_ARCH}" \
-            DOCKER_UBUNTU_VERSION="${DOCKER_UBUNTU_VERSION}" \
-            GLIBC_FLOOR="${GLIBC_FLOOR}"
+        run: make ci-verify GLIBC_FLOOR="${GLIBC_FLOOR}"
 
       - name: Drop artifacts for upload
         run: |
@@ -145,8 +131,4 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
           OPENFOAM_BASEURL: ${{ secrets.XIAOHE_VPS_PUBLIC_URL || 'https://download.xiaohe.team' }}
-          DOCKER_ARCH: amd64
-          DOCKER_UBUNTU_VERSION: "22.04"
-        run: |
-          set -euo pipefail
-          make docker-install-smoke
+        run: make ci-smoke

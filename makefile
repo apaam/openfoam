@@ -59,6 +59,17 @@ export FORCE := $(FORCE)
 export INSTALL_PREFIX := $(INSTALL_PREFIX)
 export DOCKER_INSTALL_PREFIX := $(DOCKER_INSTALL_PREFIX)
 
+# --- Aliases (xiaohe-agent style: verb first) ------------------------------
+.PHONY: build dist verify smoke deps clean clean-container-build clean-container-install
+build: all
+dist: dist-native
+verify: docker-verify-pack
+smoke: docker-install-smoke
+deps: install-deps
+clean: clean-all
+clean-container-build: clean-docker-build
+clean-container-install: clean-docker-install
+
 .DEFAULT_GOAL := help
 
 DOCKER_HOST_ARCH := $(shell uname -m)
@@ -189,6 +200,12 @@ help:
 	@echo "Install:"
 	@echo "  make install                 build -> $(HOST_INSTALL_PREFIX)/ (no pack/wheel)"
 	@echo "  make all-install             all + install"
+	@echo ""
+	@echo "CI / release (baseline lives in the makefile: amd64 + Ubuntu 22.04):"
+	@echo "  make ci-build                container dist-native (release baseline)"
+	@echo "  make ci-verify               glibc floor / ldd / bashrc gate"
+	@echo "  make ci-smoke                download published pack, run cavity"
+	@echo "  aliases: build=all  dist=dist-native  verify/smoke=container variants"
 	@echo ""
 	@echo "Dist:"
 	@echo "  make dist-native             bundled tar + whl -> $(DIST_NATIVE_DIR)/"
@@ -408,6 +425,30 @@ docker-install-smoke: docker-host-guard
 	  RELEASE_TAG=$(RELEASE_TAG) \
 	  OPENFOAM_BASEURL=$(OPENFOAM_BASEURL) \
 	  bash docker/install-smoke.sh
+
+# --- CI / release baseline -------------------------------------------------
+# The release baseline lives here, not in the workflow: amd64 + Ubuntu 22.04.
+CI_DOCKER_ARCH ?= amd64
+CI_DOCKER_UBUNTU_VERSION ?= 22.04
+CI_BUILD_JOBS ?= 4
+
+ci-build:
+	@$(MAKE) docker-dist-native \
+	  DOCKER_ARCH=$(CI_DOCKER_ARCH) \
+	  DOCKER_UBUNTU_VERSION=$(CI_DOCKER_UBUNTU_VERSION) \
+	  BUILD_JOBS=$(CI_BUILD_JOBS)
+
+ci-verify:
+	@$(MAKE) docker-verify-pack \
+	  DOCKER_ARCH=$(CI_DOCKER_ARCH) \
+	  DOCKER_UBUNTU_VERSION=$(CI_DOCKER_UBUNTU_VERSION) \
+	  GLIBC_FLOOR=$(GLIBC_FLOOR)
+
+ci-smoke:
+	@RELEASE_TAG=$(RELEASE_TAG) OPENFOAM_BASEURL=$(OPENFOAM_BASEURL) \
+	  $(MAKE) docker-install-smoke \
+	  DOCKER_ARCH=$(CI_DOCKER_ARCH) \
+	  DOCKER_UBUNTU_VERSION=$(CI_DOCKER_UBUNTU_VERSION)
 
 docker-push: docker-host-guard
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
