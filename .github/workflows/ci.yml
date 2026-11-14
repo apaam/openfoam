@@ -1,8 +1,8 @@
 name: CI
 
+# GitHub-hosted check. No push trigger: Gitea runs this same file on every
+# push and has no ubuntu-latest runner, which leaves a queued run forever.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
