@@ -24,6 +24,14 @@ on:
         description: Version directory on dufs (e.g. v2412.6).
         type: string
         default: v2412.6
+      verify_only:
+        description: Skip the build; verify the cached docker-build tree.
+        type: boolean
+        default: false
+      smoke_only:
+        description: Skip build and upload; only re-run install-smoke.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,7 +43,7 @@ env:
 jobs:
   build-linux-amd64:
     name: build-linux-amd64
-    if: inputs.upload_only != true && inputs.upload_only != 'true'
+    if: inputs.upload_only != true && inputs.upload_only != 'true' && inputs.smoke_only != true && inputs.smoke_only != 'true'
     runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_LINUX || '"ci-container"') }}
     timeout-minutes: 300
     steps:
@@ -46,8 +54,30 @@ jobs:
       - name: Preflight (image contract)
         run: make ci-preflight
 
+      - name: Restore build cache
+        run: |
+          set -euo pipefail
+          src="$HOME/.xiaohe/ci-cache/openfoam-${{ inputs.release_tag }}"
+          if [[ -d "$src" ]]; then
+            mkdir -p docker-build
+            rsync -a "$src/" docker-build/
+            echo "restored $(du -sh docker-build | cut -f1)"
+          else
+            echo "no build cache at $src"
+          fi
+
       - name: Build in the ubuntu 22.04 container
+        if: inputs.verify_only != true && inputs.verify_only != 'true'
         run: make ci-build
+
+      - name: Save build cache
+        if: inputs.verify_only != true && inputs.verify_only != 'true'
+        run: |
+          set -euo pipefail
+          dst="$HOME/.xiaohe/ci-cache/openfoam-${{ inputs.release_tag }}"
+          mkdir -p "$dst"
+          rsync -a --delete docker-build/ "$dst/"
+          echo "cached $(du -sh "$dst" | cut -f1)"
 
       - name: Write build manifest
         run: |
@@ -86,7 +116,7 @@ jobs:
   upload:
     name: upload
     needs: build-linux-amd64
-    if: always() && (inputs.upload_only == true || inputs.upload_only == 'true' || needs.build-linux-amd64.result == 'success')
+    if: always() && (inputs.upload_only == true || inputs.upload_only == 'true' || needs.build-linux-amd64.result == 'success') && inputs.smoke_only != true && inputs.smoke_only != 'true'
     runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_LINUX || '"ci-container"') }}
     timeout-minutes: 60
     steps:
@@ -114,6 +144,7 @@ jobs:
   install-smoke:
     name: install-smoke
     needs: upload
+    if: always() && (inputs.smoke_only == true || inputs.smoke_only == 'true' || needs.upload.result == 'success')
     runs-on: ${{ fromJSON(vars.FOAM_CI_RUNNER_LINUX || '"ci-container"') }}
     timeout-minutes: 30
     steps:
