@@ -434,7 +434,7 @@ ci-upload:
 	bash "$(CURDIR)/scripts/release/publish-vps.sh"
 
 # Verify the dist pack inside the build image (glibc floor, ldd, bashrc).
-docker-verify-pack: docker-host-guard
+docker-verify-pack: docker-host-guard docker-setup-build
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
@@ -443,7 +443,7 @@ docker-verify-pack: docker-host-guard
 	  bash docker/verify-pack.sh
 
 # Download a published pack and run the cavity tutorial inside the build image.
-docker-install-smoke: docker-host-guard
+docker-install-smoke: docker-host-guard docker-setup-build
 	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
 	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
 	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
