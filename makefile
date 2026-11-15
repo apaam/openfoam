@@ -457,6 +457,13 @@ CI_DOCKER_ARCH ?= amd64
 CI_DOCKER_UBUNTU_VERSION ?= 22.04
 CI_BUILD_JOBS ?= 4
 
+# Environment contract check inside the build image (fail in seconds).
+ci-preflight: docker-host-guard
+	@DOCKER_PLATFORM=$(DOCKER_PLATFORM) \
+	  DOCKER_UBUNTU_VERSION=$(DOCKER_UBUNTU_VERSION) \
+	  DOCKER_BUILD_IMAGE_NAME=$(DOCKER_BUILD_IMAGE_NAME) \
+	  bash docker/preflight.sh
+
 ci-build:
 	@$(MAKE) docker-dist-native \
 	  DOCKER_ARCH=$(CI_DOCKER_ARCH) \

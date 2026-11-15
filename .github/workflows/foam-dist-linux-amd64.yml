@@ -43,6 +43,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Preflight (image contract)
+        run: make ci-preflight
+
       - name: Build in the ubuntu 22.04 container
         run: make ci-build
 
