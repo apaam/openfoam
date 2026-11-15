@@ -15,9 +15,31 @@ cd "${work}"
 echo "[smoke] fetch ${url}"
 python3 - "${url}" <<'PY'
 import sys
+import time
 import urllib.request
 
-urllib.request.urlretrieve(sys.argv[1], "pack.tar.gz")
+url = sys.argv[1]
+last = None
+for attempt in range(1, 6):
+    try:
+        with urllib.request.urlopen(url, timeout=120) as resp, open("pack.tar.gz", "wb") as out:
+            expected = int(resp.headers.get("Content-Length") or 0)
+            got = 0
+            while True:
+                chunk = resp.read(1 << 20)
+                if not chunk:
+                    break
+                out.write(chunk)
+                got += len(chunk)
+        if expected and got != expected:
+            raise OSError(f"short read {got}/{expected}")
+        break
+    except Exception as exc:  # network flake: retry with a fresh connection
+        last = exc
+        print(f"[smoke] download attempt {attempt} failed: {exc}", file=sys.stderr)
+        time.sleep(5)
+else:
+    raise SystemExit(f"download failed after retries: {last}")
 PY
 
 mkdir -p opt
