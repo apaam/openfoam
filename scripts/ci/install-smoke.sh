@@ -26,8 +26,9 @@ src="${work}/opt"
 [[ -f "${src}/etc/bashrc" ]] || src="${work}/opt/openfoam"
 [[ -f "${src}/etc/bashrc" ]] || { echo "[smoke] pack lacks etc/bashrc" >&2; exit 1; }
 
-bash -c "set -e
-  source '${src}/etc/bashrc' >/dev/null
+bash -c "set +e
+  source '${src}/etc/bashrc' >/dev/null 2>&1
+  set -e
   cp -r \"\$FOAM_TUTORIALS/incompressible/icoFoam/cavity/cavity\" .
   cd cavity
   blockMesh >/dev/null
